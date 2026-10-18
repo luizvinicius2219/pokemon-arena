@@ -1,1 +1,27 @@
-*{box-sizing:border-box}body{margin:0;background:#08181c;color:#e9f6f8;font-family:Inter,system-ui,sans-serif}header{padding:22px 5%;display:flex;align-items:center;gap:20px;border-bottom:1px solid #25494d}h1{font-size:25px;letter-spacing:2px;margin:0}h1 span{color:#61defb}header p{color:#99b5bb;flex:1}button{background:#20444d;color:#fff;border:1px solid #417681;border-radius:10px;padding:12px 17px;cursor:pointer}button:hover{background:#316170}main{display:flex;gap:20px;padding:24px 4%;align-items:flex-start}#game{flex:1;min-width:0;border:2px solid #396d74;border-radius:14px;overflow:hidden}#game canvas{display:block;width:100%}aside{width:245px;color:#bfd2d5;line-height:1.8}aside h2{color:white}#modal{position:fixed;inset:0;background:#000b;display:grid;place-items:center;z-index:10}#modal.hidden{display:none}#modal section{background:#11282e;border:1px solid #48808b;border-radius:18px;padding:26px;width:min(450px,94vw)}#bindings{display:grid;gap:8px;margin:20px 0}#error{min-height:22px;color:#ffb986}@media(max-width:850px){main{flex-direction:column}aside{width:auto}header{flex-wrap:wrap}}
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#ecf5f5;background:#08181c}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#16343d,#08181c 68%);color:#e9f6f8}
+header{padding:20px 4%;display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid #25494d;background:#0a1f24b8}
+h1{font-size:25px;letter-spacing:2px;margin:0}h1 span{color:#61defb}header p{margin:5px 0 0;color:#99b5bb;font-size:13px}
+button{background:#20444d;color:#fff;border:1px solid #417681;border-radius:10px;padding:12px 17px;cursor:pointer;font:inherit}button:hover{background:#316170}
+main{display:flex;gap:22px;padding:23px 3%;align-items:flex-start;max-width:1530px;margin:0 auto}
+.arena-column{min-width:0;flex:1}#game{border:2px solid #396d74;border-radius:14px;overflow:hidden;box-shadow:0 20px 65px #0005}#game canvas{display:block;width:100%}
+aside{width:260px;color:#bfd2d5;line-height:1.55;padding:1px 4px}aside h2{margin:0 0 19px;color:white;font-size:22px}aside h3{margin:25px 0 10px;color:#d5e6e6}
+aside p{margin:12px 0}.skill-help{font-size:13px;margin:8px 0}.skill-help small{float:right;color:#9abcc0}
+.help-footnote{font-size:13px;color:#86acb0;border-top:1px solid #325156;padding-top:15px}
+.hud{display:flex;gap:9px;justify-content:center;align-items:stretch;margin:13px 0 8px}
+.skill-card{min-width:0;flex:1;max-width:155px;min-height:100px;position:relative;overflow:hidden;border:1px solid #35616c;border-radius:10px;background:linear-gradient(155deg,#204450,#10282f);text-align:center;padding:10px 6px;display:flex;align-items:center;flex-direction:column;gap:3px;box-shadow:inset 0 1px #72999e33}
+.skill-card.ultimate{border-color:#a57944;background:linear-gradient(145deg,#4c3530,#18272d)}
+.skill-card .skill-key{position:absolute;left:8px;top:7px;font-size:11px;font-weight:800;color:#fff1d1;background:#0009;border:1px solid #fff3;border-radius:4px;padding:2px 6px;z-index:2}
+.skill-icon{font-size:25px;line-height:1.2;z-index:2}.skill-name{font-size:12px;font-weight:700;z-index:2;white-space:nowrap}
+.skill-timer{font-size:10px;color:#a0e2b9;font-weight:800;letter-spacing:0.5px;margin-top:auto;z-index:2}
+.skill-shade{height:0;position:absolute;bottom:0;left:0;right:0;background:#071016cf;pointer-events:none;z-index:1;transition:height 70ms linear}
+.skill-card.cooling .skill-timer{color:#ffdf8f}
+.arena-hint{text-align:center;color:#7ea7ab;font-size:12px;margin:10px 0 0}
+#modal{position:fixed;inset:0;background:#000c;display:grid;place-items:center;z-index:30;padding:14px}#modal.hidden{display:none}
+#modal section{background:#11282e;border:1px solid #48808b;border-radius:18px;padding:26px;width:min(460px,96vw);box-shadow:0 18px 70px #0007}
+#modal h2{margin:0 0 12px}#modal p{color:#b7d0d1;font-size:14px}
+#bindings{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:20px 0}
+#bindings button{font-size:13px;min-height:52px}#error{min-height:22px;color:#ffb986!important}
+.modal-actions{display:flex;justify-content:space-between;gap:10px}
+@media(max-width:1000px){main{flex-direction:column}aside{width:100%;display:grid;grid-template-columns:1fr 1fr;column-gap:18px}aside h2,aside h3,aside .help-footnote{grid-column:1/-1}}
+@media(max-width:590px){header{flex-wrap:wrap}main{padding:12px 2%}.hud{gap:4px}.skill-card{min-height:88px;padding:10px 2px 5px}.skill-name{font-size:9px;white-space:normal}.skill-icon{font-size:22px}.skill-key{font-size:9px!important;left:3px!important;top:3px!important}aside{display:block}.arena-hint{font-size:11px}}
