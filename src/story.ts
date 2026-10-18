@@ -85,11 +85,17 @@ export function preloadPewter(scene:Phaser.Scene) {
   for(const name of ['rock','rock-cracked','pillar','pillar-cracked']){
     scene.load.svg('pewter-'+name,root+name+'.svg',{width:64,height:64});
   }
-  // Original game sprites bundled locally: no remote runtime fetch or
-  // fallback to the earlier vector-drawn trainer caricatures.
+  // Exploration overworld sheets are from FireRed/LeafGreen. They are 16x32
+  // tiles showing front, rear and walk frames, as in a real Pokemon gym.
   for(const name of ['brock','red','hiker','camper']){
+    scene.load.spritesheet('pewter-'+name+'-overworld',
+      root+name+'-overworld.png',{frameWidth:16,frameHeight:32});
+  }
+  // Full-size battle portraits are shown only on the pre-battle VS card.
+  for(const name of ['brock','red']){
     scene.load.image('pewter-'+name+'-game',root+name+'-game.png');
   }
+  scene.load.image('pewter-pokeball',root+'pokeball.png');
 }
 
 interface RockState extends BreakableObstacle {
@@ -105,31 +111,32 @@ export class StoryEnvironment {
     scene.add.image(480,288,'pewter-floor').setDepth(-20).setOrigin(0.5);
     for(const npc of stage.npc){
       const leader=npc.role==='leader';
-      const texture=leader?'pewter-brock-game':
+      const texture=leader?'pewter-brock-overworld':
         npc.id==='guide-west'||npc.id==='spectator-west'
-          ?'pewter-hiker-game':'pewter-camper-game';
-      // The native 80px NDS / 64px GBA sprites retain their pixel shading
-      // and outlines when scaled without smoothing on the Phaser canvas.
-      const width=leader?116:83,height=leader?116:83;
-      scene.add.ellipse(npc.x,npc.y+21,leader?68:47,12,0x1b2a2c,0.47).setDepth(1);
-      scene.add.image(npc.x,npc.y-(leader?9:16),texture)
-        .setDisplaySize(width,height).setDepth(2).setOrigin(0.5);
+          ?'pewter-hiker-overworld':'pewter-camper-overworld';
+      // Native GBA overworld perspective with crisp, unsmoothed pixels:
+      // only 1 GameObject per trainer (no perpetual tween or procedural art).
+      const size=leader?3.25:2.95;
+      scene.add.ellipse(npc.x,npc.y+18,leader?39:32,10,0x132831,0.34).setDepth(1);
+      scene.add.image(npc.x,npc.y-15,texture,0)
+        .setDisplaySize(16*size,32*size).setDepth(2).setOrigin(0.5);
     }
     const leader=stage.npc.find(npc=>npc.role==='leader');
     if(leader){
-      scene.add.text(leader.x,leader.y-55,leader.name,{
-        fontSize:'13px',fontStyle:'bold',color:'#ffe2a6',
+      scene.add.text(leader.x,leader.y-53,leader.name,{
+        fontSize:'12px',fontStyle:'bold',color:'#ffe2a6',
         stroke:'#20303a',strokeThickness:4
       }).setOrigin(0.5).setDepth(10);
     }
 
     if(stage.hero){
       const hero=stage.hero;
-      const texture='pewter-red-game';
-      scene.add.ellipse(hero.x,hero.y+18,44,12,0x182d35,0.5).setDepth(1);
-      scene.add.image(hero.x,hero.y-13,texture)
-        .setDisplaySize(105,105).setOrigin(0.5).setDepth(2);
-      scene.add.text(hero.x,hero.y+32,hero.name,{
+      scene.add.ellipse(hero.x,hero.y+18,36,10,0x182d35,0.45).setDepth(1);
+      // Frame 3 is the rear-facing Red from FireRed/LeafGreen: he watches
+      // Charizard fight from the bottom of the court, like the game.
+      scene.add.image(hero.x,hero.y-18,'pewter-red-overworld',3)
+        .setDisplaySize(55,110).setOrigin(0.5).setDepth(2);
+      scene.add.text(hero.x,hero.y+31,hero.name,{
         fontSize:'12px',fontStyle:'bold',color:'#fff0d2',
         stroke:'#21343c',strokeThickness:3
       }).setOrigin(0.5).setDepth(10);
@@ -145,29 +152,50 @@ export class StoryEnvironment {
   }
 
   private showStageIntroduction(){
-    // One inexpensive introductory panel, then the scene remains entirely
-    // static. The battle continues underneath; no mandatory cutscene or pause.
-    const panel=this.scene.add.container(230,517).setDepth(16).setAlpha(0);
-    const plate=this.scene.add.rectangle(0,0,395,59,0x102632,0.91)
-      .setStrokeStyle(2,0xbda274);
-    const title=this.scene.add.text(-178,-23,
-      'GINÁSIO DE PEWTER  ·  BROCK',{
-        fontSize:'14px',fontStyle:'bold',color:'#ffe4ae'
-      });
-    const quote=this.scene.add.text(-178,-3,
-      'A força da rocha está na resistência!',{
-        fontSize:'13px',color:'#f1f5e9'
-      });
-    const hint=this.scene.add.text(-178,15,
-      'GEODUDE → ONIX  ·  INSÍGNIA EM BREVE',{
-        fontSize:'11px',color:'#a9c4c8'
-      });
-    panel.add([plate,title,quote,hint]);
-    this.scene.tweens.add({targets:panel,alpha:1,duration:230,ease:'Quad.easeOut'});
-    this.scene.time.delayedCall(2550,()=>{
-      if(!panel.active)return;
-      this.scene.tweens.add({targets:panel,alpha:0,duration:370,
-        onComplete:()=>panel.destroy()});
+    // Retro VS card uses the large original game character portraits. They
+    // never appear as standing characters inside the overworld gym.
+    // This runs once, never animates the floor, and lasts about 3.1 seconds.
+    const scene=this.scene;
+    const overlay=scene.add.container(480,288).setDepth(40).setAlpha(0);
+    const darkness=scene.add.rectangle(0,0,960,576,0x0a1620,0.94);
+    const left=scene.add.rectangle(-233,-10,404,400,0x1e3540,1)
+      .setStrokeStyle(5,0x9ed4c9);
+    const right=scene.add.rectangle(233,-10,404,400,0x302b30,1)
+      .setStrokeStyle(5,0xe8b77b);
+    const line=scene.add.rectangle(0,-10,4,412,0xdcc18e,0.87);
+    const title=scene.add.text(0,-252,'DESAFIO DO GINÁSIO DE PEWTER',{
+      fontSize:'25px',fontStyle:'bold',color:'#ffe3ae',
+      stroke:'#17262c',strokeThickness:5
+    }).setOrigin(0.5);
+    const red=scene.add.image(-234,-29,'pewter-red-game').setDisplaySize(181,181);
+    const brock=scene.add.image(234,-29,'pewter-brock-game').setDisplaySize(194,194);
+    const names=[
+      scene.add.text(-233,88,'RED',{
+        fontSize:'30px',fontStyle:'bold',color:'#c5f9ff',
+        stroke:'#10232f',strokeThickness:5
+      }).setOrigin(0.5),
+      scene.add.text(233,88,'BROCK',{
+        fontSize:'30px',fontStyle:'bold',color:'#ffe0a3',
+        stroke:'#2d2120',strokeThickness:5
+      }).setOrigin(0.5),
+      scene.add.text(0,-15,'VS',{
+        fontSize:'46px',fontStyle:'bold',color:'#fff1c5',
+        stroke:'#1a2833',strokeThickness:8
+      }).setOrigin(0.5),
+      scene.add.text(0,225,'CHARIZARD   ×   GEODUDE  /  ONIX',{
+        fontSize:'21px',fontStyle:'bold',color:'#fce2b1',
+        stroke:'#172a35',strokeThickness:5
+      }).setOrigin(0.5),
+      scene.add.text(0,256,'2 POKÉMON · A FORÇA DA ROCHA ESTÁ NA RESISTÊNCIA',{
+        fontSize:'13px',color:'#d4e1d8'
+      }).setOrigin(0.5)
+    ];
+    overlay.add([darkness,left,right,line,red,brock,title,...names]);
+    scene.tweens.add({targets:overlay,alpha:1,duration:220});
+    scene.time.delayedCall(2540,()=>{
+      if(!overlay.active)return;
+      scene.tweens.add({targets:overlay,alpha:0,duration:570,
+        onComplete:()=>overlay.destroy()});
     });
   }
 

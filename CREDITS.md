@@ -62,3 +62,8 @@ Esta atualização usa arquivos PNG locais de sprites **extraídos de jogos exis
 - Treinador Montanhista e Campista — sprites da **Geração III**: [origem](https://github.com/Seidi460/Sprites-Pokemon-Trainers/tree/main/Trainer_Sprites_All).
 
 Os PNGs originais foram incluídos no repositório para evitar falhas de rede. Essas artes seguem pertencendo aos titulares de Pokémon e são usadas apenas neste fan game **não comercial**, sem licença comercial presumida. Nenhum arquivo de fonte ou sprite modificado está sendo atribuído a esses repositórios.
+
+
+## Sprites de exploração dentro do ginásio (FireRed/LeafGreen)
+
+Os treinadores do chão do ginásio agora usam os **sprites de exploração originais de Pokémon FireRed/LeafGreen** (16×32 pixels), extraídos da descompilação comunitária [pret/pokefirered](https://github.com/pret/pokefirered/tree/master/graphics/object_events/pics/people): `brock.png`, `red_normal.png`, `hiker.png` e `camper.png`. Os sprites maiores de batalhas anteriores ficam restritos à tela de apresentação do confronto. O ícone de Pokébola local vem de [PokeAPI/sprites](https://github.com/PokeAPI/sprites/blob/master/sprites/items/poke-ball.png). Artes pertencem aos titulares de Pokémon; este fan game permanece experimental e não comercial.

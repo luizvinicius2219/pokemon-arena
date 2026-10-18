@@ -209,3 +209,8 @@ O cenário Pewter carrega os sprites pixelados clássicos diretamente de PNGs lo
 Os nomes inventados da primeira prévia foram substituídos por golpes que existem nos jogos (representados com física de combate em tempo real): **Geodude — Pedrada (Rock Throw), Rolagem (Rollout), Tumba de Rochas (Rock Tomb), Magnitude**; **Onix — Deslizamento de Rochas (Rock Slide), Constrição (Bind), Tumba de Rochas (Rock Tomb), Terremoto (Earthquake)**.
 
 Rolagem executa 3 investidas crescentes; Rock Slide lança 3 fragmentos em leque; Constrição aplica lentidão com três pulsos de dano após conectar; Tumba de Rochas aplica lentidão temporária se acertar; Magnitude varia a intensidade; Terremoto expande em 2 ondas. Todas as áreas avisam no chão antes de atingir, respeitam esquiva e são renderizadas num único `Graphics` com orçamento limitado. O motor `RockMoves` permanece independente do lado de batalha e pronto para a futura seleção de Pokémon.
+
+
+### Pewter: sprites de exploração de verdade e apresentação VS
+
+Sprites grandes de treinador deixaram de ocupar o piso: Brock, Red, montanhistas e campistas são renderizados com **spritesheet de exploração de FireRed/LeafGreen**, em perspectiva top-down, com arte GBA e interpolação pixelada, sem novos desenhos vetoriais. O Red aparece de costas na plataforma sul. Os retratos maiores (Black 2/White 2 e FireRed/LeafGreen) agora aparecem apenas na introdução **VS Red x Brock**, com início de combate após a apresentação, não durante.
