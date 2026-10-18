@@ -192,3 +192,8 @@ O Ginásio de Pewter agora exibe o líder Brock com sprite clássico mais fiel �
 - O arquivo `src/pokemonCatalog.ts` registra todas as espécies, HP, raio de colisão, velocidade, tipos, habilidade, sprite e status de utilização futura. `src/rockMoves.ts` expõe as habilidades de rocha com parâmetro `side` (jogador ou inimigo), preparado para a futura tela de seleção e controle de criaturas diferentes.
 - Por ora Charizard continua como Pokémon jogável e a luta continua sendo prévia: **a insígnia de Pedra ainda não é concedida**. Multiplicadores por fraqueza/resistência e evolução vêm depois.
 - Arena Livre/Pikachu mantém a mecânica e os controles anteriores.
+
+
+### Refinamento dos treinadores e do mobile
+
+Os sprites clássicos originais de Brock e Red agora recebem espaço visual maior, com posicionamento mais fiel a um palco de ginásio. Os SVGs locais de reserva foram ajustados em cores e figurino. O cabeçalho da sequência de combate foi deslocado para não cobrir o rosto do Brock. O carregamento das animações de Geodude e Onix evita o sprite de esquiva que não é utilizado por esses adversários, economizando rede e memória durante o modo história.

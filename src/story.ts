@@ -51,7 +51,7 @@ export const pewterGym: StoryStage = {
   preview: true,
   spawnPlayer: {x:480,y:455},
   spawnRival: {x:480,y:185},
-  hero: {id:'red',name:'RED',role:'player',x:480,y:534,palette:0xb32f32},
+  hero: {id:'red',name:'RED',role:'player',x:480,y:527,palette:0xb32f32},
   npc: [
     {id:'brock',name:'BROCK',role:'leader',x:480,y:94,palette:0x796455,
       dialogue:'A força da rocha está na resistência!'},
@@ -109,7 +109,7 @@ export class StoryEnvironment {
         npc.id==='guide-west'||npc.id==='spectator-west'?'pewter-trainer-a':'pewter-trainer-b';
       const texture=leader&&scene.textures.exists('pewter-brock-classic')
         ?'pewter-brock-classic':fallback;
-      const width=leader?96:43,height=leader?96:57;
+      const width=leader?118:43,height=leader?118:57;
       const image=scene.add.image(npc.x,npc.y-(leader?10:13),texture)
         .setDisplaySize(width,height).setDepth(2).setOrigin(0.5);
       // Retro portraits are supplied on a square transparent canvas; fallback
@@ -128,10 +128,10 @@ export class StoryEnvironment {
       const hero=stage.hero;
       const texture=scene.textures.exists('pewter-red-classic')
         ?'pewter-red-classic':'pewter-red';
-      scene.add.ellipse(hero.x,hero.y+18,37,11,0x182d35,0.5).setDepth(1);
-      const player=scene.add.image(hero.x,hero.y-8,texture)
-        .setDisplaySize(88,88).setOrigin(0.5).setDepth(2);
-      if(texture==='pewter-red')player.setDisplaySize(52,72);
+      scene.add.ellipse(hero.x,hero.y+18,44,12,0x182d35,0.5).setDepth(1);
+      const player=scene.add.image(hero.x,hero.y-13,texture)
+        .setDisplaySize(109,109).setOrigin(0.5).setDepth(2);
+      if(texture==='pewter-red')player.setDisplaySize(55,76);
       scene.add.text(hero.x,hero.y+32,hero.name,{
         fontSize:'12px',fontStyle:'bold',color:'#fff0d2',
         stroke:'#21343c',strokeThickness:3

@@ -200,7 +200,7 @@ export class ArenaScene extends Phaser.Scene {
     this.hpText = this.add.text(32,24,'Charizard: 100 HP',{fontSize:'20px',color:'#a5eeff'}).setDepth(10);
     this.enemyHpText = this.add.text(740,24,'',{fontSize:'20px',color:'#ffcd9e'}).setDepth(10);
     if(this.mode==='story'){
-      this.storyWaveText=this.add.text(480,49,'',{
+      this.storyWaveText=this.add.text(716,58,'',{
         fontSize:'16px',fontStyle:'bold',color:'#fff0c8',
         stroke:'#192c38',strokeThickness:4
       }).setOrigin(0.5).setDepth(12);
@@ -580,10 +580,8 @@ export class ArenaScene extends Phaser.Scene {
     this.faceDirection('enemy',dir);
     const motion=skill==='q'?'Shoot':skill==='w'?'Attack':'Charge';
     this.enemyMotion?.trigger(motion,time,dir);
-    if(skill==='e'||skill==='r'){
-      this.cinematic.charge('enemy','rock',skill==='r'?2.5:1.5,time,
-        skill==='r'?640:560);
-    }
+    // RockMoves owns the charge cue so each spell produces one coherent
+    // wind-up, regardless of which side casts it.
     this.rockMoves.cast(species,skill,'enemy',time,{
       projectile:(x,y,direction,speed,radius,kind,side,damage,lifetime,now)=>
         this.projectile(x,y,direction,speed,radius,kind,side,damage,lifetime,now),

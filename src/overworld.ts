@@ -120,7 +120,10 @@ function directionRow(x: number, y: number): number {
 
 export function preloadOverworld(scene: Phaser.Scene, roster: readonly Creature[] = ['charizard','pikachu']) {
   for (const creature of roster) {
+    // Only active player creatures need Hop sheets; the two gym opponents
+    // never dash. Avoid downloading very tall Onix Hop frames on mobile.
     for (const motion of motions) {
+      if((creature==='geodude'||creature==='onix')&&motion==='Hop')continue;
       const info = registry[creature][motion];
       scene.load.spritesheet(key(creature, motion), base + ids[creature] + '/' + motion + '-Anim.png', {
         frameWidth: info.width,
