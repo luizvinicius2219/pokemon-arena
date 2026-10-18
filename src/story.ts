@@ -103,7 +103,7 @@ export class StoryEnvironment {
         npc.id==='guide-west'||npc.id==='spectator-west'?'pewter-trainer-a':'pewter-trainer-b';
       const scale=npc.role==='leader'?1.13:0.9;
       scene.add.image(npc.x,npc.y-13,texture).setDisplaySize(48*scale,58*scale)
-        .setDepth(2).setOrigin(0.5).setRoundPixels(true);
+        .setDepth(2).setOrigin(0.5);
     }
     for(const data of stage.obstacles){
       const texture=data.kind==='pillar'?'pewter-pillar':'pewter-rock';
