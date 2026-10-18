@@ -224,3 +224,8 @@ Cada impacto sísmico faz surgir uma malha ramificada de rachaduras escuras com 
 ### Troca de Pokémon com Pokébola — ritmo de batalha
 
 Geodude agora é recolhido com feixe vermelho, brilho de captura e movimento da Pokébola até Brock. O líder anuncia Onix, lança a nova Pokébola e o Pokémon surge numa segunda luz vermelha com abertura mais lenta. Durante a troca, o combate é temporariamente pausado (sem teleporte instantâneo, sem dano acidental no Pokémon que entra). O efeito está encapsulado em `src/pokemonSwitchFx.ts`, independente da espécie, pronto para futuras equipes e modo seleção. A introdução VS também pausa os comandos até o início real da luta.
+
+
+### Cadência de batalha e correções de animação
+
+O tempo do ranking agora desconta os segundos em que o jogo bloqueia combate para mostrar a introdução VS ou trocar Pokémon. A primeira imagem da animação PMD é selecionada explicitamente, evitando mostrar a spritesheet inteira durante a luz vermelha de saída da Pokébola. Magnitude pode atingir nível 10; a segunda onda do Terremoto de Onix alcança uma área maior, permitindo desviar pelo dash cronometrado. Nenhum dano ocorre enquanto a troca ou a abertura estão em andamento.

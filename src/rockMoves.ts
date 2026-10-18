@@ -294,8 +294,8 @@ export class RockMoves {
 
     if(skill==='r'&&species==='geodude'){
       // Magnitude: a canonical variable-strength Ground move.
-      const level=4+Phaser.Math.Between(0,5);
-      const radius=125+(level-4)*12;
+      const level=4+Phaser.Math.Between(0,6);
+      const radius=129+(level-4)*17;
       const damage=attack.damage+(level-4)*3;
       const delay=920;
       hooks.signal('MAGNITUDE '+level+'!');
@@ -313,8 +313,8 @@ export class RockMoves {
       // Earthquake: two expanding seismic waves, each with a readable windup.
       hooks.signal('TERREMOTO');
       hooks.charge(2.7,860);
-      const ranges=[{radius:128,delay:890,damage:10},
-        {radius:204,delay:1330,damage:attack.damage}];
+      const ranges=[{radius:145,delay:890,damage:10},
+        {radius:302,delay:1330,damage:attack.damage}];
       for(const range of ranges){
         this.fx.warn(source.x,source.y,range.radius,time,
           range.delay,'quake');

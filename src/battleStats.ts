@@ -69,8 +69,14 @@ export class BattleStats {
   attacksDodged = 0;
   private comboExpiresAt = -1;
   private lastEvadeAt = -1000;
+  private excludedTimeMs=0;
 
   constructor(startTime: number) { this.startedAt = startTime; }
+
+  /** Non-combat dialogue and Poké Ball animations don't cost speed records. */
+  excludeTime(milliseconds:number):void {
+    this.excludedTimeMs+=Math.max(0,milliseconds);
+  }
 
   registerHit(amount: number, time: number): number {
     this.damageDealt += Math.max(0, amount);
@@ -109,7 +115,7 @@ export class BattleStats {
   }
 
   elapsedSeconds(time: number): number {
-    return Math.max(0, Math.round((time - this.startedAt) / 1000));
+    return Math.max(0, Math.round((time - this.startedAt-this.excludedTimeMs) / 1000));
   }
 
   finish(time: number, victory: boolean, remainingHp: number): BattleSummary {

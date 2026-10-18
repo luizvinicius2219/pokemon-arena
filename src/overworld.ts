@@ -162,7 +162,7 @@ export class OverworldActor {
     x: number,
     y: number
   ) {
-    this.image = scene.add.image(x, y - spriteLift(creature), key(creature, 'Idle'))
+    this.image = scene.add.image(x, y - spriteLift(creature), key(creature, 'Idle'), 0)
       .setOrigin(0.5, 0.5)
       .setScale(spriteSize(creature))
       .setDepth(3);

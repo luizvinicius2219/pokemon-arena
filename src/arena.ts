@@ -196,6 +196,7 @@ export class ArenaScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#142e31');
     if(this.mode==='story'){
       this.environment=new StoryEnvironment(this,pewterGym);
+      this.stats.excludeTime(3150);
       // The VS presentation is a genuine introduction, not a background
       // overlay during which either Pokémon can attack unnoticed.
       this.storyIntroUntil=this.time.now+3150;
@@ -303,6 +304,7 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     this.storySwitching=true;
+    const switchStartedAt=this.time.now;
     this.enemyActiveAt=Infinity;
     this.reactions.enemy=null;
     const defeated=pokemonCatalog[this.enemySpecies].name.toUpperCase();
@@ -363,6 +365,7 @@ export class ArenaScene extends Phaser.Scene {
         return this.enemyArt;
       },
       onReady:()=>{
+        this.stats.excludeTime(this.time.now-switchStartedAt);
         this.enemyLabel.setVisible(true);
         this.storySwitching=false;
         this.enemyActiveAt=this.time.now+1350;
@@ -769,7 +772,8 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private damage(target:Side,amount:number,x:number,y:number,color:number) {
-    if(this.finished || (target==='enemy'&&this.storySwitching))return;
+    if(this.finished || this.storySwitching ||
+      (this.mode==='story'&&this.time.now<this.storyIntroUntil))return;
     const now=this.time.now;
     // Real dodge invulnerability is tied to the visible Hop, not a teleport.
     if(target==='player' && this.dash && now-this.dash.startAt<this.dash.duration*0.70){
