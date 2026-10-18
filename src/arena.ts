@@ -12,6 +12,7 @@ import { pokemonCatalog, gymTeams, type PokemonEncounter, type PokemonType } fro
 import { effectiveness, scaledDamage } from './typeChart';
 import { RockFx, RockMoves, type RockStatus } from './rockMoves';
 import { PokemonSwitchFx } from './pokemonSwitchFx';
+import { getActivePokemon, loadCollection } from './playerCollection';
 import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
 
@@ -57,6 +58,7 @@ interface HitReaction {
 export class ArenaScene extends Phaser.Scene {
   private environment?:StoryEnvironment;
   private mode:GameMode='training';
+  private playerSpecies:Fighter='charizard';
   private fx!: CombatFx;
   private rockFx?:RockFx;
   private rockMoves?:RockMoves;
@@ -129,9 +131,16 @@ export class ArenaScene extends Phaser.Scene {
     private readonly getMode:()=>GameMode
   ) { super({ key: 'Arena' }); }
 
+  private currentStarter():Fighter{
+    // Story begins with a first-stage Pokémon. Prior Charizard test saves
+    // never silently turn the story protagonist into its final evolution.
+    const chosen=getActivePokemon(loadCollection()).species;
+    return chosen==='charmander'?chosen:'charmander';
+  }
+
   preload() {
     const isStory=this.getMode()==='story';
-    const encounter=isStory?(['charizard','geodude','onix'] as const)
+    const encounter=isStory?(['charmander','geodude','onix'] as const)
       :(['charizard','pikachu'] as const);
     preloadOverworld(this,encounter);
     if(isStory)preloadPewter(this);
@@ -147,12 +156,16 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   create() {
-    for (const name of ['charizard','charizard-back','pikachu','pikachu-back']) {
+    const clips=this.getMode()==='story'
+      ?['charmander','charmander-back','geodude','onix']
+      :['charizard','charizard-back','pikachu','pikachu-back'];
+    for (const name of clips) {
       const data = this.cache.binary.get(name + '-gif') as ArrayBuffer | undefined;
       if (data && !this.textures.exists(name + '-anim')) registerGifClip(this, name + '-anim', data);
     }
 
     this.mode=this.getMode();
+    this.playerSpecies=this.mode==='story'?this.currentStarter():'charizard';
     this.environment=undefined;
     this.enemySpecies=this.mode==='story'?'geodude':'pikachu';
     this.enemyMaxHp=pokemonCatalog[this.enemySpecies].maxHp;
@@ -181,7 +194,7 @@ export class ArenaScene extends Phaser.Scene {
     this.playerMotion = undefined;
     this.enemyMotion = undefined;
     this.hitStopUntil = -1000;
-    this.playerHp = pokemonCatalog.charizard.maxHp;
+    this.playerHp = pokemonCatalog[this.playerSpecies].maxHp;
     this.enemyHp = this.enemyMaxHp;
     this.finished = false;
     this.projectiles = [];
@@ -191,8 +204,13 @@ export class ArenaScene extends Phaser.Scene {
     this.lastHitAt={player:-1000,enemy:-1000};
     this.lastTypeCueAt={player:-2000,enemy:-2000};
     this.shownHp={player:this.playerHp,enemy:this.enemyHp};
-    this.mobile.setAbilityNames('charizard');
-    this.playerCastAt = { q: -450, w: -2300, e: -3800, r: -7600, dodge: -1900 };
+    this.mobile.setAbilityNames(this.playerSpecies);
+    const starterMoves=skills[this.playerSpecies];
+    this.playerCastAt = {
+      q:-starterMoves.q.cooldown,w:-starterMoves.w.cooldown,
+      e:-starterMoves.e.cooldown,r:-starterMoves.r.cooldown,
+      dodge:-dodge.cooldown
+    };
     this.enemyCastAt = this.enemyReadyAt(0);
     this.playerFacing.set(1,0);
     this.enemyFacing.set(-1,0);
@@ -204,7 +222,7 @@ export class ArenaScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#142e31');
     if(this.mode==='story'){
-      this.environment=new StoryEnvironment(this,pewterGym);
+      this.environment=new StoryEnvironment(this,pewterGym,this.playerSpecies);
       this.stats.excludeTime(3150);
       // The VS presentation is a genuine introduction, not a background
       // overlay during which either Pokémon can attack unnoticed.
@@ -214,25 +232,33 @@ export class ArenaScene extends Phaser.Scene {
     }else this.drawArena();
     const playerSpawn=this.mode==='story'?pewterGym.spawnPlayer:{x:210,y:288};
     const enemySpawn=this.mode==='story'?pewterGym.spawnRival:{x:750,y:288};
-    this.player = this.add.circle(playerSpawn.x,playerSpawn.y,19,0x60d1ff).setStrokeStyle(4,0xffffff).setVisible(false);
+    this.player = this.add.circle(playerSpawn.x,playerSpawn.y,
+      pokemonCatalog[this.playerSpecies].radius,0x60d1ff)
+      .setStrokeStyle(4,0xffffff).setVisible(false);
     this.enemy = this.add.circle(enemySpawn.x,enemySpawn.y,pokemonCatalog[this.enemySpecies].radius,0xff8b69)
       .setStrokeStyle(4,0xffffff).setVisible(false);
     this.playerShadow = this.add.ellipse(playerSpawn.x,playerSpawn.y+15,48,14,0x06181c,0.5).setDepth(1);
     this.enemyShadow = this.add.ellipse(enemySpawn.x,enemySpawn.y+15,
       this.enemySpecies==='pikachu'?32:45,12,0x06181c,0.5).setDepth(1);
-    if (OverworldActor.available(this, 'charizard')) {
-      this.playerMotion = new OverworldActor(this, 'charizard', playerSpawn.x, playerSpawn.y);
+    const playerKey=this.playerSpecies;
+    if (OverworldActor.available(this,playerKey)) {
+      this.playerMotion = new OverworldActor(this,playerKey,playerSpawn.x,playerSpawn.y);
       this.playerArt = this.playerMotion.image;
-    } else if (this.textures.exists('charizard')) {
-      this.playerArt = this.add.image(playerSpawn.x,playerSpawn.y-8,hasGifClip('charizard-anim')?'charizard-anim':'charizard').setDisplaySize(88,88).setDepth(3);
+    } else if(this.textures.exists(playerKey)) {
+      this.playerArt = this.add.image(playerSpawn.x,playerSpawn.y-8,
+        hasGifClip(playerKey+'-anim')?playerKey+'-anim':playerKey)
+        .setDisplaySize(playerKey==='charmander'?70:88,
+          playerKey==='charmander'?74:88).setDepth(3);
     } else this.player.setVisible(true);
     this.createEnemyArt(enemySpawn.x,enemySpawn.y);
-    this.playerLabel = this.add.text(playerSpawn.x,playerSpawn.y-55,'CHARIZARD',{color:'#c4f7ff',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
+    this.playerLabel = this.add.text(playerSpawn.x,playerSpawn.y-55,
+      pokemonCatalog[this.playerSpecies].name.toUpperCase(),
+      {color:'#c4f7ff',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
     this.enemyLabel = this.add.text(enemySpawn.x,enemySpawn.y-35,
       pokemonCatalog[this.enemySpecies].name.toUpperCase(),{
         color:'#ffe9b2',fontSize:'14px',fontStyle:'bold'
       }).setOrigin(0.5).setDepth(4);
-    this.hpText = this.add.text(32,24,'Charizard: 100 HP',{fontSize:'20px',color:'#a5eeff'}).setDepth(10);
+    this.hpText = this.add.text(32,24,'',{fontSize:'20px',color:'#a5eeff'}).setDepth(10);
     this.enemyHpText = this.add.text(740,24,'',{fontSize:'20px',color:'#ffcd9e'}).setDepth(10);
     if(this.mode==='story'){
       this.storyWaveText=this.add.text(716,58,'',{
@@ -436,7 +462,8 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private updateHp() {
-    this.hpText.setText('Charizard: ' + this.playerHp + ' HP');
+    this.hpText.setText(pokemonCatalog[this.playerSpecies].name+': '
+      +this.playerHp+' / '+pokemonCatalog[this.playerSpecies].maxHp+' HP');
     this.enemyHpText.setText(pokemonCatalog[this.enemySpecies].name+': '
       +this.enemyHp+' / '+this.enemyMaxHp+' HP');
   }
@@ -455,7 +482,7 @@ export class ArenaScene extends Phaser.Scene {
       this.shownHp[side]=Phaser.Math.Linear(this.shownHp[side],hp,
         Phaser.Math.Clamp(delta/240,0,1));
       g.fillStyle(0x081921,0.94).fillRoundedRect(x-3,y-3,width+6,12,5);
-      const maxHp=side==='player'?pokemonCatalog.charizard.maxHp:this.enemyMaxHp;
+      const maxHp=side==='player'?pokemonCatalog[this.playerSpecies].maxHp:this.enemyMaxHp;
       g.fillStyle(0x9f423b,0.92).fillRect(x,y,width*hp/maxHp,6);
       const trailWidth=Math.max(0,width*this.shownHp[side]/maxHp);
       if(trailWidth>0.1)g.fillStyle(0xf4bf72,0.72).fillRect(x,y,trailWidth,6);
@@ -501,8 +528,9 @@ export class ArenaScene extends Phaser.Scene {
     for(const action of allActions) {
       const element=document.querySelector<HTMLElement>(`[data-action="${action}"]`);
       if(!element)continue;
-      const remaining=Math.max(0,cooldownFor(action)-(time-this.playerCastAt[action]));
-      const duration=cooldownFor(action);
+      const duration=action==='dodge'
+        ?dodge.cooldown:skills[this.playerSpecies][action].cooldown;
+      const remaining=Math.max(0,duration-(time-this.playerCastAt[action]));
       const text=element.querySelector<HTMLElement>('[data-timer]');
       const fill=element.querySelector<HTMLElement>('[data-shade]');
       const key=element.querySelector<HTMLElement>('[data-key]');
@@ -527,7 +555,7 @@ export class ArenaScene extends Phaser.Scene {
 
   private canCast(side:Side,skill:Skill,time:number) {
     const last=side==='player'?this.playerCastAt[skill]:this.enemyCastAt[skill];
-    const species=side==='player'?'charizard':this.enemySpecies;
+    const species=side==='player'?this.playerSpecies:this.enemySpecies;
     return time-last>=pokemonCatalog[species].skillSet[skill].cooldown;
   }
 
@@ -570,19 +598,74 @@ export class ArenaScene extends Phaser.Scene {
     const motion=action==='r'?'Attack':action==='e'?'Charge':'Shoot';
     this.playerMotion?.trigger(motion,time,dir,action==='w'?785:undefined);
     // Use the exact launch frame from PMD animations, not guessed timers.
-    const windupMs=this.playerMotion ? releaseFrameMs('charizard',motion)
+    const windupMs=this.playerMotion ? releaseFrameMs(this.playerSpecies,motion)
       : ({q:60,w:115,e:180,r:270} as Record<Skill,number>)[action];
     const charge=action==='r'?1.8:action==='e'?1.4:1;
-    this.fx.charge(this.player.x+dir.x*23,this.player.y+dir.y*23,'fire',charge);
-    if(action==='e'||action==='r'){
-      const power=action==='r'?2.7:1.35;
+    if(this.playerSpecies==='charizard'||action==='q'||action==='r')
+      this.fx.charge(this.player.x+dir.x*23,this.player.y+dir.y*23,'fire',charge);
+    if(action==='r'||(action==='e'&&this.playerSpecies==='charizard')){
+      const power=action==='r'?this.playerSpecies==='charmander'?1.25:2.7:1.35;
       this.cinematic.charge('player','fire',power,time,Math.max(140,windupMs+40));
-      if(action==='r')this.skillCallout(this.player.x,this.player.y-87,'RAJADA DE FOGO',0xffcf87);
+      if(action==='r')this.skillCallout(this.player.x,this.player.y-87,
+        this.playerSpecies==='charmander'?'CHAMA GIRATÓRIA':'RAJADA DE FOGO',0xffcf87);
     }
     // Intentional short wind-up: the body anticipates before the projectile releases.
     this.time.delayedCall(windupMs,()=>{
-      if(!this.finished) this.castCharizard(action,dir,this.time.now);
+      if(this.finished)return;
+      if(this.playerSpecies==='charmander')
+        this.castCharmander(action,dir,this.time.now);
+      else this.castCharizard(action,dir,this.time.now);
     });
+  }
+
+  private castCharmander(skill:Skill,dir:Phaser.Math.Vector2,time:number){
+    const move=skills.charmander[skill];
+    const x=this.player.x+dir.x*22,y=this.player.y-8+dir.y*18;
+    if(skill==='q'){
+      // Ember: a small fire projectile, with Fire-type effectiveness.
+      this.fx.breath(x,y,Math.atan2(dir.y,dir.x),0.54);
+      this.projectile(x,y,dir,465,8,'ember','player',move.damage,750,time);
+    }else if(skill==='w'){
+      // Scratch is a physical Normal-type move, never a fireball.
+      const slash=this.add.graphics().setDepth(7);
+      const px=-dir.y,py=dir.x;
+      const endX=x+dir.x*39,endY=y+dir.y*39;
+      slash.lineStyle(5,0xffecc5,0.95).lineBetween(
+        endX+px*15,endY+py*15,endX-px*15,endY-py*15);
+      slash.lineStyle(2,0xc6ac88,0.95).lineBetween(
+        endX+px*19,endY+py*21,endX-px*10,endY-py*15);
+      this.tweens.add({targets:slash,alpha:0,duration:220,
+        onComplete:()=>slash.destroy()});
+      const dx=this.enemy.x-this.player.x,dy=this.enemy.y-this.player.y;
+      if(Math.hypot(dx,dy)<=88+this.enemy.radius &&
+        (dx*dir.x+dy*dir.y)>0){
+        this.damage('enemy',move.damage,this.enemy.x,this.enemy.y,0xe9d0a6,'normal');
+      }
+    }else if(skill==='e'){
+      // Smokescreen: readable ground cloud, brief disruption not damage.
+      this.skillCallout(this.player.x,this.player.y-69,
+        'CORTINA DE FUMAÇA',0xc4cfcd);
+      const gfx=this.add.graphics().setDepth(6);
+      for(let j=0;j<7;j++){
+        const angle=j*Math.PI*2/7;
+        const centerX=this.enemy.x+Math.cos(angle)*34;
+        const centerY=this.enemy.y+Math.sin(angle)*24;
+        gfx.fillStyle(j%2===0?0x899397:0xc2bdb0,0.30)
+          .fillEllipse(centerX,centerY,54,36);
+      }
+      this.tweens.add({targets:gfx,alpha:0,duration:1150,delay:350,
+        onComplete:()=>gfx.destroy()});
+      if(Phaser.Math.Distance.Between(this.player.x,this.player.y,
+        this.enemy.x,this.enemy.y)<330){
+        this.enemySlowUntil=Math.max(this.enemySlowUntil,time+1500);
+        this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+1000);
+      }
+    }else{
+      this.cinematic.release(x,y,'fire',1.35,time);
+      this.projectile(x,y,dir,330,14,'fireball','player',
+        move.damage,1010,time,73);
+      this.fx.breath(x,y,Math.atan2(dir.y,dir.x),1.1);
+    }
   }
 
   private castCharizard(skill:Skill,dir:Phaser.Math.Vector2,time:number) {
@@ -834,7 +917,7 @@ export class ArenaScene extends Phaser.Scene {
     const elemental=attackType ??
       ([0xffec7c,0xffe36a,0xffee7a].includes(color)?'electric':
         [0xcbb18b,0xbca57c].includes(color)?'rock':'fire');
-    const defender=target==='player'?'charizard':this.enemySpecies;
+    const defender=target==='player'?this.playerSpecies:this.enemySpecies;
     const multiplier=effectiveness(elemental,pokemonCatalog[defender].elements);
     const received=scaledDamage(amount,elemental,pokemonCatalog[defender].elements);
     if(multiplier.category!=='neutral'&&now-this.lastTypeCueAt[target]>1280){
@@ -1266,7 +1349,9 @@ export class ArenaScene extends Phaser.Scene {
       this.playerShadow?.setPosition(this.player.x,this.player.y+15);
     } else {
       this.animateSprite(this.playerArt,this.playerShadow,this.player,this.playerFacing,
-        playerVelocity,'charizard','charizard-back',88,time,this.playerAttackAt,this.playerHurtAt);
+        playerVelocity,this.playerSpecies,this.playerSpecies+'-back',
+        this.playerSpecies==='charmander'?72:88,
+        time,this.playerAttackAt,this.playerHurtAt);
     }
     if(this.enemyMotion) {
       this.enemyMotion.update(this.enemy.x,this.enemy.y,enemyVelocity,time);
