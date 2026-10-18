@@ -4,6 +4,7 @@ import { allActions, cooldownFor, dodge, skillKeys, skills, type Skill } from '.
 import { currentGifFrame, hasGifClip, registerGifClip } from './gifAnimation';
 import { keyLabel } from './controls';
 import { CombatFx, type VfxKind } from './combatFx';
+import { OverworldActor, preloadOverworld } from './overworld';
 
 type Side = 'player' | 'enemy';
 type ProjectileKind = VfxKind;
@@ -28,6 +29,8 @@ export class ArenaScene extends Phaser.Scene {
   private hitStopUntil = -1000;
   private player!: Phaser.GameObjects.Arc;
   private enemy!: Phaser.GameObjects.Arc;
+  private playerMotion?: OverworldActor;
+  private enemyMotion?: OverworldActor;
   private playerArt?: Phaser.GameObjects.Image;
   private enemyArt?: Phaser.GameObjects.Image;
   private playerShadow?: Phaser.GameObjects.Ellipse;
@@ -61,6 +64,7 @@ export class ArenaScene extends Phaser.Scene {
   ) { super({ key: 'Arena' }); }
 
   preload() {
+    preloadOverworld(this);
     // Sprites da PokeAPI carregados remotamente; não são copiados para o repositório.
     const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
     for (const [name,id] of [['charizard','6'],['pikachu','25']]) {
@@ -78,6 +82,8 @@ export class ArenaScene extends Phaser.Scene {
     }
 
     this.fx = new CombatFx(this);
+    this.playerMotion = undefined;
+    this.enemyMotion = undefined;
     this.hitStopUntil = -1000;
     this.playerHp = 100;
     this.enemyHp = 100;
@@ -98,10 +104,16 @@ export class ArenaScene extends Phaser.Scene {
     this.enemy = this.add.circle(750,288,19,0xff8b69).setStrokeStyle(4,0xffffff).setVisible(false);
     this.playerShadow = this.add.ellipse(210,303,48,14,0x06181c,0.5).setDepth(1);
     this.enemyShadow = this.add.ellipse(750,303,32,10,0x06181c,0.5).setDepth(1);
-    if (this.textures.exists('charizard')) {
+    if (OverworldActor.available(this, 'charizard')) {
+      this.playerMotion = new OverworldActor(this, 'charizard', 210, 288);
+      this.playerArt = this.playerMotion.image;
+    } else if (this.textures.exists('charizard')) {
       this.playerArt = this.add.image(210,280,hasGifClip('charizard-anim')?'charizard-anim':'charizard').setDisplaySize(88,88).setDepth(3);
     } else this.player.setVisible(true);
-    if (this.textures.exists('pikachu')) {
+    if (OverworldActor.available(this, 'pikachu')) {
+      this.enemyMotion = new OverworldActor(this, 'pikachu', 750, 288);
+      this.enemyArt = this.enemyMotion.image;
+    } else if (this.textures.exists('pikachu')) {
       this.enemyArt = this.add.image(750,280,hasGifClip('pikachu-anim')?'pikachu-anim':'pikachu').setDisplaySize(56,56).setDepth(3);
     } else this.enemy.setVisible(true);
     this.playerLabel = this.add.text(210,233,'CHARIZARD',{color:'#c4f7ff',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
@@ -197,6 +209,7 @@ export class ArenaScene extends Phaser.Scene {
     const pointer=this.input.activePointer;
     const dir=this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
     this.faceDirection('player',dir);
+    this.playerMotion?.trigger(action==='r'?'Attack':action==='e'?'Charge':'Shoot',time,dir);
     const windup:Record<Skill,number>={q:60,w:115,e:180,r:270};
     const charge=action==='r'?1.8:action==='e'?1.4:1;
     this.fx.charge(this.player.x+dir.x*23,this.player.y+dir.y*23,'fire',charge);
@@ -223,8 +236,8 @@ export class ArenaScene extends Phaser.Scene {
           const spread=Phaser.Math.FloatBetween(-0.17,0.17);
           const ray=dir.clone().rotate(spread);
           const sx=this.player.x+ray.x*24, sy=this.player.y+ray.y*24;
-          this.projectile(sx,sy,ray,340+Math.random()*70,8+Math.random()*3,
-            'flame','player',3,390,this.time.now);
+          this.projectile(sx,sy,ray,390+Math.random()*65,8+Math.random()*3,
+            'flame','player',3,660,this.time.now);
           this.fx.breath(sx,sy,Math.atan2(ray.y,ray.x),0.85);
         });
       }
@@ -252,6 +265,7 @@ export class ArenaScene extends Phaser.Scene {
     const from=this.enemy;
     const dir=this.directionTo(from,this.player.x,this.player.y,this.enemyFacing);
     this.faceDirection('enemy',dir);
+    this.enemyMotion?.trigger(skill==='r'?'Attack':skill==='w'?'Charge':'Shoot',time,dir);
     this.fx.charge(from.x,from.y-8,'electric',skill==='r'?1.8:1.1);
     if(skill==='q') {
       const x=from.x+dir.x*19,y=from.y+dir.y*19;
@@ -369,9 +383,11 @@ export class ArenaScene extends Phaser.Scene {
     if(target==='player') {
       this.playerHp=Math.max(0,this.playerHp-amount);
       this.playerHurtAt=this.time.now;
+      this.playerMotion?.hurt(this.time.now);
     } else {
       this.enemyHp=Math.max(0,this.enemyHp-amount);
       this.enemyHurtAt=this.time.now;
+      this.enemyMotion?.hurt(this.time.now);
     }
     this.updateHp();
     const heavy=amount>=17;
@@ -511,12 +527,22 @@ export class ArenaScene extends Phaser.Scene {
     }
     this.enemyDecision(time);
     this.updateProjectiles(time,dt);
-    this.animateSprite(this.playerArt,this.playerShadow,this.player,this.playerFacing,
-      vector(this.player.x-oldPlayer.x,this.player.y-oldPlayer.y),
-      'charizard','charizard-back',88,time,this.playerAttackAt,this.playerHurtAt);
-    this.animateSprite(this.enemyArt,this.enemyShadow,this.enemy,this.enemyFacing,
-      vector(this.enemy.x-oldEnemy.x,this.enemy.y-oldEnemy.y),
-      'pikachu','pikachu-back',56,time,this.enemyAttackAt,this.enemyHurtAt);
+    const playerVelocity=vector(this.player.x-oldPlayer.x,this.player.y-oldPlayer.y);
+    const enemyVelocity=vector(this.enemy.x-oldEnemy.x,this.enemy.y-oldEnemy.y);
+    if(this.playerMotion) {
+      this.playerMotion.update(this.player.x,this.player.y,playerVelocity,time);
+      this.playerShadow?.setPosition(this.player.x,this.player.y+15);
+    } else {
+      this.animateSprite(this.playerArt,this.playerShadow,this.player,this.playerFacing,
+        playerVelocity,'charizard','charizard-back',88,time,this.playerAttackAt,this.playerHurtAt);
+    }
+    if(this.enemyMotion) {
+      this.enemyMotion.update(this.enemy.x,this.enemy.y,enemyVelocity,time);
+      this.enemyShadow?.setPosition(this.enemy.x,this.enemy.y+15);
+    } else {
+      this.animateSprite(this.enemyArt,this.enemyShadow,this.enemy,this.enemyFacing,
+        enemyVelocity,'pikachu','pikachu-back',56,time,this.enemyAttackAt,this.enemyHurtAt);
+    }
     this.playerLabel.setPosition(this.player.x,this.player.y-55);
     this.enemyLabel.setPosition(this.enemy.x,this.enemy.y-43);
     this.updateHud(time);
