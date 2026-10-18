@@ -180,3 +180,15 @@ O Ginásio de Pewter usa fundo estático desenhado em pixel art, cinco treinador
 ## Pewter — identificação dos treinadores e introdução
 
 O Ginásio de Pewter agora exibe o líder Brock com sprite clássico mais fiel à franquia e o jogador representado por Red no limite inferior da arena. São personagens estáticos de ambientação, distintos dos Pokémon combatentes e sem IA própria. Sprites originais locais mantêm o visual íntegro quando o repositório de retratos externos não está disponível. A entrada do ginásio apresenta por poucos segundos uma fala de Brock e o aviso de que Pikachu ainda é adversário de teste, sem pausar a jogabilidade. A Arena Livre permanece inalterada. Veja atribuições em `CREDITS.md`.
+
+
+## Ginásio de Pewter: Geodude e Onix (combate em duas etapas)
+
+- O ginásio usa o time inicial do Brock: **Geodude** seguido de **Onix**, ambos com as animações em oito direções do PMD Sprite Repository.
+- Geodude: Pedrada, Soco de Pedra, Desabamento e Terremoto.
+- Onix: Rocha Afiada, Cauda de Ferro, Pedra Tombante e Fissura.
+- A luta passa automaticamente de Geodude para Onix sem recarregar o mapa nem restaurar o HP do jogador. Há pausa breve de convocação, identificação de espécie e barra de vida específica.
+- As quatro habilidades de cada criatura possuem cooldown e dano próprios. O visual de rocha inclui projéteis facetados, sombras de queda, alertas de área, impacto de pedras, rachaduras e ondas de choque, em um único Graphics leve para mobile.
+- O arquivo `src/pokemonCatalog.ts` registra todas as espécies, HP, raio de colisão, velocidade, tipos, habilidade, sprite e status de utilização futura. `src/rockMoves.ts` expõe as habilidades de rocha com parâmetro `side` (jogador ou inimigo), preparado para a futura tela de seleção e controle de criaturas diferentes.
+- Por ora Charizard continua como Pokémon jogável e a luta continua sendo prévia: **a insígnia de Pedra ainda não é concedida**. Multiplicadores por fraqueza/resistência e evolução vêm depois.
+- Arena Livre/Pikachu mantém a mecânica e os controles anteriores.

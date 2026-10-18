@@ -8,6 +8,9 @@ import { CinematicFx } from './cinematicFx';
 import { OverworldActor, preloadOverworld, releaseFrameMs } from './overworld';
 import type { MobileControls } from './mobileControls';
 import { StoryEnvironment, pewterGym, preloadPewter, type GameMode } from './story';
+import { pokemonCatalog, gymTeams, type PokemonEncounter } from './pokemonCatalog';
+import { RockFx, RockMoves, type RockSpecies } from './rockMoves';
+import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
 
 type Side = 'player' | 'enemy';
@@ -53,6 +56,15 @@ export class ArenaScene extends Phaser.Scene {
   private environment?:StoryEnvironment;
   private mode:GameMode='training';
   private fx!: CombatFx;
+  private rockFx?:RockFx;
+  private rockMoves?:RockMoves;
+  private enemySpecies:Fighter='pikachu';
+  private enemyMaxHp=100;
+  private storyEncounters:readonly PokemonEncounter[]=[];
+  private storyWave=0;
+  private storySwitching=false;
+  private enemyActiveAt=0;
+  private storyWaveText?:Phaser.GameObjects.Text;
   private cinematic!: CinematicFx;
   private stats!: BattleStats;
   private comboText!: Phaser.GameObjects.Text;
@@ -103,11 +115,15 @@ export class ArenaScene extends Phaser.Scene {
   ) { super({ key: 'Arena' }); }
 
   preload() {
-    preloadOverworld(this);
-    if(this.getMode()==='story')preloadPewter(this);
-    // Sprites da PokeAPI carregados remotamente; não são copiados para o repositório.
+    const isStory=this.getMode()==='story';
+    const encounter=isStory?(['charizard','geodude','onix'] as const)
+      :(['charizard','pikachu'] as const);
+    preloadOverworld(this,encounter);
+    if(isStory)preloadPewter(this);
+    // Gen-V fallback sprites for any species without complete PMD sheets.
     const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
-    for (const [name,id] of [['charizard','6'],['pikachu','25']]) {
+    for (const name of encounter) {
+      const id=String(pokemonCatalog[name].number);
       this.load.image(name, base + id + '.png');
       this.load.image(name + '-back', base + 'back/' + id + '.png');
       this.load.binary(name + '-gif', base + 'animated/' + id + '.gif');
@@ -123,24 +139,33 @@ export class ArenaScene extends Phaser.Scene {
 
     this.mode=this.getMode();
     this.environment=undefined;
+    this.enemySpecies=this.mode==='story'?'geodude':'pikachu';
+    this.enemyMaxHp=pokemonCatalog[this.enemySpecies].maxHp;
+    this.storyEncounters=this.mode==='story'?gymTeams[pewterGym.id]:[];
+    this.storyWave=0;
+    this.storySwitching=false;
+    this.enemyActiveAt=0;
+    this.storyWaveText=undefined;
+    this.rockFx=this.mode==='story'?new RockFx(this):undefined;
+    this.rockMoves=this.rockFx?new RockMoves(this,this.rockFx):undefined;
     this.fx = new CombatFx(this);
     this.cinematic = new CinematicFx(this);
     this.stats = new BattleStats(this.time.now);
     this.playerMotion = undefined;
     this.enemyMotion = undefined;
     this.hitStopUntil = -1000;
-    this.playerHp = 100;
-    this.enemyHp = 100;
+    this.playerHp = pokemonCatalog.charizard.maxHp;
+    this.enemyHp = this.enemyMaxHp;
     this.finished = false;
     this.projectiles = [];
     this.flameStreams = [];
     this.dash = undefined;
     this.reactions={player:null,enemy:null};
     this.lastHitAt={player:-1000,enemy:-1000};
-    this.shownHp={player:100,enemy:100};
+    this.shownHp={player:this.playerHp,enemy:this.enemyHp};
     this.mobile.setAbilityNames('charizard');
     this.playerCastAt = { q: -450, w: -2300, e: -3800, r: -7600, dodge: -1900 };
-    this.enemyCastAt = { q: -850, w: -3400, e: -4500, r: -9000 };
+    this.enemyCastAt = this.enemyReadyAt(0);
     this.playerFacing.set(1,0);
     this.enemyFacing.set(-1,0);
     this.playerAttackAt = this.enemyAttackAt = this.playerHurtAt = this.enemyHurtAt = -1000;
@@ -155,25 +180,32 @@ export class ArenaScene extends Phaser.Scene {
     const playerSpawn=this.mode==='story'?pewterGym.spawnPlayer:{x:210,y:288};
     const enemySpawn=this.mode==='story'?pewterGym.spawnRival:{x:750,y:288};
     this.player = this.add.circle(playerSpawn.x,playerSpawn.y,19,0x60d1ff).setStrokeStyle(4,0xffffff).setVisible(false);
-    this.enemy = this.add.circle(enemySpawn.x,enemySpawn.y,19,0xff8b69).setStrokeStyle(4,0xffffff).setVisible(false);
+    this.enemy = this.add.circle(enemySpawn.x,enemySpawn.y,pokemonCatalog[this.enemySpecies].radius,0xff8b69)
+      .setStrokeStyle(4,0xffffff).setVisible(false);
     this.playerShadow = this.add.ellipse(playerSpawn.x,playerSpawn.y+15,48,14,0x06181c,0.5).setDepth(1);
-    this.enemyShadow = this.add.ellipse(enemySpawn.x,enemySpawn.y+15,32,10,0x06181c,0.5).setDepth(1);
+    this.enemyShadow = this.add.ellipse(enemySpawn.x,enemySpawn.y+15,
+      this.enemySpecies==='pikachu'?32:45,12,0x06181c,0.5).setDepth(1);
     if (OverworldActor.available(this, 'charizard')) {
       this.playerMotion = new OverworldActor(this, 'charizard', playerSpawn.x, playerSpawn.y);
       this.playerArt = this.playerMotion.image;
     } else if (this.textures.exists('charizard')) {
       this.playerArt = this.add.image(playerSpawn.x,playerSpawn.y-8,hasGifClip('charizard-anim')?'charizard-anim':'charizard').setDisplaySize(88,88).setDepth(3);
     } else this.player.setVisible(true);
-    if (OverworldActor.available(this, 'pikachu')) {
-      this.enemyMotion = new OverworldActor(this, 'pikachu', enemySpawn.x, enemySpawn.y);
-      this.enemyArt = this.enemyMotion.image;
-    } else if (this.textures.exists('pikachu')) {
-      this.enemyArt = this.add.image(enemySpawn.x,enemySpawn.y-8,hasGifClip('pikachu-anim')?'pikachu-anim':'pikachu').setDisplaySize(56,56).setDepth(3);
-    } else this.enemy.setVisible(true);
+    this.createEnemyArt(enemySpawn.x,enemySpawn.y);
     this.playerLabel = this.add.text(playerSpawn.x,playerSpawn.y-55,'CHARIZARD',{color:'#c4f7ff',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
-    this.enemyLabel = this.add.text(enemySpawn.x,enemySpawn.y-35,'PIKACHU',{color:'#ffe9b2',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
+    this.enemyLabel = this.add.text(enemySpawn.x,enemySpawn.y-35,
+      pokemonCatalog[this.enemySpecies].name.toUpperCase(),{
+        color:'#ffe9b2',fontSize:'14px',fontStyle:'bold'
+      }).setOrigin(0.5).setDepth(4);
     this.hpText = this.add.text(32,24,'Charizard: 100 HP',{fontSize:'20px',color:'#a5eeff'}).setDepth(10);
-    this.enemyHpText = this.add.text(740,24,'Pikachu: 100 HP',{fontSize:'20px',color:'#ffcd9e'}).setDepth(10);
+    this.enemyHpText = this.add.text(740,24,'',{fontSize:'20px',color:'#ffcd9e'}).setDepth(10);
+    if(this.mode==='story'){
+      this.storyWaveText=this.add.text(480,49,'',{
+        fontSize:'16px',fontStyle:'bold',color:'#fff0c8',
+        stroke:'#192c38',strokeThickness:4
+      }).setOrigin(0.5).setDepth(12);
+      this.updateWaveText();
+    }
     this.comboText=this.add.text(W/2,75,'',{
       color:'#ffe6a6',fontSize:'22px',fontStyle:'bold',
       stroke:'#182c36',strokeThickness:4
@@ -198,6 +230,90 @@ export class ArenaScene extends Phaser.Scene {
     this.updateHud(0,true);
   }
 
+  private enemyReadyAt(time:number):Record<Skill,number>{
+    const abilities=pokemonCatalog[this.enemySpecies].skillSet;
+    return {
+      q:time-abilities.q.cooldown,
+      w:time-abilities.w.cooldown,
+      e:time-abilities.e.cooldown,
+      r:time-abilities.r.cooldown
+    };
+  }
+
+  private createEnemyArt(x:number,y:number){
+    const id=this.enemySpecies;
+    this.enemy.setVisible(false);
+    this.enemyMotion=undefined;
+    this.enemyArt=undefined;
+    if(OverworldActor.available(this,id)){
+      this.enemyMotion=new OverworldActor(this,id,x,y);
+      this.enemyArt=this.enemyMotion.image;
+    }else if(this.textures.exists(id)){
+      const width=id==='onix'?112:id==='geodude'?68:56;
+      const height=id==='onix'?132:id==='geodude'?63:56;
+      const baseTexture=hasGifClip(id+'-anim')?id+'-anim':id;
+      this.enemyArt=this.add.image(x,y-(id==='onix'?37:9),baseTexture)
+        .setDisplaySize(width,height).setDepth(3);
+    }else this.enemy.setVisible(true);
+  }
+
+  private updateWaveText(){
+    if(!this.storyWaveText)return;
+    const name=pokemonCatalog[this.enemySpecies].name.toUpperCase();
+    this.storyWaveText.setText('BROCK   ·   '+(this.storyWave+1)+'/'+this.storyEncounters.length
+      +'   ·   '+name);
+  }
+
+  private nextStoryPokemon(){
+    if(this.storySwitching || this.mode!=='story' || this.storyWave+1>=this.storyEncounters.length){
+      this.endBattle();
+      return;
+    }
+    this.storySwitching=true;
+    this.enemyActiveAt=Infinity;
+    this.reactions.enemy=null;
+    this.enemyArt?.setVisible(false);
+    this.enemyShadow?.setVisible(false);
+    this.enemyLabel.setVisible(false);
+    this.enemy.setVisible(false);
+    const finishedName=pokemonCatalog[this.enemySpecies].name.toUpperCase();
+    this.skillCallout(this.enemy.x,this.enemy.y-59,finishedName+' DERROTADO!',0xf8d3a1);
+    this.time.delayedCall(750,()=>{
+      if(this.finished||this.mode!=='story')return;
+      for(const shot of this.projectiles)shot.body.destroy();
+      this.projectiles=[];
+      this.enemyArt?.destroy();
+      this.enemyMotion=undefined;
+      this.storyWave++;
+      this.enemySpecies=this.storyEncounters[this.storyWave].species;
+      const profile=pokemonCatalog[this.enemySpecies];
+      this.enemyMaxHp=profile.maxHp;
+      this.enemyHp=profile.maxHp;
+      this.shownHp.enemy=profile.maxHp;
+      this.enemy.radius=profile.radius;
+      this.enemy.setPosition(pewterGym.spawnRival.x,pewterGym.spawnRival.y);
+      this.enemyFacing.set(-1,1).normalize();
+      this.reactions.enemy=null;
+      this.lastHitAt.enemy=-1000;
+      this.enemyCastAt=this.enemyReadyAt(this.time.now);
+      this.enemyAttackAt=-1000;
+      this.enemyHurtAt=-1000;
+      this.enemyShadow?.setVisible(true).setDisplaySize(
+        this.enemySpecies==='onix'?79:45,17).setPosition(this.enemy.x,this.enemy.y+15);
+      this.createEnemyArt(this.enemy.x,this.enemy.y);
+      this.enemyLabel.setText(profile.name.toUpperCase()).setVisible(true);
+      this.storySwitching=false;
+      this.enemyActiveAt=this.time.now+850;
+      this.nextEnemyDecision=this.enemyActiveAt;
+      this.updateWaveText();
+      this.updateHp();
+      this.drawHealthBars(0);
+      this.skillCallout(this.enemy.x,this.enemy.y-100,
+        'BROCK ENVIOU '+profile.name.toUpperCase()+'!',0xffd5a2);
+      this.rockFx?.burst(this.enemy.x,this.enemy.y+8,64,this.time.now,'slam');
+    });
+  }
+
   private drawArena() {
     const g = this.add.graphics();
     g.fillStyle(0x142e31,1).fillRect(0,0,W,H);
@@ -211,7 +327,8 @@ export class ArenaScene extends Phaser.Scene {
 
   private updateHp() {
     this.hpText.setText('Charizard: ' + this.playerHp + ' HP');
-    this.enemyHpText.setText('Pikachu: ' + this.enemyHp + ' HP');
+    this.enemyHpText.setText(pokemonCatalog[this.enemySpecies].name+': '
+      +this.enemyHp+' / '+this.enemyMaxHp+' HP');
   }
 
   /** Small overhead bars make damage visible even on narrow mobile screens. */
@@ -222,17 +339,18 @@ export class ArenaScene extends Phaser.Scene {
     for(const side of ['player','enemy'] as Side[]) {
       const entity=side==='player'?this.player:this.enemy;
       const hp=side==='player'?this.playerHp:this.enemyHp;
-      const width=side==='player'?76:68;
+      const width=side==='player'?76:(this.enemySpecies==='onix'?98:70);
       const y=entity.y-(side==='player'?42:33);
       const x=entity.x-width/2;
       this.shownHp[side]=Phaser.Math.Linear(this.shownHp[side],hp,
         Phaser.Math.Clamp(delta/240,0,1));
       g.fillStyle(0x081921,0.94).fillRoundedRect(x-3,y-3,width+6,12,5);
-      g.fillStyle(0x9f423b,0.92).fillRect(x,y,width*hp/100,6);
-      const trailWidth=Math.max(0,width*this.shownHp[side]/100);
+      const maxHp=side==='player'?pokemonCatalog.charizard.maxHp:this.enemyMaxHp;
+      g.fillStyle(0x9f423b,0.92).fillRect(x,y,width*hp/maxHp,6);
+      const trailWidth=Math.max(0,width*this.shownHp[side]/maxHp);
       if(trailWidth>0.1)g.fillStyle(0xf4bf72,0.72).fillRect(x,y,trailWidth,6);
-      const hpWidth=Math.max(0,width*hp/100);
-      if(hpWidth>0.1)g.fillStyle(hp>28?(side==='player'?0x65d5b5:0xe7db72):0xf06262,1)
+      const hpWidth=Math.max(0,width*hp/maxHp);
+      if(hpWidth>0.1)g.fillStyle(hp/maxHp>0.28?(side==='player'?0x65d5b5:0xe7db72):0xf06262,1)
         .fillRect(x,y,hpWidth,6);
       g.lineStyle(1,0xc6e8e4,0.5).strokeRoundedRect(x-1,y-1,width+2,8,3);
     }
@@ -299,7 +417,8 @@ export class ArenaScene extends Phaser.Scene {
 
   private canCast(side:Side,skill:Skill,time:number) {
     const last=side==='player'?this.playerCastAt[skill]:this.enemyCastAt[skill];
-    return time-last>=skills[side==='player'?'charizard':'pikachu'][skill].cooldown;
+    const species=side==='player'?'charizard':this.enemySpecies;
+    return time-last>=pokemonCatalog[species].skillSet[skill].cooldown;
   }
 
   private playerCast(action:Action,time:number) {
@@ -450,6 +569,42 @@ export class ArenaScene extends Phaser.Scene {
     }
   }
 
+  private castRockPokemon(skill:Skill,time:number){
+    const species=this.enemySpecies;
+    if(species!=='geodude'&&species!=='onix'||this.storySwitching)return;
+    if(!this.canCast('enemy',skill,time))return;
+    if(!this.rockMoves)return;
+    this.enemyCastAt[skill]=time;
+    this.enemyAttackAt=time;
+    const dir=this.directionTo(this.enemy,this.player.x,this.player.y,this.enemyFacing);
+    this.faceDirection('enemy',dir);
+    const motion=skill==='q'?'Shoot':skill==='w'?'Attack':'Charge';
+    this.enemyMotion?.trigger(motion,time,dir);
+    if(skill==='e'||skill==='r'){
+      this.cinematic.charge('enemy','rock',skill==='r'?2.5:1.5,time,
+        skill==='r'?640:560);
+    }
+    this.rockMoves.cast(species,skill,'enemy',time,{
+      projectile:(x,y,direction,speed,radius,kind,side,damage,lifetime,now)=>
+        this.projectile(x,y,direction,speed,radius,kind,side,damage,lifetime,now),
+      targetPosition:()=>({x:this.player.x,y:this.player.y,radius:this.player.radius}),
+      sourcePosition:()=>({x:this.enemy.x,y:this.enemy.y}),
+      hitArea:(x,y,radius,damage,side)=>{
+        const target=side==='enemy'?this.player:this.enemy;
+        if(Phaser.Math.Distance.Between(x,y,target.x,target.y)<radius+target.radius){
+          this.damage(side==='enemy'?'player':'enemy',damage,target.x,target.y,0xcbb18b);
+        }
+      },
+      stillActive:()=>!this.finished&&!this.storySwitching&&this.enemySpecies===species,
+      charge:(power,duration)=>this.cinematic.charge('enemy','rock',power,
+        this.time.now,duration),
+      signal:(name)=>{
+        if(skill==='e'||skill==='r')this.skillCallout(this.enemy.x,
+          this.enemy.y-(species==='onix'?110:71),name,0xdfbb8b);
+      }
+    });
+  }
+
   private skillCallout(x:number,y:number,message:string,color:number){
     const label=this.add.text(x,y,message,{
       color:'#fff6df',fontSize:'17px',fontStyle:'bold',
@@ -534,7 +689,7 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private damage(target:Side,amount:number,x:number,y:number,color:number) {
-    if(this.finished)return;
+    if(this.finished || (target==='enemy'&&this.storySwitching))return;
     const now=this.time.now;
     // Real dodge invulnerability is tied to the visible Hop, not a teleport.
     if(target==='player' && this.dash && now-this.dash.startAt<this.dash.duration*0.70){
@@ -575,18 +730,27 @@ export class ArenaScene extends Phaser.Scene {
     this.hitStopUntil=now+(heavy?48:24);
     this.cameras.main.shake(heavy?115:64,heavy?0.0038:0.0017);
     const electric=[0xffec7c,0xffe36a,0xffee7a].includes(color);
+    const rock=color===0xcbb18b || color===0xbca57c;
     const element=electric?'electric':'fire';
-    this.fx.impact(x,y,element,heavy?1.18:0.72);
-    this.fx.hitAccent(x,y,Math.atan2(direction.y,direction.x),element,heavy?1.35:0.85);
+    if(rock){
+      this.rockFx?.burst(x,y,heavy?42:24,now,'slam');
+    }else{
+      this.fx.impact(x,y,element,heavy?1.18:0.72);
+      this.fx.hitAccent(x,y,Math.atan2(direction.y,direction.x),element,heavy?1.35:0.85);
+    }
     this.flash(x,y,color,heavy?21:13);
     const label=this.add.text(victim.x,victim.y-36,'-'+amount,{
       fontSize:heavy?'24px':'18px',fontStyle:'bold',
-      color:electric?'#fff5aa':'#ffe6c9',
+      color:electric?'#fff5aa':rock?'#f0dfc1':'#ffe6c9',
       stroke:'#16222e',strokeThickness:3
     }).setOrigin(0.5).setDepth(15);
     this.tweens.add({targets:label,y:victim.y-(heavy?83:63),alpha:0,scaleX:heavy?1.2:1.05,
       scaleY:heavy?1.2:1.05,duration:heavy?570:460,onComplete:()=>label.destroy()});
-    if(this.playerHp<=0||this.enemyHp<=0)this.endBattle();
+    if(this.playerHp<=0)this.endBattle();
+    else if(this.enemyHp<=0){
+      if(this.mode==='story')this.nextStoryPokemon();
+      else this.endBattle();
+    }
   }
 
   private endBattle() {
@@ -645,7 +809,7 @@ export class ArenaScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(25);
     if(this.mode==='story'){
       const note=this.add.text(center,415,
-        'PRÉVIA DE PEWTER CONCLUÍDA · O DESAFIO DE BROCK AINDA NÃO ESTÁ LIBERADO',{
+        'GEODUDE + ONIX VENCIDOS · INSÍGNIA E PROGRESSÃO EM BREVE',{
           fontSize:'12px',fontStyle:'bold',color:'#e8cb98',align:'center'
         }).setOrigin(0.5).setDepth(25);
       void note;
@@ -662,7 +826,7 @@ export class ArenaScene extends Phaser.Scene {
       shot.body.x+=shot.velocity.x*dt;
       shot.body.y+=shot.velocity.y*dt;
       const x=shot.body.x,y=shot.body.y;
-      if(time-shot.lastTrail>(shot.kind==='flame'?38:54)){
+      if(time-shot.lastTrail>(shot.kind==='rock'||shot.kind==='shard'?100:shot.kind==='flame'?38:54)){
         shot.lastTrail=time;
         this.fx.trail(x,y,shot.velocity,shot.kind,shot.kind==='fireburst'||shot.kind==='fireball');
         if(shot.kind==='spark'&&Math.random()<0.40){
@@ -670,21 +834,27 @@ export class ArenaScene extends Phaser.Scene {
         }
       }
       const target=shot.side==='player'?this.enemy:this.player;
-      const hit=Phaser.Math.Distance.Between(x,y,target.x,target.y)<shot.body.radius+target.radius;
+      const hit=Phaser.Math.Distance.Between(x,y,target.x,target.y)<shot.body.radius+target.radius
+        && !(shot.side==='player' && this.storySwitching);
       const rockHit=this.environment?.intercept(x,y,shot.body.radius,shot.damage)??false;
       const expired=time>=shot.expiry||x<30||x>W-30||y<30||y>H-30;
       if(!hit&&!expired&&!rockHit)continue;
       shot.body.destroy();
       this.projectiles.splice(i,1);
       if(rockHit){
-        this.fx.impact(x,y,'fire',0.55);
+        if(shot.kind==='rock'||shot.kind==='shard')
+          this.rockFx?.burst(x,y,19,time,'slam');
+        else this.fx.impact(x,y,'fire',0.55);
       } else if(shot.blastRadius>0) {
         this.explode(x,y,shot.blastRadius,shot.damage,shot.side,shot.kind==='fireburst');
       } else if(hit) {
         this.damage(shot.side==='player'?'enemy':'player',shot.damage,target.x,target.y,
-          shot.kind==='spark'?0xffee7a:0xff8b40);
+          shot.kind==='spark'?0xffee7a:
+          shot.kind==='rock'||shot.kind==='shard'?0xcbb18b:0xff8b40);
       } else {
-        this.fx.impact(x,y,shot.kind==='spark'?'electric':'fire',0.4);
+        if(shot.kind==='rock'||shot.kind==='shard')
+          this.rockFx?.burst(x,y,15,time,'slam');
+        else this.fx.impact(x,y,shot.kind==='spark'?'electric':'fire',0.4);
       }
     }
     this.fx.drawShots(this.projectiles,time);
@@ -788,14 +958,19 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private enemyDecision(time:number) {
-    if(time<this.nextEnemyDecision||this.finished)return;
-    this.nextEnemyDecision=time+Phaser.Math.Between(960,1330);
+    if(time<this.nextEnemyDecision || time<this.enemyActiveAt
+      || this.storySwitching || this.finished || this.enemyHp<=0)return;
+    this.nextEnemyDecision=time+Phaser.Math.Between(1040,1490);
     const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,this.enemy.x,this.enemy.y);
     const preferred=this.enemyPattern[this.enemyActionIndex++ % this.enemyPattern.length];
     let selection:Skill=preferred;
-    if(selection==='w' && distance>140)selection='q';
+    const meleeReach=this.enemySpecies==='onix'?154:140;
+    if(selection==='w' && distance>meleeReach)selection='q';
     if(!this.canCast('enemy',selection,time))selection='q';
-    if(this.canCast('enemy',selection,time))this.castPikachu(selection,time);
+    if(this.canCast('enemy',selection,time)){
+      if(this.enemySpecies==='pikachu')this.castPikachu(selection,time);
+      else this.castRockPokemon(selection,time);
+    }
   }
 
   private animateDash(time:number) {
@@ -875,14 +1050,16 @@ export class ArenaScene extends Phaser.Scene {
     // Direction changes gradually so it does not oscillate on every frame.
     const toward=vector(this.player.x-this.enemy.x,this.player.y-this.enemy.y);
     const distance=toward.length();
-    if(distance>0.01 && !this.reactions.enemy){
+    if(distance>0.01 && !this.reactions.enemy && !this.storySwitching){
       toward.normalize();
       const drift=vector(-toward.y,toward.x);
       const sign=Math.floor(time/3200)%2===0?1:-1;
       const chase=distance>208?112:distance<122?-94:distance>174?23:-12;
       const strafe=distance>285?18:distance<100?12:72;
-      const step=toward.scale(chase).add(drift.scale(sign*strafe))
-        .limit(122).scale(dt);
+      const profile=pokemonCatalog[this.enemySpecies];
+      const scale=profile.moveSpeed/122;
+      const step=toward.scale(chase*scale).add(drift.scale(sign*strafe*scale))
+        .limit(profile.moveSpeed).scale(dt);
       this.enemy.x=clampX(this.enemy.x+step.x);
       this.enemy.y=clampY(this.enemy.y+step.y);
     }
@@ -897,6 +1074,7 @@ export class ArenaScene extends Phaser.Scene {
     }
     this.enemyDecision(time);
     this.updateProjectiles(time,dt);
+    this.rockFx?.update(time);
     const playerVelocity=vector(this.player.x-oldPlayer.x,this.player.y-oldPlayer.y);
     const enemyVelocity=vector(this.enemy.x-oldEnemy.x,this.enemy.y-oldEnemy.y);
     if(this.playerMotion) {
@@ -911,10 +1089,13 @@ export class ArenaScene extends Phaser.Scene {
       this.enemyShadow?.setPosition(this.enemy.x,this.enemy.y+15);
     } else {
       this.animateSprite(this.enemyArt,this.enemyShadow,this.enemy,this.enemyFacing,
-        enemyVelocity,'pikachu','pikachu-back',56,time,this.enemyAttackAt,this.enemyHurtAt);
+        enemyVelocity,this.enemySpecies,this.enemySpecies+'-back',
+        this.enemySpecies==='onix'?112:this.enemySpecies==='geodude'?68:56,
+        time,this.enemyAttackAt,this.enemyHurtAt);
     }
     this.playerLabel.setPosition(this.player.x,this.player.y-55);
-    this.enemyLabel.setPosition(this.enemy.x,this.enemy.y-43);
+    this.enemyLabel.setPosition(this.enemy.x,
+      this.enemy.y-(this.enemySpecies==='onix'?83:43));
     this.drawHealthBars(delta);
     this.updateCombo(time);
     this.cinematic.update(time,
