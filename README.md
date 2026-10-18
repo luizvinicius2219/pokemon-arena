@@ -202,3 +202,10 @@ Os sprites clássicos originais de Brock e Red agora recebem espaço visual maio
 ### Sprites reais de treinadores — locais
 
 O cenário Pewter carrega os sprites pixelados clássicos diretamente de PNGs locais: Brock (Black 2/White 2), Red (FireRed/LeafGreen), Montanhista e Campista (Gen III). Foram retiradas as dependências em portraits externos e os desenhos improvisados dos treinadores do palco. O fundo, as pedras quebráveis e o combate seguem intactos. Licenciamento documentado em `CREDITS.md`.
+
+
+### Movimentos canônicos de Geodude e Onix
+
+Os nomes inventados da primeira prévia foram substituídos por golpes que existem nos jogos (representados com física de combate em tempo real): **Geodude — Pedrada (Rock Throw), Rolagem (Rollout), Tumba de Rochas (Rock Tomb), Magnitude**; **Onix — Deslizamento de Rochas (Rock Slide), Constrição (Bind), Tumba de Rochas (Rock Tomb), Terremoto (Earthquake)**.
+
+Rolagem executa 3 investidas crescentes; Rock Slide lança 3 fragmentos em leque; Constrição aplica lentidão com três pulsos de dano após conectar; Tumba de Rochas aplica lentidão temporária se acertar; Magnitude varia a intensidade; Terremoto expande em 2 ondas. Todas as áreas avisam no chão antes de atingir, respeitam esquiva e são renderizadas num único `Graphics` com orçamento limitado. O motor `RockMoves` permanece independente do lado de batalha e pronto para a futura seleção de Pokémon.

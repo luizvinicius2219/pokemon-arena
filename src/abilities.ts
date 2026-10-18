@@ -27,16 +27,16 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
     r: { name: 'Trovão', description: 'Três descargas sequenciais com aviso no solo.', icon: '⛈️', cooldown: 9000, damage: 13 }
   },
   geodude: {
-    q: { name: 'Pedrada', description: 'Dispara uma rocha veloz.', icon: '🪨', cooldown: 1100, damage: 7 },
-    w: { name: 'Soco de Pedra', description: 'Golpe físico em área curta.', icon: '👊', cooldown: 3200, damage: 11 },
-    e: { name: 'Desabamento', description: 'Rochas caem sobre a área sinalizada.', icon: '⛰️', cooldown: 4800, damage: 15 },
-    r: { name: 'Terremoto', description: 'Uma grande onda de choque parte de Geodude.', icon: '🌋', cooldown: 8500, damage: 18 }
+    q: { name: 'Pedrada', description: 'Rock Throw: arremessa uma pedra física.', icon: '🪨', cooldown: 1250, damage: 8 },
+    w: { name: 'Rolagem', description: 'Rollout: três investidas que ficam mais fortes.', icon: '🌀', cooldown: 5200, damage: 5 },
+    e: { name: 'Tumba de Rochas', description: 'Rock Tomb: queda de rochas que reduz a velocidade.', icon: '⛰️', cooldown: 4900, damage: 14 },
+    r: { name: 'Magnitude', description: 'Magnitude: terremoto com potência variável de 4 a 9.', icon: '🌋', cooldown: 9100, damage: 9 }
   },
   onix: {
-    q: { name: 'Rocha Afiada', description: 'Projétil de pedra pontiagudo.', icon: '🔹', cooldown: 1350, damage: 9 },
-    w: { name: 'Cauda de Ferro', description: 'Golpe poderoso de cauda com alcance médio.', icon: '⛓️', cooldown: 3500, damage: 14 },
-    e: { name: 'Pedra Tombante', description: 'Uma grande rocha cai sobre a posição marcada.', icon: '🪨', cooldown: 5100, damage: 19 },
-    r: { name: 'Fissura', description: 'Três erupções de pedra surgem em sequência.', icon: '💢', cooldown: 9200, damage: 13 }
+    q: { name: 'Deslizamento de Rochas', description: 'Rock Slide: três projéteis em leque.', icon: '🪨', cooldown: 1700, damage: 6 },
+    w: { name: 'Constrição', description: 'Bind: aprisiona temporariamente e causa dano contínuo.', icon: '⛓️', cooldown: 5000, damage: 8 },
+    e: { name: 'Tumba de Rochas', description: 'Rock Tomb: pedra pesada que reduz a velocidade.', icon: '⛰️', cooldown: 5600, damage: 18 },
+    r: { name: 'Terremoto', description: 'Earthquake: duas ondas sísmicas concêntricas.', icon: '🌋', cooldown: 9600, damage: 13 }
   }
 };
 export const dodge = { name: 'Esquiva', description: 'Avanço rápido em direção ao cursor.', icon: '💨', cooldown: 1900, damage: 0 };
