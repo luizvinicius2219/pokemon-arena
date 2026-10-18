@@ -9,7 +9,7 @@ import type { Fighter } from './abilities';
  *
  * Brock / Pewter stage is a two-Pokémon challenge: Geodude then Onix.
  */
-export type GameMode = 'training' | 'story' | 'practice' | 'world';
+export type GameMode = 'training' | 'story' | 'practice' | 'wild' | 'world';
 export type ObstacleKind = 'rock' | 'pillar';
 
 export interface StageNpc {

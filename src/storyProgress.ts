@@ -60,8 +60,7 @@ export function registerTrainingVictory():StoryProgress{
   });
 }
 export function nextStoryObjective(p:StoryProgress):string{
-  if(!p.metProfessor)return 'Converse com a pesquisadora na vila.';
-  if(!p.visitedRoute)return 'Explore a grama alta na rota leste.';
-  if(!p.defeatedTrainer)return 'Enfrente o treinador perto da rota.';
-  return 'Treine mais ou visite o ginásio de Pewter.';
+  if(!p.visitedRoute)return 'Entre no mato alto e escolha TREINAR.';
+  if(!p.defeatedTrainer)return 'Lute com Rattata, Jigglypuff ou Pikachu.';
+  return 'Suba de nível, evolua e desafie Brock quando quiser.';
 }

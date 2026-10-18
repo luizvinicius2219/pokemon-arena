@@ -48,5 +48,5 @@ export const unlockedMoves=(level:number,form:'charmander'|'charmeleon')=>
     .filter(move=>move.level<=level);
 export const levelFromExperience=(xp:number,minimum=5)=>
   Math.min(100,Math.max(minimum,minimum+Math.floor(
-    Math.sqrt(Math.max(0,xp)/42)
+    Math.sqrt(Math.max(0,xp)/22)
   )));
