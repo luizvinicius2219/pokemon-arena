@@ -24,7 +24,7 @@ export interface PlayerCollection {
 export const PARTY_LIMIT=3;
 const STORAGE_KEY='pokemon-arena-team-v1';
 const starter:OwnedPokemon={
-  id:'starter-charizard',species:'charizard',nickname:'Charizard',level:15,
+  id:'starter-charmander',species:'charmander',nickname:'Charmander',level:10,
   experience:0,capturedAt:0,origin:'starter'
 };
 const initial=():PlayerCollection=>({

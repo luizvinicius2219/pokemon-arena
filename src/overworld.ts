@@ -24,6 +24,16 @@ interface SheetInfo {
 type SheetRegistry = Record<Creature, Record<Motion, SheetInfo>>;
 
 const registry: SheetRegistry = {
+  charmander: {
+    Walk: { width: 32, height: 32, ticks: [6,8,6,8] },
+    Idle: { width: 32, height: 40, ticks: [12,8,8,8] },
+    // SpriteCollab aliases Shoot to Charge for Charmander.
+    Shoot: { width: 32, height: 40, ticks: [2,2,2,2,2,2,2,2,2,2] },
+    Attack: { width: 64, height: 64, ticks: [2,2,4,2,2,2,2,2,2,2,2] },
+    Charge: { width: 32, height: 40, ticks: [2,2,2,2,2,2,2,2,2,2] },
+    Hurt: { width: 48, height: 56, ticks: [2,8] },
+    Hop: { width: 32, height: 88, ticks: [2,1,2,3,4,4,3,2,1,2] }
+  },
   charizard: {
     Walk: { width: 40, height: 48, ticks: [8, 10, 8, 10] },
     Idle: { width: 40, height: 48, ticks: [15, 15, 15, 15] },
@@ -68,6 +78,7 @@ const registry: SheetRegistry = {
  */
 export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Charge'): number {
   const frames: Record<Creature, Record<'Shoot'|'Attack'|'Charge',number>> = {
+    charmander: { Shoot: 5, Attack: 5, Charge: 5 },
     charizard: { Shoot: 2, Attack: 5, Charge: 5 },
     pikachu:  { Shoot: 2, Attack: 3, Charge: 5 },
     geodude:  { Shoot: 5, Attack: 5, Charge: 5 },
@@ -77,12 +88,13 @@ export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Cha
   return Math.round(info.ticks.slice(0,frames[creature][motion]).reduce((sum,t)=>sum+t,0)*1000/60);
 }
 
-const ids: Record<Creature, string> = { charizard: '0006', pikachu: '0025', geodude: '0074', onix: '0095' };
+const ids: Record<Creature, string> = { charmander: '0004', charizard: '0006', pikachu: '0025', geodude: '0074', onix: '0095' };
 const motions: Motion[] = ['Walk', 'Idle', 'Shoot', 'Attack', 'Charge', 'Hurt', 'Hop'];
 const base = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/';
 
 function spriteSize(creature:Creature):number {
   switch(creature){
+    case 'charmander':return 2.08;
     case 'onix':return 1.95;
     case 'geodude':return 1.95;
     case 'charizard':return 1.9;
@@ -125,7 +137,8 @@ export function preloadOverworld(scene: Phaser.Scene, roster: readonly Creature[
     for (const motion of motions) {
       if((creature==='geodude'||creature==='onix')&&motion==='Hop')continue;
       const info = registry[creature][motion];
-      scene.load.spritesheet(key(creature, motion), base + ids[creature] + '/' + motion + '-Anim.png', {
+      const spriteMotion=creature==='charmander'&&motion==='Shoot'?'Charge':motion;
+      scene.load.spritesheet(key(creature, motion), base + ids[creature] + '/' + spriteMotion + '-Anim.png', {
         frameWidth: info.width,
         frameHeight: info.height
       });

@@ -67,3 +67,7 @@ Os PNGs originais foram incluídos no repositório para evitar falhas de rede. E
 ## Sprites de exploração dentro do ginásio (FireRed/LeafGreen)
 
 Os treinadores do chão do ginásio agora usam os **sprites de exploração originais de Pokémon FireRed/LeafGreen** (16×32 pixels), extraídos da descompilação comunitária [pret/pokefirered](https://github.com/pret/pokefirered/tree/master/graphics/object_events/pics/people): `brock.png`, `red_normal.png`, `hiker.png` e `camper.png`. Os sprites maiores de batalhas anteriores ficam restritos à tela de apresentação do confronto. O ícone de Pokébola local vem de [PokeAPI/sprites](https://github.com/PokeAPI/sprites/blob/master/sprites/items/poke-ball.png). Artes pertencem aos titulares de Pokémon; este fan game permanece experimental e não comercial.
+
+## Charmander (#0004) — sprite de exploração
+
+Sprite PMD original de Charmander utilizado no modo História: https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0004 (SpriteCollab, com autoria/condições creditadas pelo repositório de origem). Os direitos de Pokémon permanecem com seus titulares; uso somente no fan game experimental não comercial.

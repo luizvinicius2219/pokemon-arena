@@ -6,6 +6,7 @@ import type { PokemonType } from './pokemonCatalog';
  * playable in the arena. Adding a new type only expands this table.
  */
 export const typeChart: Record<PokemonType, Partial<Record<PokemonType, number>>> = {
+  normal:   {rock:0.5},
   fire:     {fire:0.5, rock:0.5},
   flying:   {electric:0.5, rock:0.5},
   electric: {electric:0.5, ground:0, flying:2},

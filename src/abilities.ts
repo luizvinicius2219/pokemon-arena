@@ -1,7 +1,7 @@
 import type { Action } from './controls';
 
 export type Skill = Exclude<Action, 'dodge'>;
-export type Fighter = 'charizard' | 'pikachu' | 'geodude' | 'onix';
+export type Fighter = 'charmander' | 'charizard' | 'pikachu' | 'geodude' | 'onix';
 export const skillKeys: Skill[] = ['q', 'w', 'e', 'r'];
 export const allActions: Action[] = ['q', 'w', 'e', 'r', 'dodge'];
 
@@ -16,6 +16,12 @@ export interface Ability {
 }
 
 export const skills: Record<Fighter, Record<Skill, Ability>> = {
+  charmander: {
+    q: { name: 'Brasas', description: 'Pequena rajada de brasas.', icon: '🔥', cooldown: 750, damage: 7, element: 'fire' },
+    w: { name: 'Arranhão', description: 'Golpe físico curto de tipo Normal.', icon: '🐾', cooldown: 1400, damage: 12, element: 'normal' },
+    e: { name: 'Cortina de Fumaça', description: 'Reduz a velocidade e atrapalha o ritmo de ataque inimigo.', icon: '💨', cooldown: 6400, damage: 0, element: 'normal' },
+    r: { name: 'Chama Giratória', description: 'Projétil de fogo que se espalha em área.', icon: '🌀', cooldown: 8200, damage: 19, element: 'fire' }
+  },
   charizard: {
     q: { name: 'Brasas', description: 'Projétil veloz de fogo.', icon: '🔥', cooldown: 450, damage: 8, element: 'fire' },
     w: { name: 'Lança-Chamas', description: 'Feixe contínuo e direcionável de fogo.', icon: '🌋', cooldown: 2300, damage: 5, element: 'fire' },

@@ -5,7 +5,7 @@ import { skills, type Fighter, type Skill } from './abilities';
  * playable selection, encounter teams, progression and elemental combat.
  * No sprite or move data is hard-coded to Pewter Gym here.
  */
-export type PokemonType = 'fire'|'flying'|'electric'|'rock'|'ground';
+export type PokemonType = 'normal'|'fire'|'flying'|'electric'|'rock'|'ground';
 export type PokemonAttackStyle = 'flame'|'electric'|'rock';
 
 export interface PokemonProfile {
@@ -27,6 +27,12 @@ const profile=(options:Omit<PokemonProfile,'skillSet'>):PokemonProfile=>({
 });
 
 export const pokemonCatalog: Record<Fighter,PokemonProfile> = {
+  charmander:profile({
+    id:'charmander',number:4,name:'Charmander',elements:['fire'],
+    maxHp:84,radius:17,moveSpeed:200,attackStyle:'flame',
+    portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png',
+    playable:true
+  }),
   charizard:profile({
     id:'charizard',number:6,name:'Charizard',elements:['fire','flying'],
     maxHp:100,radius:19,moveSpeed:215,attackStyle:'flame',

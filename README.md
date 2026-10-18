@@ -241,3 +241,8 @@ Onix foi ampliado para uma escala de chefe e entra mais ao centro do ginásio, m
 A base de dados agora comporta Pokémon individuais do jogador (não apenas espécies), com **equipe de até três, reserva, Pokémon ativo, níveis, experiência e insígnias**. `src/playerCollection.ts` implementa a persistência local de forma independente da batalha. `src/captureSystem.ts` fornece chances de captura em encontros **selvagens**, com bônus por timing/atordoamento, enfraquecimento e equipamento; proíbe capturar Pokémon de treinador e chefes. São **módulos preparatórios**: ainda não existe botão de captura, tela de coleção nem encontro selvagem jogável.
 
 Direção: um **jogo de ação e exploração com batalhas em tempo real**, captura sob pressão, formação de equipes e chefes com padrões próprios, mantendo um ritmo diferente da fórmula tradicional de turnos. Próxima implementação: primeiro encontro selvagem controlado, minijogo de captura e tela de equipe conectados a esses dois módulos.
+
+
+## Roteiro do jogo / primeiro capítulo
+
+Veja [GAME_ROADMAP.md](GAME_ROADMAP.md). A arena de Pewter é um **protótipo do chefe** e continuará acessível como atalho de teste enquanto construímos a vila, a rota de encontros e a área de treinamento. O objetivo é enfrentar Brock com o inicial obtido na história, e não começar com Charizard. A Arena Livre mantém os personagens avançados para testes de combate.
