@@ -219,3 +219,8 @@ Sprites grandes de treinador deixaram de ocupar o piso: Brock, Red, montanhistas
 ### Terremoto e Magnitude com rachaduras reais no piso
 
 Cada impacto sísmico faz surgir uma malha ramificada de rachaduras escuras com bordas de pedra exposta e cascalho. O decalque é rasterizado **uma única vez** em uma CanvasTexture pequena, exibido como um sprite e se desfaz após alguns segundos; o fundo do ginásio permanece um único bitmap estático. A queda de pedras tem volume facetado, iluminação e sombra de aproximação. Fendas, placas de terreno projetadas e tremor de câmera são usados nos golpes sísmicos, preservando a prioridade de desempenho no celular.
+
+
+### Troca de Pokémon com Pokébola — ritmo de batalha
+
+Geodude agora é recolhido com feixe vermelho, brilho de captura e movimento da Pokébola até Brock. O líder anuncia Onix, lança a nova Pokébola e o Pokémon surge numa segunda luz vermelha com abertura mais lenta. Durante a troca, o combate é temporariamente pausado (sem teleporte instantâneo, sem dano acidental no Pokémon que entra). O efeito está encapsulado em `src/pokemonSwitchFx.ts`, independente da espécie, pronto para futuras equipes e modo seleção. A introdução VS também pausa os comandos até o início real da luta.
