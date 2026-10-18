@@ -162,3 +162,7 @@ A primeira base técnica do modo história já está no jogo. No cabeçalho, esc
 5. Reaproveitar o registro `kantoGymOrder` para Misty, Lt. Surge, Erika, Koga, Sabrina, Blaine e Giovanni.
 
 As representações temporárias dos treinadores são figuras geométricas originais; nenhum sprite externo de Brock foi incorporado nesta etapa.
+
+## Atualização Pewter Lite — pixel art estática
+
+O Ginásio de Pewter usa fundo estático desenhado em pixel art, cinco treinadores em sprites pixelizados originais e seis rochas/pilares com duas texturas de dano e remoção na destruição. A antiga renderização procedural de ladrilhos, os NPCs com tweens infinitos e os efeitos de fragmentação foram retirados para reduzir carga no celular. A Arena Livre e o combate permanecem iguais. Os assets originais (SVG com formas em grade, rasterizados uma única vez pelo Phaser) ficam em `public/assets/story/pewter`. Brock ainda é um NPC visual, e Pikachu permanece como adversário de teste.

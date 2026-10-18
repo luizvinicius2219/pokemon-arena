@@ -165,7 +165,7 @@ const game=new Phaser.Game({
   parent: 'game',
   width: 960, height: 576,
   backgroundColor: '#142e31',
-  render: { pixelArt: true },
+  render: { pixelArt: true, antialias: false, roundPixels: true },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [new ArenaScene(() => bindings, () => heldKeys, () => menuOpen, mobile,()=>gameMode)]
 });
