@@ -4,28 +4,47 @@ import './style.css';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML='<header><h1>MONSTER <span>ARENA</span></h1><p>Arena 2D • Batalha em tempo real</p><button id="settings">⚙ Controles</button></header><main><div id="game"></div><aside><h2>Como jogar</h2><p>🖱 Clique direito: mover</p><p>🎯 Mire com o cursor</p><p>⚡ Q W E R: habilidades</p><p>💨 Espaço: esquiva</p><p>Derrote o adversário para vencer. Pressione ENTER para reiniciar.</p><div id="status"></div></aside></main><div id="modal" class="hidden"><section><h2>Configurar controles</h2><p>Clique em uma ação e pressione a nova tecla.</p><div id="bindings"></div><p id="error"></p><button id="restore">Restaurar padrões</button><button id="close">Fechar</button></section></div>';
 let bindings=loadBindings(); let capturing:Action|null=null;let menuOpen=false;
+const heldKeys=new Set<string>();
+window.addEventListener('keyup',e=>heldKeys.delete(e.code));
+window.addEventListener('blur',()=>heldKeys.clear());
 const modal=document.querySelector<HTMLDivElement>('#modal')!,bindingList=document.querySelector<HTMLDivElement>('#bindings')!,error=document.querySelector<HTMLParagraphElement>('#error')!;
 const actions:Action[]=['q','w','e','r','dodge'];const labels:Record<Action,string>={q:'Habilidade Q',w:'Habilidade W',e:'Habilidade E',r:'Especial R',dodge:'Esquiva'};
 function renderBindings(){bindingList.replaceChildren();for(const action of actions){const button=document.createElement('button');button.textContent=labels[action]+' — '+(capturing===action?'Pressione uma tecla...':keyLabel(bindings[action]));button.onclick=()=>{capturing=action;error.textContent='';renderBindings();};bindingList.append(button);}}
-function toggle(open:boolean){menuOpen=open;capturing=null;modal.classList.toggle('hidden',!open);error.textContent='';renderBindings();}
+function toggle(open:boolean){menuOpen=open;capturing=null;heldKeys.clear();modal.classList.toggle('hidden',!open);error.textContent='';renderBindings();}
 document.querySelector('#settings')!.addEventListener('click',()=>toggle(true));document.querySelector('#close')!.addEventListener('click',()=>toggle(false));document.querySelector('#restore')!.addEventListener('click',()=>{bindings={...defaults};saveBindings(bindings);error.textContent='Controles restaurados.';renderBindings();});
-window.addEventListener('keydown',e=>{if(!capturing)return;e.preventDefault();if(['Escape','Tab','ControlLeft','ControlRight','AltLeft','AltRight','MetaLeft','MetaRight'].includes(e.code)){capturing=null;renderBindings();return;}const result=assignBinding(bindings,capturing,e.code);if(result.error){error.textContent=result.error;}else{bindings=result.value;saveBindings(bindings);capturing=null;error.textContent='Tecla salva!';}renderBindings();},true);
+window.addEventListener('keydown',e=>{
+  if(capturing){
+    e.preventDefault();
+    if(['Escape','Tab','ControlLeft','ControlRight','AltLeft','AltRight','MetaLeft','MetaRight'].includes(e.code)){
+      capturing=null;renderBindings();return;
+    }
+    const result=assignBinding(bindings,capturing,e.code);
+    if(result.error){error.textContent=result.error;}
+    else{bindings=result.value;saveBindings(bindings);capturing=null;error.textContent='Tecla salva!';}
+    renderBindings();return;
+  }
+  if(menuOpen)return;
+  if(Object.values(bindings).includes(e.code)){
+    e.preventDefault();
+    heldKeys.add(e.code);
+  }
+},true);
 class Battle extends Phaser.Scene{
-  player!:Phaser.GameObjects.Arc;enemy!:Phaser.GameObjects.Arc;destination!:Phaser.Math.Vector2;keys!:Record<Action,Phaser.Input.Keyboard.Key>;hp=100;enemyHp=100;lastCast:Record<Action,number>={q:0,w:0,e:0,r:0,dodge:0};enemyLast=0;ended=false;lastFacing=new Phaser.Math.Vector2(1,0);projectiles:{shape:Phaser.GameObjects.Arc;velocity:Phaser.Math.Vector2;enemy:boolean;damage:number;expires:number}[]=[];hpText!:Phaser.GameObjects.Text;enemyText!:Phaser.GameObjects.Text;
+  player!:Phaser.GameObjects.Arc;enemy!:Phaser.GameObjects.Arc;destination!:Phaser.Math.Vector2;hp=100;enemyHp=100;lastCast:Record<Action,number>={q:0,w:0,e:0,r:0,dodge:0};enemyLast=0;ended=false;lastFacing=new Phaser.Math.Vector2(1,0);projectiles:{shape:Phaser.GameObjects.Arc;velocity:Phaser.Math.Vector2;enemy:boolean;damage:number;expires:number}[]=[];hpText!:Phaser.GameObjects.Text;enemyText!:Phaser.GameObjects.Text;
   constructor(){super('Battle');}
-  create(){this.hp=100;this.enemyHp=100;this.ended=false;this.projectiles=[];this.lastCast={q:0,w:0,e:0,r:0,dodge:0};this.enemyLast=0;this.cameras.main.setBackgroundColor('#142e31');const g=this.add.graphics();g.lineStyle(2,0x315b59);for(let x=0;x<960;x+=48)g.lineBetween(x,0,x,576);for(let y=0;y<576;y+=48)g.lineBetween(0,y,960,y);g.lineStyle(5,0x6fa296);g.strokeRoundedRect(20,20,920,536,18);
+  create(){this.hp=100;this.enemyHp=100;this.ended=false;this.projectiles=[];this.lastCast={q:-350,w:-1000,e:-1700,r:-4500,dodge:-1900};this.enemyLast=0;this.cameras.main.setBackgroundColor('#142e31');const g=this.add.graphics();g.lineStyle(2,0x315b59);for(let x=0;x<960;x+=48)g.lineBetween(x,0,x,576);for(let y=0;y<576;y+=48)g.lineBetween(0,y,960,y);g.lineStyle(5,0x6fa296);g.strokeRoundedRect(20,20,920,536,18);
     this.player=this.add.circle(210,288,19,0x60d1ff).setStrokeStyle(4,0xffffff);this.enemy=this.add.circle(750,288,19,0xff8b69).setStrokeStyle(4,0xffffff);this.add.text(180,242,'AZUL',{color:'#d5f8ff',fontSize:'14px'});this.add.text(712,242,'VERMELHO',{color:'#ffe2d8',fontSize:'14px'});
     this.destination=new Phaser.Math.Vector2(this.player.x,this.player.y);this.hpText=this.add.text(30,28,'Jogador: 100 HP',{fontSize:'20px',color:'#a5eeff'}).setDepth(10);this.enemyText=this.add.text(740,28,'CPU: 100 HP',{fontSize:'20px',color:'#ffc0ae'}).setDepth(10);
     this.input.mouse?.disableContextMenu();this.input.on('pointerdown',(p:Phaser.Input.Pointer)=>{if(p.rightButtonDown()&&!menuOpen&&!this.ended)this.destination.set(Phaser.Math.Clamp(p.x,40,920),Phaser.Math.Clamp(p.y,40,536));});
-    this.input.keyboard?.on('keydown-ENTER',()=>{if(this.ended)this.scene.restart();});this.keys={} as Record<Action,Phaser.Input.Keyboard.Key>;
+    this.input.keyboard?.on('keydown-ENTER',()=>{if(this.ended){heldKeys.clear();this.scene.restart();}});
   }
-  cast(action:Action,time:number){const cooldown:Record<Action,number>={q:350,w:1000,e:1700,r:4500,dodge:1900};if(time-this.lastCast[action]<cooldown[action])return;this.lastCast[action]=time;const pointer=this.input.activePointer;const dir=new Phaser.Math.Vector2(pointer.worldX-this.player.x,pointer.worldY-this.player.y).normalize();if(dir.lengthSq()<0.1)dir.copy(this.lastFacing);else this.lastFacing.copy(dir);
+  cast(action:Action,time:number){const cooldown:Record<Action,number>={q:350,w:1000,e:1700,r:4500,dodge:1900};if(time-this.lastCast[action]<cooldown[action])return;this.lastCast[action]=time;const pointer=this.input.activePointer;const dir=new Phaser.Math.Vector2(pointer.worldX-this.player.x,pointer.worldY-this.player.y);if(dir.lengthSq()<0.1)dir.copy(this.lastFacing);else{dir.normalize();this.lastFacing.copy(dir);}
     if(action==='dodge'){this.player.x=Phaser.Math.Clamp(this.player.x+dir.x*100,40,920);this.player.y=Phaser.Math.Clamp(this.player.y+dir.y*100,40,536);this.destination.set(this.player.x,this.player.y);return;}
     const speed=action==='r'?520:action==='w'?320:420;const damage=action==='r'?30:action==='e'?16:action==='w'?12:8;const radius=action==='r'?19:action==='e'?14:action==='w'?12:8;this.spawn(this.player.x,this.player.y,dir,speed,damage,radius,false,time);
   }
   spawn(x:number,y:number,dir:Phaser.Math.Vector2,speed:number,damage:number,radius:number,enemy:boolean,time:number){const shape=this.add.circle(x,y,radius,enemy?0xffb85b:0xb8f66b).setStrokeStyle(2,0xffffff);this.projectiles.push({shape,velocity:dir.clone().scale(speed),enemy,damage,expires:time+2100});}
-  update(time:number,delta:number){if(menuOpen||this.ended)return;const dt=Math.min(delta/1000,0.05);const to=this.destination.clone().subtract(new Phaser.Math.Vector2(this.player.x,this.player.y));if(to.length()>3){const step=to.normalize().scale(Math.min(215*dt,to.length()));this.player.x+=step.x;this.player.y+=step.y;}
-    const key=this.input.keyboard; if(key){for(const action of actions){if(key.checkDown(key.addKey(bindings[action],false),0))this.cast(action,time);}}
+  update(time:number,delta:number){if(menuOpen||this.ended)return;const dt=Math.min(delta/1000,0.05);const to=this.destination.clone().subtract(new Phaser.Math.Vector2(this.player.x,this.player.y));const distanceToTarget=to.length();if(distanceToTarget>3){const step=to.normalize().scale(Math.min(215*dt,distanceToTarget));this.player.x+=step.x;this.player.y+=step.y;}
+    for(const action of actions){if(heldKeys.has(bindings[action]))this.cast(action,time);}
     const toward=new Phaser.Math.Vector2(this.player.x-this.enemy.x,this.player.y-this.enemy.y);const distance=toward.length();if(distance>190){toward.normalize();this.enemy.x=Phaser.Math.Clamp(this.enemy.x+toward.x*115*dt,40,920);this.enemy.y=Phaser.Math.Clamp(this.enemy.y+toward.y*115*dt,40,536);}else if(distance<130){toward.normalize();this.enemy.x=Phaser.Math.Clamp(this.enemy.x-toward.x*90*dt,40,920);this.enemy.y=Phaser.Math.Clamp(this.enemy.y-toward.y*90*dt,40,536);}
     if(time-this.enemyLast>950){this.enemyLast=time;const aim=new Phaser.Math.Vector2(this.player.x-this.enemy.x,this.player.y-this.enemy.y).normalize();this.spawn(this.enemy.x,this.enemy.y,aim,260,9,9,true,time);}
     for(let i=this.projectiles.length-1;i>=0;i--){const p=this.projectiles[i];p.shape.x+=p.velocity.x*dt;p.shape.y+=p.velocity.y*dt;const target=p.enemy?this.player:this.enemy;const hit=Phaser.Math.Distance.Between(p.shape.x,p.shape.y,target.x,target.y)<p.shape.radius+target.radius;if(hit){if(p.enemy)this.hp=Math.max(0,this.hp-p.damage);else this.enemyHp=Math.max(0,this.enemyHp-p.damage);}if(hit||time>p.expires||p.shape.x<0||p.shape.x>960||p.shape.y<0||p.shape.y>576){p.shape.destroy();this.projectiles.splice(i,1);}}
