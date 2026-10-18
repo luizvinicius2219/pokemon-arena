@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { Fighter } from './abilities';
 
 /**
  * Pokémon Mystery Dungeon overworld sprite sheets.
@@ -11,7 +12,7 @@ import Phaser from 'phaser';
  * this fan game non-commercial.
  */
 
-export type Creature = 'charizard' | 'pikachu';
+export type Creature = Fighter;
 export type Motion = 'Walk' | 'Idle' | 'Shoot' | 'Attack' | 'Charge' | 'Hurt' | 'Hop';
 
 interface SheetInfo {
@@ -40,6 +41,24 @@ const registry: SheetRegistry = {
     Charge: { width: 40, height: 40, ticks: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2] },
     Hurt: { width: 48, height: 64, ticks: [2, 8] },
     Hop: { width: 40, height: 88, ticks: [2, 1, 2, 3, 4, 4, 3, 2, 1, 2] }
+  },
+  geodude: {
+    Walk: { width: 32, height: 32, ticks: [8,10,8,10] },
+    Idle: { width: 32, height: 24, ticks: [8,12,8,12] },
+    Shoot: { width: 48, height: 40, ticks: [2,2,4,1,1,2,2,2,2,2,2,2,2,2] },
+    Attack: { width: 72, height: 80, ticks: [3,3,2,2,2,2,1,1,1,1,1,1,2,2] },
+    Charge: { width: 32, height: 40, ticks: [2,2,2,2,2,2,2,2,2,2] },
+    Hurt: { width: 40, height: 48, ticks: [2,8] },
+    Hop: { width: 32, height: 80, ticks: [2,1,2,3,4,4,3,2,1,2] }
+  },
+  onix: {
+    Walk: { width: 88, height: 112, ticks: [10,14,10,14] },
+    Idle: { width: 96, height: 104, ticks: [16,16,16,16] },
+    Shoot: { width: 96, height: 112, ticks: [2,2,6,2,2,2,2,2,2,2] },
+    Attack: { width: 128, height: 152, ticks: [2,6,1,1,1,2,2,2,2,2,2] },
+    Charge: { width: 56, height: 104, ticks: [2,2,2,2,2,2,2,2,2,2] },
+    Hurt: { width: 80, height: 88, ticks: [2,8] },
+    Hop: { width: 88, height: 160, ticks: [2,1,2,3,4,4,3,2,1,2] }
   }
 };
 
@@ -50,15 +69,29 @@ const registry: SheetRegistry = {
 export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Charge'): number {
   const frames: Record<Creature, Record<'Shoot'|'Attack'|'Charge',number>> = {
     charizard: { Shoot: 2, Attack: 5, Charge: 5 },
-    pikachu:  { Shoot: 2, Attack: 3, Charge: 5 }
+    pikachu:  { Shoot: 2, Attack: 3, Charge: 5 },
+    geodude:  { Shoot: 5, Attack: 5, Charge: 5 },
+    onix:     { Shoot: 2, Attack: 3, Charge: 5 }
   };
   const info=registry[creature][motion];
   return Math.round(info.ticks.slice(0,frames[creature][motion]).reduce((sum,t)=>sum+t,0)*1000/60);
 }
 
-const ids: Record<Creature, string> = { charizard: '0006', pikachu: '0025' };
+const ids: Record<Creature, string> = { charizard: '0006', pikachu: '0025', geodude: '0074', onix: '0095' };
 const motions: Motion[] = ['Walk', 'Idle', 'Shoot', 'Attack', 'Charge', 'Hurt', 'Hop'];
 const base = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/';
+
+function spriteSize(creature:Creature):number {
+  switch(creature){
+    case 'onix':return 1.18;
+    case 'geodude':return 1.95;
+    case 'charizard':return 1.9;
+    case 'pikachu':return 1.7;
+  }
+}
+function spriteLift(creature:Creature):number {
+  return creature==='onix'?42:creature==='geodude'?15:17;
+}
 
 function key(creature: Creature, motion: Motion) {
   return 'pmd-' + creature + '-' + motion.toLowerCase();
@@ -85,8 +118,8 @@ function directionRow(x: number, y: number): number {
   return ((Math.round(2 - radians * 4 / Math.PI) % 8) + 8) % 8;
 }
 
-export function preloadOverworld(scene: Phaser.Scene) {
-  for (const creature of ['charizard', 'pikachu'] as Creature[]) {
+export function preloadOverworld(scene: Phaser.Scene, roster: readonly Creature[] = ['charizard','pikachu']) {
+  for (const creature of roster) {
     for (const motion of motions) {
       const info = registry[creature][motion];
       scene.load.spritesheet(key(creature, motion), base + ids[creature] + '/' + motion + '-Anim.png', {
@@ -126,9 +159,9 @@ export class OverworldActor {
     x: number,
     y: number
   ) {
-    this.image = scene.add.image(x, y - 17, key(creature, 'Idle'))
+    this.image = scene.add.image(x, y - spriteLift(creature), key(creature, 'Idle'))
       .setOrigin(0.5, 0.5)
-      .setScale(creature === 'charizard' ? 1.9 : 1.7)
+      .setScale(spriteSize(creature))
       .setDepth(3);
   }
 
@@ -211,8 +244,9 @@ export class OverworldActor {
     const hopProgress=hop && this.actionDuration>0
       ? Phaser.Math.Clamp((time-this.actionStartedAt)/this.actionDuration,0,1) : 0;
     const lift=hop?Math.sin(Math.PI*hopProgress)*8:0;
-    this.image.setPosition(x-this.facing.x*3*hurtPulse, y - 17 - walkingBob - lift - 3*hurtPulse);
-    const size=this.creature === 'charizard' ? 1.9 : 1.7;
+    this.image.setPosition(x-this.facing.x*3*hurtPulse,
+      y-spriteLift(this.creature)-walkingBob-lift-3*hurtPulse);
+    const size=spriteSize(this.creature);
     this.image.setScale(size*(1+hurtPulse*0.075),size*(1-hurtPulse*0.055));
   }
 }

@@ -1,7 +1,7 @@
 import type { Action } from './controls';
 
 export type Skill = Exclude<Action, 'dodge'>;
-export type Fighter = 'charizard' | 'pikachu';
+export type Fighter = 'charizard' | 'pikachu' | 'geodude' | 'onix';
 export const skillKeys: Skill[] = ['q', 'w', 'e', 'r'];
 export const allActions: Action[] = ['q', 'w', 'e', 'r', 'dodge'];
 
@@ -25,6 +25,18 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
     w: { name: 'Onda de Choque', description: 'Pulso elétrico circular ao redor de Pikachu.', icon: '🌀', cooldown: 3400, damage: 11 },
     e: { name: 'Raio', description: 'Descarga telegrafada na posição do alvo.', icon: '🌩️', cooldown: 4500, damage: 17 },
     r: { name: 'Trovão', description: 'Três descargas sequenciais com aviso no solo.', icon: '⛈️', cooldown: 9000, damage: 13 }
+  },
+  geodude: {
+    q: { name: 'Pedrada', description: 'Dispara uma rocha veloz.', icon: '🪨', cooldown: 1100, damage: 7 },
+    w: { name: 'Soco de Pedra', description: 'Golpe físico em área curta.', icon: '👊', cooldown: 3200, damage: 11 },
+    e: { name: 'Desabamento', description: 'Rochas caem sobre a área sinalizada.', icon: '⛰️', cooldown: 4800, damage: 15 },
+    r: { name: 'Terremoto', description: 'Uma grande onda de choque parte de Geodude.', icon: '🌋', cooldown: 8500, damage: 18 }
+  },
+  onix: {
+    q: { name: 'Rocha Afiada', description: 'Projétil de pedra pontiagudo.', icon: '🔹', cooldown: 1350, damage: 9 },
+    w: { name: 'Cauda de Ferro', description: 'Golpe poderoso de cauda com alcance médio.', icon: '⛓️', cooldown: 3500, damage: 14 },
+    e: { name: 'Pedra Tombante', description: 'Uma grande rocha cai sobre a posição marcada.', icon: '🪨', cooldown: 5100, damage: 19 },
+    r: { name: 'Fissura', description: 'Três erupções de pedra surgem em sequência.', icon: '💢', cooldown: 9200, damage: 13 }
   }
 };
 export const dodge = { name: 'Esquiva', description: 'Avanço rápido em direção ao cursor.', icon: '💨', cooldown: 1900, damage: 0 };

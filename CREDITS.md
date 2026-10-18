@@ -42,3 +42,12 @@ Na prévia do Ginásio de Pewter, o Brock e o treinador Red são exibidos a part
 - Fonte e créditos adicionais: https://play.pokemonshowdown.com/sprites/trainers/
 
 Os sprites clássicos pertencem aos respectivos titulares de Pokémon. O índice do Showdown alerta que sprites da comunidade requerem atribuição e que não devem ser editados sem permissão. Como alternativa em caso de indisponibilidade de rede, o projeto mantém artes pixelizadas originais em `public/assets/story/pewter/brock.svg` e `red.svg`. Nenhuma dessas artes substitutas é apresentada como sprite oficial. O jogo continua experimental e sem finalidade comercial.
+
+
+## Novos Pokémon do Ginásio de Pewter
+
+- **Geodude (#0074):** PMDCollab / SpriteCollab — https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0074 — sprite original atribuído a CHUNSOFT conforme `credits.txt`.
+- **Onix (#0095):** PMDCollab / SpriteCollab — https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0095 — sprite original atribuído a CHUNSOFT conforme `credits.txt`.
+- Fallbacks de imagens fixas: https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/
+
+Valem as observações de direitos e uso **não comercial** já registradas acima. Os efeitos de rocha e a lógica das habilidades são implementações originais do projeto.

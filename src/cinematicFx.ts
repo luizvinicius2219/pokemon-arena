@@ -6,7 +6,7 @@ import Phaser from 'phaser';
  * release waves and impact flares without loading textures or spawning
  * hundreds of GameObjects on mobile devices.
  */
-export type Element = 'fire' | 'electric';
+export type Element = 'fire' | 'electric' | 'rock';
 export type ActorSide = 'player' | 'enemy';
 
 interface ChargeCue {
@@ -28,7 +28,8 @@ interface Point { x: number; y: number }
 
 const palette = {
   fire: { glow: 0xb54020, outer: 0xf07630, inner: 0xffd16c, core: 0xfff7c6 },
-  electric: { glow: 0x3d73b7, outer: 0x6bd9ef, inner: 0xffe86a, core: 0xffffff }
+  electric: { glow: 0x3d73b7, outer: 0x6bd9ef, inner: 0xffe86a, core: 0xffffff },
+  rock: { glow: 0x403d36, outer: 0x99846b, inner: 0xd1bb8b, core: 0xffedd0 }
 };
 
 const clamp01 = (t: number) => Phaser.Math.Clamp(t, 0, 1);
@@ -69,7 +70,7 @@ export class CinematicFx {
 
   private screenFlash(element: Element, alpha: number) {
     const tint = this.scene.add.rectangle(480, 288, 960, 576,
-      element === 'fire' ? 0xffb66c : 0xd6f7ff, alpha)
+      element === 'fire' ? 0xffb66c : element==='rock' ? 0xffe1b6 : 0xd6f7ff, alpha)
       .setScrollFactor(0).setDepth(16);
     this.scene.tweens.add({
       targets: tint, alpha: 0, duration: 145, ease: 'Quad.easeOut',
@@ -149,11 +150,12 @@ export class CinematicFx {
       }
     } else {
       for (let n = 0; n < 5; n++) {
-        const theta = n * Math.PI * 2 / 5 + elapsed * 0.003;
+        const theta = n * Math.PI * 2 / 5 + elapsed * (cue.element==='rock'?-0.002:0.003);
         const r = 16 + t * 8;
-        g.fillStyle(n % 2 ? p.inner : p.outer, 0.8 * strength).fillCircle(
+        g.fillStyle(n % 2 ? p.inner : p.outer, 0.8 * strength).fillRect(
           origin.x + Math.cos(theta) * r,
-          origin.y + Math.sin(theta) * r - (elapsed / 19) % 11, 2.2
+          origin.y + Math.sin(theta) * r - (cue.element==='rock'?0:(elapsed / 19) % 11),
+          cue.element==='rock'?5:3, cue.element==='rock'?4:3
         );
       }
     }
