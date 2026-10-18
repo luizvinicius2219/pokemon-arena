@@ -12,6 +12,7 @@ import { pokemonCatalog, gymTeams, type PokemonEncounter, type PokemonType } fro
 import { effectiveness, scaledDamage } from './typeChart';
 import { RockFx, RockMoves, type RockStatus } from './rockMoves';
 import { PokemonSwitchFx } from './pokemonSwitchFx';
+import { StarterFx } from './starterFx';
 import { getActivePokemon, loadCollection } from './playerCollection';
 import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
@@ -60,6 +61,8 @@ export class ArenaScene extends Phaser.Scene {
   private mode:GameMode='training';
   private playerSpecies:Fighter='charizard';
   private fx!: CombatFx;
+  private starterFx!:StarterFx;
+  private enemyWeakenedUntil=0;
   private rockFx?:RockFx;
   private rockMoves?:RockMoves;
   private switchFx?:PokemonSwitchFx;
@@ -189,6 +192,8 @@ export class ArenaScene extends Phaser.Scene {
     this.switchFx=this.mode==='story'?new PokemonSwitchFx(this):undefined;
     this.storyIntroUntil=0;
     this.fx = new CombatFx(this);
+    this.starterFx = new StarterFx(this);
+    this.enemyWeakenedUntil=0;
     this.cinematic = new CinematicFx(this);
     this.stats = new BattleStats(this.time.now);
     this.playerMotion = undefined;
@@ -420,6 +425,7 @@ export class ArenaScene extends Phaser.Scene {
         this.enemyCastLockUntil=0;
         this.enemySlowUntil=0;
         this.enemyBindUntil=0;
+        this.enemyWeakenedUntil=0;
         this.enemyBurrowTween?.stop();
         this.enemyBurrowed=false;
         this.enemyBurrowVisual.depth=0;
@@ -595,19 +601,26 @@ export class ArenaScene extends Phaser.Scene {
       ? this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing)
       : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
     this.faceDirection('player',dir);
-    const motion=action==='r'?'Attack':action==='e'?'Charge':'Shoot';
-    this.playerMotion?.trigger(motion,time,dir,action==='w'?785:undefined);
+    const motion=this.playerSpecies==='charmander'
+      ?action==='q'?'Attack':action==='w'?'Charge':
+        action==='e'?'Shoot':'Charge'
+      :action==='r'?'Attack':action==='e'?'Charge':'Shoot';
+    this.playerMotion?.trigger(motion,time,dir,
+      action==='w'&&this.playerSpecies==='charizard'?785:undefined);
     // Use the exact launch frame from PMD animations, not guessed timers.
     const windupMs=this.playerMotion ? releaseFrameMs(this.playerSpecies,motion)
       : ({q:60,w:115,e:180,r:270} as Record<Skill,number>)[action];
     const charge=action==='r'?1.8:action==='e'?1.4:1;
-    if(this.playerSpecies==='charizard'||action==='q'||action==='r')
-      this.fx.charge(this.player.x+dir.x*23,this.player.y+dir.y*23,'fire',charge);
-    if(action==='r'||(action==='e'&&this.playerSpecies==='charizard')){
-      const power=action==='r'?this.playerSpecies==='charmander'?1.25:2.7:1.35;
+    const advanced=this.playerSpecies==='charizard';
+    if(advanced||action==='e')this.fx.charge(
+      this.player.x+dir.x*23,this.player.y+dir.y*23,
+      'fire',advanced?charge:0.72
+    );
+    if(advanced&&(action==='r'||action==='e')){
+      const power=action==='r'?2.7:1.35;
       this.cinematic.charge('player','fire',power,time,Math.max(140,windupMs+40));
       if(action==='r')this.skillCallout(this.player.x,this.player.y-87,
-        this.playerSpecies==='charmander'?'CHAMA GIRATÓRIA':'RAJADA DE FOGO',0xffcf87);
+        'RAJADA DE FOGO',0xffcf87);
     }
     // Intentional short wind-up: the body anticipates before the projectile releases.
     this.time.delayedCall(windupMs,()=>{
@@ -620,51 +633,45 @@ export class ArenaScene extends Phaser.Scene {
 
   private castCharmander(skill:Skill,dir:Phaser.Math.Vector2,time:number){
     const move=skills.charmander[skill];
-    const x=this.player.x+dir.x*22,y=this.player.y-8+dir.y*18;
+    const mx=this.player.x+dir.x*28,my=this.player.y-22+dir.y*24;
+    const target={x:this.enemy.x,y:this.enemy.y};
+    const source={x:mx,y:my};
     if(skill==='q'){
-      // Ember: a small fire projectile, with Fire-type effectiveness.
-      this.fx.breath(x,y,Math.atan2(dir.y,dir.x),0.54);
-      this.projectile(x,y,dir,465,8,'ember','player',move.damage,750,time);
-    }else if(skill==='w'){
-      // Scratch is a physical Normal-type move, never a fireball.
-      const slash=this.add.graphics().setDepth(7);
-      const px=-dir.y,py=dir.x;
-      const endX=x+dir.x*39,endY=y+dir.y*39;
-      slash.lineStyle(5,0xffecc5,0.95).lineBetween(
-        endX+px*15,endY+py*15,endX-px*15,endY-py*15);
-      slash.lineStyle(2,0xc6ac88,0.95).lineBetween(
-        endX+px*19,endY+py*21,endX-px*10,endY-py*15);
-      this.tweens.add({targets:slash,alpha:0,duration:220,
-        onComplete:()=>slash.destroy()});
+      // Scratch: three clear claw trails; the attack is physical NORMAL.
       const dx=this.enemy.x-this.player.x,dy=this.enemy.y-this.player.y;
-      if(Math.hypot(dx,dy)<=88+this.enemy.radius &&
-        (dx*dir.x+dy*dir.y)>0){
-        this.damage('enemy',move.damage,this.enemy.x,this.enemy.y,0xe9d0a6,'normal');
-      }
-    }else if(skill==='e'){
-      // Smokescreen: readable ground cloud, brief disruption not damage.
-      this.skillCallout(this.player.x,this.player.y-69,
-        'CORTINA DE FUMAÇA',0xc4cfcd);
-      const gfx=this.add.graphics().setDepth(6);
-      for(let j=0;j<7;j++){
-        const angle=j*Math.PI*2/7;
-        const centerX=this.enemy.x+Math.cos(angle)*34;
-        const centerY=this.enemy.y+Math.sin(angle)*24;
-        gfx.fillStyle(j%2===0?0x899397:0xc2bdb0,0.30)
-          .fillEllipse(centerX,centerY,54,36);
-      }
-      this.tweens.add({targets:gfx,alpha:0,duration:1150,delay:350,
-        onComplete:()=>gfx.destroy()});
+      const dist=Math.hypot(dx,dy);
+      const lands=dist<=88+this.enemy.radius && dx*dir.x+dy*dir.y>0;
+      const marker=lands?target:{
+        x:this.player.x+dir.x*69,y:this.player.y+dir.y*69
+      };
+      this.starterFx.scratch(source,marker,dir);
+      if(lands)this.damage('enemy',move.damage,
+        this.enemy.x,this.enemy.y,0xf1d4a0,'normal');
+    } else if(skill==='w'){
+      // Growl is a status move; it never fires flame or deals damage.
+      this.starterFx.growl(source,target);
+      this.skillCallout(this.player.x,this.player.y-72,'ROSNAR!',0xffe7aa);
       if(Phaser.Math.Distance.Between(this.player.x,this.player.y,
-        this.enemy.x,this.enemy.y)<330){
-        this.enemySlowUntil=Math.max(this.enemySlowUntil,time+1500);
-        this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+1000);
+        this.enemy.x,this.enemy.y)<380){
+        this.enemyWeakenedUntil=Math.max(this.enemyWeakenedUntil,time+4700);
       }
-    }else{
-      this.cinematic.release(x,y,'fire',1.35,time);
-      this.projectile(x,y,dir,330,14,'fireball','player',
-        move.damage,1010,time,73);
-      this.fx.breath(x,y,Math.atan2(dir.y,dir.x),1.1);
+    } else if(skill==='e'){
+      // Ember: visibly larger fireball and a luminous release marker.
+      this.starterFx.ember(mx,my,Math.atan2(dir.y,dir.x));
+      this.fx.breath(mx,my,Math.atan2(dir.y,dir.x),0.96);
+      this.projectile(mx,my,dir,395,14,'ember','player',
+        move.damage,1140,time);
+      this.flash(mx,my,0xffc76c,19);
+    } else {
+      // Smokescreen emits an actual volumetric, lasting cloud from the muzzle.
+      this.starterFx.smoke(source,target);
+      this.skillCallout(this.player.x,this.player.y-74,
+        'CORTINA DE FUMAÇA!',0xdae5df);
+      if(Phaser.Math.Distance.Between(this.player.x,this.player.y,
+        this.enemy.x,this.enemy.y)<400){
+        this.enemySlowUntil=Math.max(this.enemySlowUntil,time+3200);
+        this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+1250);
+      }
     }
   }
 
@@ -919,7 +926,9 @@ export class ArenaScene extends Phaser.Scene {
         [0xcbb18b,0xbca57c].includes(color)?'rock':'fire');
     const defender=target==='player'?this.playerSpecies:this.enemySpecies;
     const multiplier=effectiveness(elemental,pokemonCatalog[defender].elements);
-    const received=scaledDamage(amount,elemental,pokemonCatalog[defender].elements);
+    const growlFactor=target==='player'&&now<this.enemyWeakenedUntil?0.68:1;
+    const received=scaledDamage(Math.max(1,Math.round(amount*growlFactor)),
+      elemental,pokemonCatalog[defender].elements);
     if(multiplier.category!=='neutral'&&now-this.lastTypeCueAt[target]>1280){
       const label=multiplier.category==='immune'?'NÃO AFETA!':
         multiplier.category==='resisted'?'POUCO EFETIVO':

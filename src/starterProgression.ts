@@ -1,4 +1,4 @@
-import type { Fighter } from './abilities';
+// Charmander evolution plan includes Charmeleon before it is playable.
 
 /**
  * Our learnset follows the level-up moves in Pokemon Scarlet/Violet.
@@ -38,7 +38,7 @@ export const charmeleonLearnset:readonly LearnableMove[]=[
   {level:48,name:'Inferno',original:'Inferno',category:'special'}
 ];
 export const starterEvolution:ReadonlyArray<{
-  from:Fighter;to:Fighter;level:number
+  from:'charmander'|'charmeleon';to:'charmeleon'|'charizard';level:number
 }>=[
   {from:'charmander',to:'charmeleon',level:16},
   {from:'charmeleon',to:'charizard',level:36}
