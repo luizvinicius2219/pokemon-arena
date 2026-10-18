@@ -6,7 +6,7 @@ import Phaser from 'phaser';
  * The persistent graphics layer renders projectiles, while short-lived
  * particles are capped to avoid performance degradation on long battles.
  */
-export type VfxKind = 'ember' | 'flame' | 'fireball' | 'fireburst' | 'spark' | 'rock' | 'shard';
+export type VfxKind = 'ember' | 'flame' | 'fireball' | 'fireburst' | 'spark' | 'rock' | 'shard' | 'water';
 export interface VfxShot {
   body: { x: number; y: number; radius: number };
   velocity: { x: number; y: number };
@@ -69,6 +69,24 @@ export class CombatFx {
       const {x,y,radius:r}=shot.body;
       const a=Math.atan2(shot.velocity.y,shot.velocity.x);
       const phase=time*0.018+x*0.02+y*0.01;
+      if(shot.kind==='water'){
+        const vx=Math.cos(a),vy=Math.sin(a);
+        const nx=-vy,ny=vx;
+        g.fillStyle(0x1564a5,0.31).fillEllipse(x+4,y+7,r*3,r*1.8);
+        g.fillStyle(0x35a7de,0.96).fillEllipse(x,y,r*3.1,r*2.35);
+        g.fillStyle(0x6ce0fa,0.93).fillEllipse(
+          x+vx*r*0.65,y+vy*r*0.65,r*2.30,r*1.78);
+        g.fillStyle(0xe1ffff,0.97).fillEllipse(
+          x+vx*r,y+vy*r,r*1.12,r*1.06);
+        for(let j=0;j<4;j++){
+          const d=r*(1.7+j*0.75);
+          const oscillate=Math.sin(time*0.025+j*1.8)*r*0.60;
+          g.fillStyle(j%2?0x7ee9f8:0xcafaff,0.88-j*0.12)
+            .fillCircle(x-vx*d+nx*oscillate,
+              y-vy*d+ny*oscillate,Math.max(2,r*0.37-j*0.45));
+        }
+        continue;
+      }
       if(shot.kind==='rock'||shot.kind==='shard'){
         // A faceted boulder or jagged spear travels as a single grounded
         // stone projectile rather than a recolored fireball.

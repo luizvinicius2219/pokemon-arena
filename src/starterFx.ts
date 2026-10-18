@@ -150,4 +150,106 @@ export class StarterFx {
     this.scene.tweens.add({targets:badge,y:badge.y-21,alpha:0,
       duration:820,delay:590,onComplete:()=>badge.destroy()});
   }
+  /** Two living thorny vines arc out from Bulbasaur and snap toward the foe. */
+  vines(source:Point,target:Point){
+    const g=this.scene.add.graphics().setDepth(13);
+    const dx=target.x-source.x,dy=target.y-source.y;
+    const nx=-dy/Math.max(1,Math.hypot(dx,dy));
+    const ny=dx/Math.max(1,Math.hypot(dx,dy));
+    for(const side of [-1,1]){
+      const points:Point[]=[];
+      for(let i=0;i<=16;i++){
+        const t=i/16;
+        const wiggle=Math.sin(t*Math.PI*3+side*0.6)*(9+side*2)
+          +(1-t)*side*9;
+        points.push({
+          x:source.x+dx*t+nx*wiggle,
+          y:source.y+dy*t+ny*wiggle
+        });
+      }
+      g.lineStyle(13,0x225942,0.62).strokePoints(points);
+      g.lineStyle(8,0x3caa59,1).strokePoints(points);
+      g.lineStyle(3,0xa8df78,1).strokePoints(points);
+      for(let j=2;j<16;j+=3){
+        const p=points[j];
+        const theta=Math.atan2(dy,dx)+(side>0?1:-1)*1;
+        g.fillStyle(0x9edd77,0.93).fillTriangle(
+          p.x,p.y,p.x+Math.cos(theta)*22,p.y+Math.sin(theta)*22,
+          p.x+Math.cos(theta-0.7)*10,p.y+Math.sin(theta-0.7)*10
+        );
+      }
+    }
+    this.scene.tweens.add({
+      targets:g,alpha:0,duration:380,delay:120,
+      onComplete:()=>g.destroy()
+    });
+  }
+
+  /** Water Gun's bright launch, bubbles and directional blue splash. */
+  water(source:Point,dir:Point){
+    const g=this.scene.add.graphics().setPosition(source.x,source.y)
+      .setDepth(13);
+    const a=Math.atan2(dir.y,dir.x);
+    const nx=-dir.y,ny=dir.x;
+    g.fillStyle(0x287abb,0.40).fillCircle(0,0,24);
+    g.fillStyle(0x57c8f5,0.90).fillCircle(0,0,15);
+    g.fillStyle(0xe4fbff,1).fillCircle(0,0,6);
+    for(let i=0;i<6;i++){
+      const d=20+i*8,off=(i%2?1:-1)*(5+i*2);
+      g.fillStyle(i%2?0x76e4fa:0xd5faff,0.85).fillCircle(
+        dir.x*d+nx*off,dir.y*d+ny*off,3+(i%3)*2
+      );
+    }
+    this.scene.tweens.add({targets:g,alpha:0,duration:310,
+      scaleX:1.28,scaleY:1.28,onComplete:()=>g.destroy()});
+    void a;
+  }
+
+  seed(source:Point,target:Point){
+    const g=this.scene.add.graphics().setDepth(13);
+    g.lineStyle(5,0x3e9e59,0.82).lineBetween(
+      source.x,source.y,target.x,target.y
+    );
+    for(let i=0;i<8;i++){
+      const t=i/8;
+      const px=Phaser.Math.Linear(source.x,target.x,t);
+      const py=Phaser.Math.Linear(source.y,target.y,t);
+      g.fillStyle(i%2?0xf1e98e:0x74d982,0.93)
+        .fillEllipse(px,py,6,11);
+    }
+    const ring=this.scene.add.circle(target.x,target.y,36,0x72e58b,0.12)
+      .setStrokeStyle(4,0x92f59c,0.94).setDepth(13);
+    this.scene.tweens.add({targets:ring,alpha:0,
+      scaleX:1.8,scaleY:1.8,duration:690,
+      onComplete:()=>ring.destroy()});
+    this.scene.tweens.add({targets:g,alpha:0,duration:420,
+      onComplete:()=>g.destroy()});
+  }
+
+  shell(position:Point){
+    const outer=this.scene.add.circle(position.x,position.y-14,39,
+      0x52bced,0.18).setStrokeStyle(5,0x99e9ff,0.92)
+      .setDepth(14);
+    const inner=this.scene.add.circle(position.x,position.y-14,31,
+      0xa8e9ff,0.15).setStrokeStyle(2,0xdafcff,0.95)
+      .setDepth(14);
+    this.scene.tweens.add({targets:[outer,inner],alpha:0,
+      scaleX:1.35,scaleY:1.35,duration:770,delay:700,
+      onComplete:()=>{outer.destroy();inner.destroy();}});
+  }
+
+  notes(target:Point){
+    const g=this.scene.add.graphics().setDepth(13);
+    for(let i=0;i<6;i++){
+      const x=target.x-66+i*25;
+      const y=target.y-35-Math.sin(i)*23;
+      g.fillStyle(0xeac8ff,0.98).fillEllipse(x,y,13,9);
+      g.lineStyle(3,0xecb8f4,0.96)
+        .lineBetween(x+6,y-1,x+6,y-17);
+      g.fillStyle(0xffe0ff,0.92).fillCircle(x+6,y-17,3);
+    }
+    this.scene.tweens.add({targets:g,alpha:0,
+      y:-40,duration:1100,onComplete:()=>g.destroy()});
+  }
+
 }
