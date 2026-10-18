@@ -71,12 +71,16 @@ export function registerGifClip(scene: Phaser.Scene, key: string, data: ArrayBuf
       previous = frame;
     }
 
-    const texture = scene.textures.addSpriteSheet(key, sheet, {
-      frameWidth: width,
-      frameHeight: height,
-      endFrame: frames.length - 1
-    });
+    // Phaser 3 aceita HTMLCanvasElement em addCanvas, mas não em addSpriteSheet.
+    // Registramos cada recorte manualmente na textura de canvas.
+    const texture = scene.textures.addCanvas(key, sheet);
     if (!texture) return false;
+    for (let index = 0; index < frames.length; index++) {
+      texture.add(String(index), 0,
+        (index % columns) * width,
+        Math.floor(index / columns) * height,
+        width, height);
+    }
 
     clips.set(key, { endsAt, duration, frames: frames.length });
     return true;
