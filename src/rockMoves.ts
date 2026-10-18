@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { skills, type Skill } from './abilities';
+import { GroundCracks } from './groundCracks';
 
 export type RockSpecies = 'geodude'|'onix';
 export type BattleSide = 'player'|'enemy';
@@ -21,7 +22,9 @@ export class RockFx {
   private readonly ink:Phaser.GameObjects.Graphics;
   private readonly warnings:Warning[]=[];
   private readonly impacts:Impact[]=[];
+  private readonly fractures:GroundCracks;
   constructor(private readonly scene:Phaser.Scene) {
+    this.fractures=new GroundCracks(scene);
     this.ink=scene.add.graphics().setDepth(7);
   }
   warn(x:number,y:number,radius:number,now:number,duration:number,kind:EffectKind) {
@@ -29,8 +32,12 @@ export class RockFx {
     if(this.warnings.length>12)this.warnings.shift();
   }
   burst(x:number,y:number,radius:number,now:number,kind:EffectKind){
-    this.impacts.push({x,y,radius,start:now,duration:kind==='quake'?570:410,kind});
+    this.impacts.push({x,y,radius,start:now,duration:kind==='quake'?790:kind==='fall'?620:410,kind});
     if(this.impacts.length>12)this.impacts.shift();
+    if(kind==='quake'){
+      this.fractures.stamp(x,y,radius,Math.max(0.8,Math.min(1.2,radius/170)));
+      this.scene.cameras.main.shake(160,0.0024);
+    }
   }
   update(now:number) {
     const g=this.ink;
@@ -54,16 +61,44 @@ export class RockFx {
           w.x+Math.cos(angle)*outer,w.y+8+Math.sin(angle)*outer*0.58
         );
       }
-      // Falling boulder shadow converges toward impact; player can read ETA.
+      // A layered, shaded rock mass descends from above: real angular
+      // silhouette, cast shadow and light-facing facet, not a single triangle.
       if(w.kind==='fall'){
-        const shadow=18+w.radius*(1-t)*0.5;
-        g.fillStyle(0x282c2a,0.25+t*0.25)
-          .fillEllipse(w.x,w.y+3,shadow*2,shadow*0.58);
-        const centerY=w.y-125*(1-t*t);
-        g.fillStyle(0xa99a7c,0.72).fillTriangle(
-          w.x-18,centerY+13,w.x,centerY-15,w.x+21,centerY+14
+        const shadow=13+w.radius*t*0.52;
+        g.fillStyle(0x152932,0.15+t*0.39)
+          .fillEllipse(w.x,w.y+8,shadow*2.5,shadow*0.90);
+        g.fillStyle(0x2e3539,0.30+t*0.32)
+          .fillEllipse(w.x,w.y+6,shadow*1.54,shadow*0.50);
+        const lift=170*(1-t)*(1-t);
+        const bx=w.x,by=w.y-18-lift;
+        const size=w.radius*(0.35+0.30*t);
+        const contour=[
+          {x:bx-size,y:by+size*0.35},
+          {x:bx-size*0.75,y:by-size*0.57},
+          {x:bx-size*0.17,y:by-size},
+          {x:bx+size*0.61,y:by-size*0.82},
+          {x:bx+size,y:by-size*0.10},
+          {x:bx+size*0.74,y:by+size*0.82},
+          {x:bx-size*0.26,y:by+size}
+        ];
+        g.fillStyle(0x202c34,0.87).fillPoints(contour,true);
+        g.fillStyle(0x7c776a,1).fillTriangle(
+          bx-size*0.78,by+size*0.26,
+          bx-size*0.55,by-size*0.52,
+          bx+size*0.14,by-size*0.72
         );
-        g.lineStyle(2,0xe4ceb0,0.88).lineBetween(w.x-18,centerY+13,w.x,centerY-15);
+        g.fillStyle(0xb0a48b,1).fillTriangle(
+          bx-size*0.62,by-size*0.52,
+          bx+size*0.18,by-size*0.91,
+          bx+size*0.68,by-size*0.63
+        );
+        g.fillStyle(0x514e49,0.98).fillTriangle(
+          bx+size*0.16,by-size*0.61,
+          bx+size*0.84,by-size*0.09,
+          bx+size*0.58,by+size*0.71
+        );
+        g.lineStyle(2,0xe5d1a6,0.94)
+          .lineBetween(bx-size*0.62,by-size*0.53,bx+size*0.18,by-size*0.88);
       }
     }
     for(let i=this.impacts.length-1;i>=0;i--) {
@@ -79,17 +114,33 @@ export class RockFx {
         .strokeEllipse(impact.x,impact.y+5,radius*2.0,radius*1.15);
       g.lineStyle(2,0x544c40,alpha*0.67)
         .strokeEllipse(impact.x,impact.y+5,radius*1.38,radius*0.81);
-      const pieces=impact.kind==='quake'?13:impact.kind==='roll'?5:8;
+      const pieces=impact.kind==='quake'?25:impact.kind==='roll'?7:impact.kind==='fall'?15:8;
       for(let n=0;n<pieces;n++){
         const a=n*2*Math.PI/pieces+0.27;
         const dist=impact.radius*(0.12+ease*(0.82+(n%3)*0.11));
         const x=impact.x+Math.cos(a)*dist;
         const y=impact.y+Math.sin(a)*dist*0.72-12*Math.sin(Math.PI*t);
-        const size=Math.max(2,(impact.kind==='bind'?4:7)*(1-t*0.75));
+        const size=Math.max(2,(impact.kind==='quake'?11:impact.kind==='fall'?9:
+          impact.kind==='bind'?4:7)*(1-t*0.75));
         g.fillStyle(n%3===0?0xd8c49f:n%2===0?0x6c6961:0x9b9482,alpha)
           .fillTriangle(x-size,y+size,x+size,y+size,x,y-size*1.5);
         g.lineStyle(1,0x3e4241,alpha*0.6)
           .lineBetween(x-size,y+size,x,y-size*1.5);
+      }
+      if(impact.kind==='quake'){
+        // Jagged fault plates lift off the floor during the visible rupture.
+        const reach=radius*0.87;
+        for(let ridge=0;ridge<9;ridge++){
+          const angle=ridge*2*Math.PI/9+0.27;
+          const px=impact.x+Math.cos(angle)*reach;
+          const py=impact.y+Math.sin(angle)*reach*0.78;
+          const plate=16*(1-t)+4;
+          g.fillStyle(0x292f35,alpha*0.65).fillTriangle(
+            px-plate,py+7,px,py-plate*1.6,px+plate,py+6
+          );
+          g.lineStyle(2,0xead0a1,alpha*0.74)
+            .lineBetween(px-plate,py+6,px,py-plate*1.6);
+        }
       }
       if(impact.kind==='bind'){
         // Dark chain-link loop: one GPU batch, brief lifetime.

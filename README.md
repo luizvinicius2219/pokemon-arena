@@ -214,3 +214,8 @@ Rolagem executa 3 investidas crescentes; Rock Slide lança 3 fragmentos em leque
 ### Pewter: sprites de exploração de verdade e apresentação VS
 
 Sprites grandes de treinador deixaram de ocupar o piso: Brock, Red, montanhistas e campistas são renderizados com **spritesheet de exploração de FireRed/LeafGreen**, em perspectiva top-down, com arte GBA e interpolação pixelada, sem novos desenhos vetoriais. O Red aparece de costas na plataforma sul. Os retratos maiores (Black 2/White 2 e FireRed/LeafGreen) agora aparecem apenas na introdução **VS Red x Brock**, com início de combate após a apresentação, não durante.
+
+
+### Terremoto e Magnitude com rachaduras reais no piso
+
+Cada impacto sísmico faz surgir uma malha ramificada de rachaduras escuras com bordas de pedra exposta e cascalho. O decalque é rasterizado **uma única vez** em uma CanvasTexture pequena, exibido como um sprite e se desfaz após alguns segundos; o fundo do ginásio permanece um único bitmap estático. A queda de pedras tem volume facetado, iluminação e sombra de aproximação. Fendas, placas de terreno projetadas e tremor de câmera são usados nos golpes sísmicos, preservando a prioridade de desempenho no celular.
