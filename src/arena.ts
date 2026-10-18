@@ -8,7 +8,8 @@ import { CinematicFx } from './cinematicFx';
 import { OverworldActor, preloadOverworld, releaseFrameMs } from './overworld';
 import type { MobileControls } from './mobileControls';
 import { StoryEnvironment, pewterGym, preloadPewter, type GameMode } from './story';
-import { pokemonCatalog, gymTeams, type PokemonEncounter } from './pokemonCatalog';
+import { pokemonCatalog, gymTeams, type PokemonEncounter, type PokemonType } from './pokemonCatalog';
+import { effectiveness, scaledDamage } from './typeChart';
 import { RockFx, RockMoves, type RockStatus } from './rockMoves';
 import { PokemonSwitchFx } from './pokemonSwitchFx';
 import type { Fighter } from './abilities';
@@ -104,6 +105,7 @@ export class ArenaScene extends Phaser.Scene {
   private dash?: DashState;
   private reactions: Record<Side,HitReaction|null> = {player:null,enemy:null};
   private lastHitAt:Record<Side,number>={player:-1000,enemy:-1000};
+  private lastTypeCueAt:Record<Side,number>={player:-2000,enemy:-2000};
   private healthBars!:Phaser.GameObjects.Graphics;
   private shownHp:Record<Side,number>={player:100,enemy:100};
   private playerCastAt: Record<Action, number> = { q: -450, w: -2300, e: -3800, r: -7600, dodge: -1900 };
@@ -183,6 +185,7 @@ export class ArenaScene extends Phaser.Scene {
     this.dash = undefined;
     this.reactions={player:null,enemy:null};
     this.lastHitAt={player:-1000,enemy:-1000};
+    this.lastTypeCueAt={player:-2000,enemy:-2000};
     this.shownHp={player:this.playerHp,enemy:this.enemyHp};
     this.mobile.setAbilityNames('charizard');
     this.playerCastAt = { q: -450, w: -2300, e: -3800, r: -7600, dodge: -1900 };
@@ -666,7 +669,8 @@ export class ArenaScene extends Phaser.Scene {
         const healthBefore=victimSide==='player'?this.playerHp:this.enemyHp;
         if(Phaser.Math.Distance.Between(x,y,target.x,target.y)>=radius+target.radius)
           return false;
-        this.damage(victimSide,damage,target.x,target.y,0xcbb18b);
+        this.damage(victimSide,damage,target.x,target.y,0xcbb18b,
+          pokemonCatalog[species].skillSet[skill].element);
         return (victimSide==='player'?this.playerHp:this.enemyHp)<healthBefore;
       },
       applyStatus:(status:RockStatus,duration,side)=>{
@@ -784,11 +788,32 @@ export class ArenaScene extends Phaser.Scene {
       this.damage(side==='player'?'enemy':'player',damage,target.x,target.y,color);
   }
 
-  private damage(target:Side,amount:number,x:number,y:number,color:number) {
-    if(this.finished || this.storySwitching || 
+  private damage(
+    target:Side,amount:number,x:number,y:number,color:number,
+    attackType?:PokemonType
+  ) {
+    if(this.finished || this.storySwitching ||
       (target==='enemy'&&this.enemyBurrowed) ||
       (this.mode==='story'&&this.time.now<this.storyIntroUntil))return;
     const now=this.time.now;
+    const elemental=attackType ??
+      ([0xffec7c,0xffe36a,0xffee7a].includes(color)?'electric':
+        [0xcbb18b,0xbca57c].includes(color)?'rock':'fire');
+    const defender=target==='player'?'charizard':this.enemySpecies;
+    const multiplier=effectiveness(elemental,pokemonCatalog[defender].elements);
+    const received=scaledDamage(amount,elemental,pokemonCatalog[defender].elements);
+    if(multiplier.category!=='neutral'&&now-this.lastTypeCueAt[target]>1280){
+      const label=multiplier.category==='immune'?'NÃO AFETA!':
+        multiplier.category==='resisted'?'POUCO EFETIVO':
+        'SUPER EFETIVO! ×'+multiplier.multiplier;
+      const tint=multiplier.category==='effective'?0xffd076:
+        multiplier.category==='immune'?0xb4d2e5:0xaabac5;
+      this.skillCallout(x,y-(target==='enemy'?90:76),label,tint);
+      this.lastTypeCueAt[target]=now;
+    }
+    // In main-series Pokémon, Flying makes Charizard completely immune
+    // to ground moves such as Dig, Earthquake and Magnitude.
+    if(received===0)return;
     // Real dodge invulnerability is tied to the visible Hop, not a teleport.
     if(target==='player' && this.dash && now-this.dash.startAt<this.dash.duration*0.70){
       if(this.stats.registerEvade(now))this.showEvade(now);
@@ -803,6 +828,7 @@ export class ArenaScene extends Phaser.Scene {
     const direction=vector(victim.x-source.x,victim.y-source.y);
     if(direction.lengthSq()<0.0001)direction.set(target==='player'?-1:1,0);
     direction.normalize();
+    amount=received;
     const heavy=amount>=17;
     this.reactions[target]={
       startAt:now,duration:heavy?195:140,distance:heavy?29:15,
