@@ -83,14 +83,14 @@ const base = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sp
 
 function spriteSize(creature:Creature):number {
   switch(creature){
-    case 'onix':return 1.18;
+    case 'onix':return 1.95;
     case 'geodude':return 1.95;
     case 'charizard':return 1.9;
     case 'pikachu':return 1.7;
   }
 }
 function spriteLift(creature:Creature):number {
-  return creature==='onix'?42:creature==='geodude'?15:17;
+  return creature==='onix'?52:creature==='geodude'?15:17;
 }
 
 function key(creature: Creature, motion: Motion) {

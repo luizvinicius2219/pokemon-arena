@@ -47,7 +47,7 @@ export const pokemonCatalog: Record<Fighter,PokemonProfile> = {
   }),
   onix:profile({
     id:'onix',number:95,name:'Onix',elements:['rock','ground'],
-    maxHp:145,radius:28,moveSpeed:91,attackStyle:'rock',
+    maxHp:145,radius:38,moveSpeed:82,attackStyle:'rock',
     portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/95.png',
     playable:true
   })

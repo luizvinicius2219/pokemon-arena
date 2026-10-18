@@ -5,7 +5,7 @@ import { GroundCracks } from './groundCracks';
 export type RockSpecies = 'geodude'|'onix';
 export type BattleSide = 'player'|'enemy';
 type Point = Readonly<{x:number;y:number}>;
-type EffectKind = 'slam'|'quake'|'fall'|'roll'|'bind';
+type EffectKind = 'slam'|'quake'|'fall'|'roll'|'bind'|'dig';
 
 interface Warning {
   x:number;y:number;radius:number;start:number;duration:number;kind:EffectKind;
@@ -36,7 +36,7 @@ export class RockFx {
     if(this.impacts.length>12)this.impacts.shift();
     if(kind==='quake'){
       this.fractures.stamp(x,y,radius,Math.max(0.8,Math.min(1.2,radius/170)));
-      this.scene.cameras.main.shake(160,0.0024);
+      this.scene.cameras.main.shake(115,0.0015);
     }
   }
   update(now:number) {
@@ -49,9 +49,11 @@ export class RockFx {
       if(t<0)continue;
       const urgency=Math.max(0.1,t);
       const glow=(0.29+t*0.23)*(0.75+0.25*Math.sin(now*0.017));
-      g.fillStyle(0x6e5640,0.12+t*0.11).fillEllipse(w.x,w.y+8,w.radius*2,Math.max(18,w.radius*1.12));
-      g.lineStyle(3,0xe3bc7e,glow).strokeEllipse(w.x,w.y+8,w.radius*2,Math.max(16,w.radius*1.1));
-      const n=w.kind==='quake'?8:4;
+      g.fillStyle(w.kind==='dig'?0x594d39:0x837968,0.09+t*0.10)
+        .fillEllipse(w.x,w.y+8,w.radius*2,Math.max(18,w.radius*1.12));
+      g.lineStyle(2,w.kind==='dig'?0xd5b78b:0xd4c5ab,glow)
+        .strokeEllipse(w.x,w.y+8,w.radius*2,Math.max(16,w.radius*1.1));
+      const n=w.kind==='quake'?6:w.kind==='dig'?7:4;
       for(let j=0;j<n;j++){
         const angle=j*Math.PI*2/n+0.39;
         const outer=w.radius*(0.78+0.1*Math.sin(now*0.01+j));
@@ -60,6 +62,13 @@ export class RockFx {
           w.x+Math.cos(angle)*inner,w.y+8+Math.sin(angle)*inner*0.58,
           w.x+Math.cos(angle)*outer,w.y+8+Math.sin(angle)*outer*0.58
         );
+      }
+      if(w.kind==='dig'){
+        const wobble=0.72+0.15*Math.sin(now*0.022);
+        g.fillStyle(0x75694c,0.13+t*0.27)
+          .fillEllipse(w.x,w.y+8,w.radius*1.7*wobble,w.radius*0.82*wobble);
+        g.lineStyle(2,0xd7c9ad,0.17+t*0.45)
+          .strokeEllipse(w.x,w.y+8,w.radius*1.60,w.radius*0.7);
       }
       // A layered, shaded rock mass descends from above: real angular
       // silhouette, cast shadow and light-facing facet, not a single triangle.
@@ -110,17 +119,18 @@ export class RockFx {
       const radius=impact.radius*(0.18+0.9*ease);
       g.fillStyle(0x796e59,0.13*alpha).fillEllipse(impact.x,impact.y+9,
         radius*2.2,radius*0.85);
-      g.lineStyle(impact.kind==='quake'?5:3,0xcbb58c,alpha)
+      g.lineStyle(impact.kind==='quake'?2.4:3,0xcbb58c,alpha)
         .strokeEllipse(impact.x,impact.y+5,radius*2.0,radius*1.15);
       g.lineStyle(2,0x544c40,alpha*0.67)
         .strokeEllipse(impact.x,impact.y+5,radius*1.38,radius*0.81);
-      const pieces=impact.kind==='quake'?25:impact.kind==='roll'?7:impact.kind==='fall'?15:8;
+      const pieces=impact.kind==='quake'?12:impact.kind==='roll'?7:
+        impact.kind==='fall'?12:impact.kind==='dig'?15:8;
       for(let n=0;n<pieces;n++){
         const a=n*2*Math.PI/pieces+0.27;
         const dist=impact.radius*(0.12+ease*(0.82+(n%3)*0.11));
         const x=impact.x+Math.cos(a)*dist;
         const y=impact.y+Math.sin(a)*dist*0.72-12*Math.sin(Math.PI*t);
-        const size=Math.max(2,(impact.kind==='quake'?11:impact.kind==='fall'?9:
+        const size=Math.max(2,(impact.kind==='quake'?6:impact.kind==='dig'?8:impact.kind==='fall'?8:
           impact.kind==='bind'?4:7)*(1-t*0.75));
         g.fillStyle(n%3===0?0xd8c49f:n%2===0?0x6c6961:0x9b9482,alpha)
           .fillTriangle(x-size,y+size,x+size,y+size,x,y-size*1.5);
@@ -130,12 +140,12 @@ export class RockFx {
       if(impact.kind==='quake'){
         // Jagged fault plates lift off the floor during the visible rupture.
         const reach=radius*0.87;
-        for(let ridge=0;ridge<9;ridge++){
-          const angle=ridge*2*Math.PI/9+0.27;
+        for(let ridge=0;ridge<5;ridge++){
+          const angle=ridge*2*Math.PI/5+0.27;
           const px=impact.x+Math.cos(angle)*reach;
           const py=impact.y+Math.sin(angle)*reach*0.78;
-          const plate=16*(1-t)+4;
-          g.fillStyle(0x292f35,alpha*0.65).fillTriangle(
+          const plate=8*(1-t)+2;
+          g.fillStyle(0x666e6b,alpha*0.47).fillTriangle(
             px-plate,py+7,px,py-plate*1.6,px+plate,py+6
           );
           g.lineStyle(2,0xead0a1,alpha*0.74)
@@ -170,6 +180,7 @@ export interface RockSkillHooks {
   hitArea:(x:number,y:number,radius:number,damage:number,side:BattleSide)=>boolean;
   applyStatus:(status:RockStatus,duration:number,side:BattleSide)=>void;
   moveSource:(x:number,y:number)=>Point;
+  setBurrowed:(burrowed:boolean)=>void;
   stillActive:()=>boolean;
   charge:(power:number,duration:number)=>void;
   signal:(text:string)=>void;
@@ -178,7 +189,7 @@ export interface RockSkillHooks {
 /**
  * Real Pokémon moves, adapted to real-time combat:
  *  Geodude: Rock Throw, Rollout, Rock Tomb, Magnitude
- *  Onix: Rock Slide, Bind, Rock Tomb, Earthquake.
+ *  Onix: Rock Slide, Dig, Rock Tomb, Earthquake.
  * All effects and telegraphs are bounded and drawn on one shared Graphics.
  */
 export class RockMoves {
@@ -253,26 +264,34 @@ export class RockMoves {
     }
 
     if(skill==='w'&&species==='onix'){
-      // Bind: short-range grab with a persistent slow + periodic chip damage.
-      const center={
-        x:source.x+direction.x*55,
-        y:source.y+direction.y*55
-      };
-      this.fx.warn(center.x,center.y,82,time,360,'bind');
-      later(370,()=>{
-        const from=hooks.sourcePosition(),enemy=hooks.targetPosition();
-        const x=from.x+direction.x*58,y=from.y+direction.y*58;
-        const landed=impact(x,y,70,attack.damage,'bind');
-        if(!landed)return;
-        hooks.applyStatus('bind',1850,side);
-        // Damage-over-time only after the first hit connected.
-        for(let tick=1;tick<=3;tick++){
-          later(tick*470,()=>{
-            const victim=hooks.targetPosition();
-            impact(victim.x,victim.y,25,3,'bind');
-          });
-        }
-        void enemy;
+      // DIG / Escavar: burrow -> target tracking -> marked breach -> emergence.
+      // Onix is untargetable underground, but the player gets an honest
+      // warning before it surfaces, including the final landing position.
+      hooks.signal('ESCAVAR!');
+      hooks.charge(1.2,240);
+      this.fx.burst(source.x,source.y,37,time,'dig');
+      later(180,()=>{
+        hooks.setBurrowed(true);
+        const under=hooks.sourcePosition();
+        this.fx.burst(under.x,under.y,25,now(),'dig');
+      });
+      later(560,()=>{
+        const current=hooks.targetPosition();
+        const origin=hooks.sourcePosition();
+        const track=new Phaser.Math.Vector2(current.x-origin.x,current.y-origin.y);
+        if(track.lengthSq()<0.01)track.copy(direction);else track.normalize();
+        const landingX=Phaser.Math.Clamp(current.x-track.x*58,68,892);
+        const landingY=Phaser.Math.Clamp(current.y-track.y*58,92,494);
+        const delay=720;
+        this.fx.warn(landingX,landingY,72,now(),delay,'dig');
+        later(delay,()=>{
+          // Return to the battlefield before dealing impact damage.
+          const landing=hooks.moveSource(landingX,landingY);
+          hooks.setBurrowed(false);
+          this.fx.burst(landing.x,landing.y,76,now(),'dig');
+          this.fx.burst(landing.x,landing.y,37,now(),'slam');
+          hooks.hitArea(landing.x,landing.y,76,attack.damage,side);
+        });
       });
       return;
     }

@@ -21,8 +21,10 @@ export class GroundCracks {
   }
 
   stamp(x:number,y:number,radius:number,force=1){
-    // Half-resolution canvas -> nearest-neighbour enlarged fracture pixels.
-    const size=216,mid=size/2;
+    // Narrow local fractures. Damage radius is gameplay-only; it must not
+    // dictate the size of a huge dark floor decal.
+    const visualRadius=Math.min(128,Math.max(58,radius*0.43));
+    const size=192,mid=size/2;
     const canvas=document.createElement('canvas');
     canvas.width=size;
     canvas.height=size;
@@ -49,18 +51,18 @@ export class GroundCracks {
         for(const p of nodes.slice(1))ctx.lineTo(p.x,p.y);
       };
       ctx.save();
-      ctx.translate(2,3);
+      ctx.translate(0.75,1.25);
       path();
-      ctx.lineWidth=weight+5;
-      ctx.strokeStyle='rgba(19,31,38,0.74)';
+      ctx.lineWidth=weight+1.25;
+      ctx.strokeStyle='rgba(52,63,63,0.38)';
       ctx.stroke();
       ctx.restore();
       ctx.save();
-      ctx.translate(-1,-2);
+      ctx.translate(-0.55,-0.75);
       path();
-      ctx.lineWidth=weight+2;
-      ctx.strokeStyle='#e4d1a9';
-      ctx.globalAlpha=0.84;
+      ctx.lineWidth=weight+0.65;
+      ctx.strokeStyle='#c8bba4';
+      ctx.globalAlpha=0.66;
       ctx.stroke();
       ctx.restore();
       path();
@@ -68,38 +70,38 @@ export class GroundCracks {
       ctx.strokeStyle='#293039';
       ctx.stroke();
       path();
-      ctx.lineWidth=Math.max(1.2,weight*0.39);
-      ctx.strokeStyle='#101e27';
+      ctx.lineWidth=Math.max(0.6,weight*0.44);
+      ctx.strokeStyle='#3e4748';
       ctx.stroke();
     };
 
-    const spokes=Math.min(19,Math.round(10+radius/29));
+    const spokes=Math.min(11,Math.round(6+visualRadius/32));
     for(let i=0;i<spokes;i++){
       const angle=(i+random()*0.56)*2*Math.PI/spokes;
-      const span=58+random()*42;
+      const span=45+random()*37;
       const nodes:Vertex[]=[{
         x:mid+(random()-0.5)*10,
         y:mid+(random()-0.5)*10
       }];
-      const steps=6+Math.floor(random()*5);
+      const steps=5+Math.floor(random()*4);
       for(let j=1;j<=steps;j++){
         const t=j/steps;
         const r=span*t;
-        const sideways=(random()-0.5)*17*t;
+        const sideways=(random()-0.5)*11*t;
         const phi=angle+(random()-0.5)*0.22*t;
         nodes.push({
           x:mid+Math.cos(phi)*r-Math.sin(phi)*sideways,
           y:mid+Math.sin(phi)*r+Math.cos(phi)*sideways
         });
       }
-      drawFault(nodes,(i%4===0?4.5:3.1)*force);
+      drawFault(nodes,(i%4===0?1.85:1.15)*Math.max(0.7,force*0.72));
       // Branches fork along the rupture, producing jagged terrain plates.
-      for(const index of [3,Math.min(steps-1,6)]){
-        if(random()>0.77)continue;
+      for(const index of [Math.min(3,steps-1)]){
+        if(random()>0.46)continue;
         const root=nodes[index];
         if(!root)continue;
         const rotate=angle+(random()>0.5?1:-1)*(0.55+random()*0.48);
-        const extension=18+random()*27;
+        const extension=13+random()*15;
         const end={
           x:root.x+Math.cos(rotate)*extension,
           y:root.y+Math.sin(rotate)*extension
@@ -108,19 +110,19 @@ export class GroundCracks {
           x:(root.x+end.x)/2+(random()-0.5)*12,
           y:(root.y+end.y)/2+(random()-0.5)*12
         };
-        drawFault([root,midpoint,end],1.4+random()*1.7);
+        drawFault([root,midpoint,end],0.72+random()*0.61);
       }
     }
     // Chipped slate, warm underside highlights and tiny broken stones.
-    for(let i=0;i<36;i++){
+    for(let i=0;i<12;i++){
       const angle=random()*Math.PI*2;
-      const dist=12+random()*87;
+      const dist=10+random()*71;
       const px=mid+Math.cos(angle)*dist;
       const py=mid+Math.sin(angle)*dist;
-      const w=2+random()*4,h=1+random()*4;
-      ctx.fillStyle=i%3===0?'#dfca9c':i%3===1?'#4d4a46':'#bba888';
+      const w=1+random()*2,h=1+random()*2;
+      ctx.fillStyle=i%3===0?'#bfb59f':i%3===1?'#78837f':'#9c998c';
       ctx.fillRect(Math.round(px),Math.round(py),Math.round(w),Math.round(h));
-      ctx.fillStyle='rgba(19,28,35,0.55)';
+      ctx.fillStyle='rgba(62,69,70,0.22)';
       ctx.fillRect(Math.round(px+2),Math.round(py+h),Math.round(w),2);
     }
 
@@ -128,11 +130,11 @@ export class GroundCracks {
     const texture=this.scene.textures.addCanvas(key,canvas);
     if(!texture)return;
     const decal=this.scene.add.image(x,y,key).setOrigin(0.5)
-      .setDisplaySize(radius*2.15,radius*2.15)
-      .setDepth(0).setAlpha(0.97);
+      .setDisplaySize(visualRadius*2,visualRadius*2)
+      .setDepth(0).setAlpha(0.82);
     this.decals.set(key,decal);
     this.scene.tweens.add({
-      targets:decal,alpha:0,duration:3200,delay:350,
+      targets:decal,alpha:0,duration:2400,delay:500,
       ease:'Quad.easeIn',
       onComplete:()=>{
         decal.destroy();

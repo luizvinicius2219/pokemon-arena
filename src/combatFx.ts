@@ -82,12 +82,12 @@ export class CombatFx {
           this.offset(x,y,a,-length*0.64,size*0.81),
           this.offset(x,y,a,size*0.16,size*0.91)
         ];
-        g.fillStyle(0x24313a,0.53).fillCircle(x+4,y+7,r*1.23);
-        g.fillStyle(shard?0x564f48:0x5a5b56,1).fillPoints(points,true);
-        g.lineStyle(shard?2.6:2,0x313639,0.88).strokePoints(points,true);
-        g.lineStyle(2,0xc2b498,0.92);
+        g.fillStyle(0x697274,0.26).fillCircle(x+4,y+7,r*1.20);
+        g.fillStyle(shard?0x9c927e:0xa8a394,1).fillPoints(points,true);
+        g.lineStyle(shard?2.4:1.8,0x706d64,0.92).strokePoints(points,true);
+        g.lineStyle(2,0xe0cfaa,0.95);
         g.lineBetween(points[0].x,points[0].y,points[1].x,points[1].y);
-        g.fillStyle(0xa6a596,0.94).fillTriangle(
+        g.fillStyle(0xc9bd9e,0.94).fillTriangle(
           points[0].x,points[0].y,points[1].x,points[1].y,
           x-Math.cos(a)*r*0.2,y-Math.sin(a)*r*0.2
         );

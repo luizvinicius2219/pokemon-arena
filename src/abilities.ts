@@ -30,11 +30,11 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
     q: { name: 'Pedrada', description: 'Rock Throw: arremessa uma pedra física.', icon: '🪨', cooldown: 1250, damage: 8 },
     w: { name: 'Rolagem', description: 'Rollout: três investidas que ficam mais fortes.', icon: '🌀', cooldown: 5200, damage: 5 },
     e: { name: 'Tumba de Rochas', description: 'Rock Tomb: queda de rochas que reduz a velocidade.', icon: '⛰️', cooldown: 4900, damage: 14 },
-    r: { name: 'Magnitude', description: 'Magnitude: terremoto com potência variável de 4 a 9.', icon: '🌋', cooldown: 9100, damage: 9 }
+    r: { name: 'Magnitude', description: 'Magnitude: terremoto com potência variável de 4 a 10.', icon: '🌋', cooldown: 9100, damage: 9 }
   },
   onix: {
     q: { name: 'Deslizamento de Rochas', description: 'Rock Slide: três projéteis em leque.', icon: '🪨', cooldown: 1700, damage: 6 },
-    w: { name: 'Constrição', description: 'Bind: aprisiona temporariamente e causa dano contínuo.', icon: '⛓️', cooldown: 5000, damage: 8 },
+    w: { name: 'Escavar', description: 'Dig: desaparece no solo, segue o alvo e emerge com impacto.', icon: '⛏️', cooldown: 6800, damage: 22 },
     e: { name: 'Tumba de Rochas', description: 'Rock Tomb: pedra pesada que reduz a velocidade.', icon: '⛰️', cooldown: 5600, damage: 18 },
     r: { name: 'Terremoto', description: 'Earthquake: duas ondas sísmicas concêntricas.', icon: '🌋', cooldown: 9600, damage: 13 }
   }
