@@ -434,9 +434,11 @@ export class ArenaScene extends Phaser.Scene {
         this.storyWave++;
         this.enemySpecies=next.species;
         const info=pokemonCatalog[this.enemySpecies];
-        this.enemyMaxHp=info.maxHp;
-        this.enemyHp=info.maxHp;
-        this.shownHp.enemy=info.maxHp;
+        const handicap=Math.min(1.12,0.77+
+          Math.max(0,this.starterLevel-5)*0.036);
+        this.enemyMaxHp=Math.round(info.maxHp*handicap);
+        this.enemyHp=this.enemyMaxHp;
+        this.shownHp.enemy=this.enemyMaxHp;
         this.enemy.radius=info.radius;
         this.enemy.setPosition(nextSpawn.x,nextSpawn.y);
         this.enemyFacing.set(-1,1).normalize();
@@ -723,6 +725,82 @@ export class ArenaScene extends Phaser.Scene {
         this.enemySlowUntil=Math.max(this.enemySlowUntil,time+3200);
         this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+1250);
       }
+    }
+  }
+
+  private castOtherStarter(skill:Skill,dir:Phaser.Math.Vector2,time:number){
+    const grass=this.playerSpecies==='bulbasaur'||this.playerSpecies==='ivysaur';
+    const move=skills[this.playerSpecies][skill];
+    const origin={x:this.player.x+dir.x*27,y:this.player.y-14+dir.y*19};
+    const target={x:this.enemy.x,y:this.enemy.y};
+    const dist=Phaser.Math.Distance.Between(this.player.x,this.player.y,
+      this.enemy.x,this.enemy.y);
+    if(skill==='q'){
+      const end=dist<96+this.enemy.radius&&
+        (this.enemy.x-this.player.x)*dir.x+
+        (this.enemy.y-this.player.y)*dir.y>0;
+      this.starterFx.scratch(origin,end?target:{
+        x:this.player.x+dir.x*64,y:this.player.y+dir.y*64
+      },dir);
+      if(end)this.damage('enemy',move.damage,target.x,target.y,
+        0xe3d5b5,'normal');
+    }else if(skill==='w'){
+      if(grass){
+        this.starterFx.growl(origin,target);
+        this.enemyWeakenedUntil=Math.max(
+          this.enemyWeakenedUntil,time+4200);
+        this.skillCallout(this.player.x,this.player.y-65,
+          'ROSNAR!',0xe6dda6);
+      }else{
+        this.starterFx.notes(target);
+        this.enemyVulnerableUntil=Math.max(
+          this.enemyVulnerableUntil,time+4700);
+        this.skillCallout(this.player.x,this.player.y-65,
+          'DEFESA DO RIVAL ↓',0xb8e8f0);
+      }
+    }else if(skill==='e'){
+      if(grass){
+        this.starterFx.vines(origin,dist<310?target:{
+          x:origin.x+dir.x*275,y:origin.y+dir.y*275
+        });
+        this.skillCallout(this.player.x,this.player.y-64,
+          'CHICOTE DE VINHA!',0x9eee9a);
+        if(dist<310)this.damage('enemy',move.damage,target.x,target.y,
+          0x9ddd90,'grass');
+      }else{
+        this.starterFx.water(origin,dir);
+        this.projectile(origin.x,origin.y,dir,440,14,'water','player',
+          move.damage,1080,time);
+      }
+    }else if(grass){
+      this.starterFx.seed(origin,target);
+      this.skillCallout(this.player.x,this.player.y-63,
+        'SEMENTE SANGUE!',0xa0ec91);
+      if(dist<380){
+        for(let i=0;i<4;i++){
+          this.time.delayedCall(470*(i+1),()=>{
+            if(this.finished||this.storySwitching)return;
+            const before=this.enemyHp;
+            this.damage('enemy',move.damage,this.enemy.x,this.enemy.y,
+              0x9bdf92,'grass');
+            const drained=Math.max(0,before-this.enemyHp);
+            if(drained>0){
+              this.playerHp=Math.min(this.playerMaxHp,
+                this.playerHp+Math.max(1,Math.round(drained*0.45)));
+              this.updateHp();
+            }
+            this.starterFx.seed(
+              {x:this.enemy.x,y:this.enemy.y},
+              {x:this.player.x,y:this.player.y}
+            );
+          });
+        }
+      }
+    }else{
+      this.playerGuardUntil=Math.max(this.playerGuardUntil,time+3500);
+      this.starterFx.shell({x:this.player.x,y:this.player.y});
+      this.skillCallout(this.player.x,this.player.y-67,
+        'RETIRADA · ESCUDO!',0xbceefa);
     }
   }
 
@@ -1177,11 +1255,14 @@ export class ArenaScene extends Phaser.Scene {
       } else if(hit) {
         this.damage(shot.side==='player'?'enemy':'player',shot.damage,target.x,target.y,
           shot.kind==='spark'?0xffee7a:
-          shot.kind==='rock'||shot.kind==='shard'?0xcbb18b:0xff8b40);
+          shot.kind==='rock'||shot.kind==='shard'?0xcbb18b:
+            shot.kind==='water'?0x82dfff:0xff8b40,
+          shot.kind==='water'?'water':undefined);
       } else {
         if(shot.kind==='rock'||shot.kind==='shard')
           this.rockFx?.burst(x,y,15,time,'slam');
-        else this.fx.impact(x,y,shot.kind==='spark'?'electric':'fire',0.4);
+        else this.fx.impact(x,y,
+          shot.kind==='spark'||shot.kind==='water'?'electric':'fire',0.4);
       }
     }
     this.fx.drawShots(this.projectiles,time);
