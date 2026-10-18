@@ -108,8 +108,8 @@ class Battle extends Phaser.Scene{
     const animated=hasGifClip(animatedKey);
     const nextTexture=animated?animatedKey:selectedPose;
     const frameIndex=animated?currentGifFrame(animatedKey,time+(front==='pikachu'?230:0)):0;
-    if(image.texture.key!==nextTexture)image.setTexture(nextTexture,frameIndex);
-    else if(animated && image.frame.name!==frameIndex)image.setFrame(frameIndex);
+    if(image.texture.key!==nextTexture)image.setTexture(nextTexture,String(frameIndex));
+    else if(animated && image.frame.name!==String(frameIndex))image.setFrame(String(frameIndex));
 
     // A animação verdadeira vem dos quadros do jogo original.
     // Mantemos apenas efeitos complementares de combate e deslocamento.
