@@ -4,6 +4,7 @@ import { allActions, cooldownFor, dodge, skillKeys, skills, type Skill } from '.
 import { currentGifFrame, hasGifClip, registerGifClip } from './gifAnimation';
 import { keyLabel } from './controls';
 import { CombatFx, beamReach, type VfxKind } from './combatFx';
+import { CinematicFx } from './cinematicFx';
 import { OverworldActor, preloadOverworld, releaseFrameMs } from './overworld';
 import type { MobileControls } from './mobileControls';
 
@@ -48,6 +49,7 @@ interface HitReaction {
 
 export class ArenaScene extends Phaser.Scene {
   private fx!: CombatFx;
+  private cinematic!: CinematicFx;
   private hitStopUntil = -1000;
   private player!: Phaser.GameObjects.Arc;
   private enemy!: Phaser.GameObjects.Arc;
@@ -111,6 +113,7 @@ export class ArenaScene extends Phaser.Scene {
     }
 
     this.fx = new CombatFx(this);
+    this.cinematic = new CinematicFx(this);
     this.playerMotion = undefined;
     this.enemyMotion = undefined;
     this.hitStopUntil = -1000;
@@ -289,6 +292,11 @@ export class ArenaScene extends Phaser.Scene {
       : ({q:60,w:115,e:180,r:270} as Record<Skill,number>)[action];
     const charge=action==='r'?1.8:action==='e'?1.4:1;
     this.fx.charge(this.player.x+dir.x*23,this.player.y+dir.y*23,'fire',charge);
+    if(action==='e'||action==='r'){
+      const power=action==='r'?2.7:1.35;
+      this.cinematic.charge('player','fire',power,time,Math.max(140,windupMs+40));
+      if(action==='r')this.skillCallout(this.player.x,this.player.y-87,'RAJADA DE FOGO',0xffcf87);
+    }
     // Intentional short wind-up: the body anticipates before the projectile releases.
     this.time.delayedCall(windupMs,()=>{
       if(!this.finished) this.castCharizard(action,dir,this.time.now);
@@ -312,10 +320,13 @@ export class ArenaScene extends Phaser.Scene {
       this.fx.breath(x,y,angle,0.75);
       this.pulse(x,y,0xff7932,23,0.4);
     } else if(skill==='e') {
+      this.playerMotion?.trigger('Shoot',time,dir);
+      this.cinematic.release(x,y,'fire',1.35,time);
       this.fx.charge(x,y,'fire',1.35);
       this.projectile(x,y,dir,310,18,'fireball','player',ability.damage,990,time,78);
       this.flash(x,y,0xffb15a,26);
     } else {
+      this.cinematic.release(x,y,'fire',2.6,time);
       this.fx.charge(x,y,'fire',2.3);
       this.pulse(x,y,0xffbd40,35,0.85);
       this.cameras.main.shake(115,0.003);
@@ -338,6 +349,11 @@ export class ArenaScene extends Phaser.Scene {
     const enemyMotion=skill==='r'?'Attack':skill==='w'||skill==='e'?'Charge':'Shoot';
     this.enemyMotion?.trigger(enemyMotion,time,dir);
     this.fx.charge(from.x,from.y-8,'electric',skill==='r'?1.8:1.1);
+    if(skill==='e'||skill==='r') {
+      this.cinematic.charge('enemy','electric',skill==='r'?2.7:1.45,time,
+        skill==='r'?730:480);
+      if(skill==='r')this.skillCallout(from.x,from.y-65,'TROVÃO',0xfff3a3);
+    }
     if(skill==='q') {
       const x=from.x+dir.x*19,y=from.y+dir.y*19;
       this.time.delayedCall(this.enemyMotion?releaseFrameMs('pikachu','Shoot'):120,()=>{
@@ -360,6 +376,7 @@ export class ArenaScene extends Phaser.Scene {
       }
       this.time.delayedCall(350,()=>{
         if(this.finished)return;
+        this.cinematic.release(x,y,'electric',1.1,this.time.now);
         this.fx.impact(x,y,'electric',1.3);
         if(Phaser.Math.Distance.Between(x,y,this.player.x,this.player.y)<133)
           this.damage('player',ability.damage,this.player.x,this.player.y,0xffec7c);
@@ -378,6 +395,18 @@ export class ArenaScene extends Phaser.Scene {
         });
       }
     }
+  }
+
+  private skillCallout(x:number,y:number,message:string,color:number){
+    const label=this.add.text(x,y,message,{
+      color:'#fff6df',fontSize:'17px',fontStyle:'bold',
+      stroke:'#151e2a',strokeThickness:4,
+      backgroundColor:'#122530b8',padding:{x:7,y:4}
+    }).setOrigin(0.5).setDepth(13).setTint(color).setAlpha(0.96);
+    this.tweens.add({
+      targets:label,y:y-23,alpha:0,scaleX:1.07,scaleY:1.07,
+      duration:650,ease:'Quad.easeOut',onComplete:()=>label.destroy()
+    });
   }
 
   private projectile(
@@ -426,6 +455,7 @@ export class ArenaScene extends Phaser.Scene {
     this.time.delayedCall(warning,()=>{
       if(this.finished)return;
       this.fx.lightning(x,y,1.2);
+      this.cinematic.burst(x,y,'electric',radius>=50?2.35:1.5,this.time.now);
       this.cameras.main.shake(105,0.0025);
       if(Phaser.Math.Distance.Between(x,y,this.player.x,this.player.y)<radius+this.player.radius)
         this.damage('player',damage,this.player.x,this.player.y,0xffe36a);
@@ -435,6 +465,7 @@ export class ArenaScene extends Phaser.Scene {
   private explode(x:number,y:number,radius:number,damage:number,side:Side,special:boolean) {
     const color=special?0xffd058:0xff6838;
     this.fx.impact(x,y,'fire',special?2.3:1.45);
+    this.cinematic.burst(x,y,'fire',special?3:1.6,this.time.now);
     if(special)this.cameras.main.shake(165,0.006);
     const bloom=this.add.circle(x,y,radius*0.5,color,0.24).setStrokeStyle(special?5:3,0xffd89b).setDepth(4);
     this.tweens.add({targets:bloom,alpha:0,scaleX:2,scaleY:2,duration:420,onComplete:()=>bloom.destroy()});
@@ -754,6 +785,8 @@ export class ArenaScene extends Phaser.Scene {
     this.playerLabel.setPosition(this.player.x,this.player.y-55);
     this.enemyLabel.setPosition(this.enemy.x,this.enemy.y-43);
     this.drawHealthBars(delta);
+    this.cinematic.update(time,
+      {x:this.player.x,y:this.player.y},{x:this.enemy.x,y:this.enemy.y});
     this.updateHud(time);
   }
 }

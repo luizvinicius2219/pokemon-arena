@@ -16,7 +16,7 @@ export interface Ability {
 export const skills: Record<Fighter, Record<Skill, Ability>> = {
   charizard: {
     q: { name: 'Brasas', description: 'Projétil veloz de fogo.', icon: '🔥', cooldown: 450, damage: 8 },
-    w: { name: 'Lança-Chamas', description: 'Rajada de cinco chamas em leque.', icon: '🌋', cooldown: 2300, damage: 5 },
+    w: { name: 'Lança-Chamas', description: 'Feixe contínuo e direcionável de fogo.', icon: '🌋', cooldown: 2300, damage: 5 },
     e: { name: 'Explosão de Fogo', description: 'Bola de fogo que explode em área.', icon: '💥', cooldown: 3800, damage: 20 },
     r: { name: 'Rajada de Fogo', description: 'Explosão poderosa com fragmentos flamejantes.', icon: '☄️', cooldown: 7600, damage: 29 }
   },

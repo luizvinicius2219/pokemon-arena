@@ -1,4 +1,4 @@
-# Monster Arena — protótipo Pokémon 1.0
+# Monster Arena — protótipo Pokémon 1.1
 
 Arena 2D de combate em tempo real desenvolvida com **Phaser 3 + TypeScript + Vite**, com Charizard controlado pelo jogador e Pikachu controlado pelo computador.
 
@@ -115,3 +115,16 @@ A versão 0.9 mantém o dano total do jato em uma faixa próxima à versão ante
 - **Proteção contra eventos simultâneos:** um mesmo Pokémon não recebe múltiplos registros de impacto dentro de uma janela de 75 ms; ataques canalizados continuam causando dano em intervalos.
 
 A atualização continua usando as folhas PMD de animação `Hurt` e mantém as atribuições em [CREDITS.md](CREDITS.md).
+
+## Versão 1.1 — apresentação cinematográfica dos especiais
+
+- Nova camada `src/cinematicFx.ts` com efeitos de carga e liberação sincronizados ao combate. Usa um único `Graphics` para desenhar visualizações animadas em tempo real, evitando centenas de novos objetos por quadro.
+- **Charizard E — Explosão de Fogo:** círculo de carregamento próximo ao corpo, partículas convergentes, liberação brilhante e explosão com anéis em múltiplas camadas. Após a carga, assume os quadros `Shoot`.
+- **Charizard R — Rajada de Fogo:** carregamento rotativo mais visível, anúncio do especial, onda de liberação e explosão final ampliada, com breve flash suave de cor.
+- **Pikachu E/R — Raio/Trovão:** partículas elétricas em volta do Pokémon durante a carga e explosões elétricas ramificadas nas áreas atingidas. O Trovão exibe um anúncio na preparação.
+- **Pikachu W — Onda de Choque:** reforço de saída do golpe com onda visual.
+- Os efeitos acompanham a posição dos Pokémon enquanto se movem e são limitados para não sobrecarregar celulares.
+- Para usuários com `prefers-reduced-motion: reduce`, flashes de tela adicionais são desativados.
+- Controle universal de habilidades, joystick, cooldowns, dash animado e balanceamento de danos anteriores preservados.
+
+Estas melhorias são visuais; a mecânica das habilidades e a estrutura de controles não foram substituídas.
