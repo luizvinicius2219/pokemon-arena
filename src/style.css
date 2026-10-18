@@ -25,3 +25,5 @@ aside p{margin:12px 0}.skill-help{font-size:13px;margin:8px 0}.skill-help small{
 .modal-actions{display:flex;justify-content:space-between;gap:10px}
 @media(max-width:1000px){main{flex-direction:column}aside{width:100%;display:grid;grid-template-columns:1fr 1fr;column-gap:18px}aside h2,aside h3,aside .help-footnote{grid-column:1/-1}}
 @media(max-width:590px){header{flex-wrap:wrap}main{padding:12px 2%}.hud{gap:4px}.skill-card{min-height:88px;padding:10px 2px 5px}.skill-name{font-size:9px;white-space:normal}.skill-icon{font-size:22px}.skill-key{font-size:9px!important;left:3px!important;top:3px!important}aside{display:block}.arena-hint{font-size:11px}}
+
+aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}aside a:hover{color:#ffffff}

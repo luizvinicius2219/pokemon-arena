@@ -42,6 +42,7 @@ app.innerHTML = `
     <h3>Habilidades</h3>
     ${(['q','w','e','r'] as const).map(a=>`<p class="skill-help"><b>${a.toUpperCase()}</b> — ${skills.charizard[a].name} <small>${(skills.charizard[a].cooldown/1000).toFixed(1)}s</small></p>`).join('')}
     <p class="help-footnote">Pikachu usa técnicas elétricas próprias e é controlado pelo computador.</p>
+    <p class="help-footnote">Animações em 8 direções: <a href="https://sprites.pmdcollab.org/" target="_blank" rel="noopener noreferrer">PMD Sprite Repository</a>. Créditos e direitos no <a href="https://github.com/luizvinicius2219/pokemon-arena/blob/main/CREDITS.md" target="_blank" rel="noopener noreferrer">projeto</a>.</p>
   </aside>
 </main>
 <div id="modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
