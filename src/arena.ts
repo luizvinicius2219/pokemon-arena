@@ -63,6 +63,7 @@ export class ArenaScene extends Phaser.Scene {
   private fx!: CombatFx;
   private starterFx!:StarterFx;
   private enemyWeakenedUntil=0;
+  private lastMoveLockedCue=-3000;
   private rockFx?:RockFx;
   private rockMoves?:RockMoves;
   private switchFx?:PokemonSwitchFx;
@@ -202,6 +203,7 @@ export class ArenaScene extends Phaser.Scene {
     this.fx = new CombatFx(this);
     this.starterFx = new StarterFx(this);
     this.enemyWeakenedUntil=0;
+    this.lastMoveLockedCue=-3000;
     this.cinematic = new CinematicFx(this);
     this.stats = new BattleStats(this.time.now);
     this.playerMotion = undefined;
@@ -550,15 +552,24 @@ export class ArenaScene extends Phaser.Scene {
       if(!element)continue;
       const duration=action==='dodge'
         ?dodge.cooldown:skills[this.playerSpecies][action].cooldown;
+      const unlocked=action!=='r'||this.playerSpecies!=='charmander'
+        ||this.starterLevel>=8;
       const remaining=Math.max(0,duration-(time-this.playerCastAt[action]));
       const text=element.querySelector<HTMLElement>('[data-timer]');
       const fill=element.querySelector<HTMLElement>('[data-shade]');
       const key=element.querySelector<HTMLElement>('[data-key]');
-      element.classList.toggle('cooling',remaining>0);
-      if(text)text.textContent=remaining>0?(remaining/1000).toFixed(1)+'s':'PRONTO';
-      if(fill)fill.style.height=(remaining/duration*100).toFixed(2)+'%';
+      element.classList.toggle('cooling',remaining>0&&unlocked);
+      element.classList.toggle('move-locked',!unlocked);
+      if(text)text.textContent=!unlocked?'LIBERA NV 8':
+        remaining>0?(remaining/1000).toFixed(1)+'s':'PRONTO';
+      if(fill)fill.style.height=unlocked?(remaining/duration*100).toFixed(2)+'%':'0%';
       if(key)key.textContent=keyLabel(bindings[action]);
-      this.mobile.setCooldown(action,remaining,duration);
+      this.mobile.setCooldown(action,unlocked?remaining:0,duration);
+      if(!unlocked){
+        const label=document.querySelector<HTMLElement>(
+          '[data-touch-action="r"] [data-touch-timer]');
+        if(label)label.textContent='NV 8';
+      }
     }
   }
 
@@ -602,6 +613,15 @@ export class ArenaScene extends Phaser.Scene {
       this.fx.dashDust(start.x,start.y,dir);
       this.pulse(start.x,start.y,0x94e8ff,20,0.4);
       this.destination.copy(end);
+      return;
+    }
+    // Four slots become available as Charmander learns new moves.
+    if(this.playerSpecies==='charmander'&&action==='r'&&this.starterLevel<8){
+      if(time-this.lastMoveLockedCue>1250){
+        this.skillCallout(this.player.x,this.player.y-80,
+          'FUMAÇA: DESBLOQUEIA NO NÍVEL 8',0xf3d49b);
+        this.lastMoveLockedCue=time;
+      }
       return;
     }
     // Dodge locks other casts briefly so the Hop frames play clearly.

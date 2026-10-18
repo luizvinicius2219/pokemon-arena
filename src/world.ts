@@ -275,11 +275,13 @@ export class WorldScene extends Phaser.Scene {
 
   private refreshGoal(){
     const pokemon=getActivePokemon(loadCollection());
-    this.levelLabel?.setText(
-      pokemon.nickname.toUpperCase()+'  ·  NÍVEL '+pokemon.level+
-      '  ·  '+pokemon.experience+' XP'
-    );
     this.objective?.setText('OBJETIVO  ·  '+nextStoryObjective(this.progress));
+    const moves=pokemon.level<8
+      ?' • Cortina de Fumaça no Nv. 8':' • Fumaça desbloqueada';
+    this.levelLabel?.setText(
+      pokemon.nickname.toUpperCase()+' · NV '+pokemon.level+
+      ' · '+pokemon.experience+' XP'+moves
+    );
   }
 
   private say(message:string,forMs=3000){

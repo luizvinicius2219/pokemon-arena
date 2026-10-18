@@ -198,3 +198,8 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
 @media(max-width:500px){
   #gym-preview{padding:7px 8px;font-size:12px}
 }
+
+/* Level-gated move slot: players should not mistake a future move for a
+   broken button; the status is shown both on keyboard and touch HUD. */
+.skill-card.move-locked{opacity:0.68;filter:saturate(0.5)}
+.skill-card.move-locked .skill-timer{color:#e3cda7;font-size:10px}
