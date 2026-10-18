@@ -105,6 +105,8 @@ export class ArenaScene extends Phaser.Scene {
   private playerFacing = vector(1, 0);
   private enemyFacing = vector(-1, 0);
   private playerHp = 100;
+  private playerMaxHp = 100;
+  private starterLevel = 5;
   private enemyHp = 100;
   private finished = false;
   private projectiles: Projectile[] = [];
@@ -142,11 +144,12 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   preload() {
-    const isStory=this.getMode()==='story';
-    const encounter=isStory?(['charmander','geodude','onix'] as const)
+    const mode=this.getMode();
+    const encounter=mode==='story'?(['charmander','geodude','onix'] as const)
+      :mode==='practice'?(['charmander','pikachu'] as const)
       :(['charizard','pikachu'] as const);
     preloadOverworld(this,encounter);
-    if(isStory)preloadPewter(this);
+    if(mode==='story')preloadPewter(this);
     // Gen-V fallback sprites for any species without complete PMD sheets.
     const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
     for (const name of encounter) {
@@ -159,19 +162,24 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   create() {
-    const clips=this.getMode()==='story'
+    const mode=this.getMode();
+    const clips=mode==='story'
       ?['charmander','charmander-back','geodude','onix']
-      :['charizard','charizard-back','pikachu','pikachu-back'];
+      :mode==='practice'
+        ?['charmander','charmander-back','pikachu','pikachu-back']
+        :['charizard','charizard-back','pikachu','pikachu-back'];
     for (const name of clips) {
       const data = this.cache.binary.get(name + '-gif') as ArrayBuffer | undefined;
       if (data && !this.textures.exists(name + '-anim')) registerGifClip(this, name + '-anim', data);
     }
 
     this.mode=this.getMode();
-    this.playerSpecies=this.mode==='story'?this.currentStarter():'charizard';
+    this.playerSpecies=this.mode==='story'||this.mode==='practice'
+      ?this.currentStarter():'charizard';
     this.environment=undefined;
     this.enemySpecies=this.mode==='story'?'geodude':'pikachu';
-    this.enemyMaxHp=pokemonCatalog[this.enemySpecies].maxHp;
+    this.enemyMaxHp=this.mode==='practice'?68:
+      pokemonCatalog[this.enemySpecies].maxHp;
     this.storyEncounters=this.mode==='story'?gymTeams[pewterGym.id]:[];
     this.storyWave=0;
     this.storySwitching=false;
@@ -199,8 +207,13 @@ export class ArenaScene extends Phaser.Scene {
     this.playerMotion = undefined;
     this.enemyMotion = undefined;
     this.hitStopUntil = -1000;
-    this.playerHp = pokemonCatalog[this.playerSpecies].maxHp;
-    this.enemyHp = this.enemyMaxHp;
+    this.starterLevel=this.playerSpecies==='charmander'
+      ?getActivePokemon(loadCollection()).level:36;
+    this.playerMaxHp=pokemonCatalog[this.playerSpecies].maxHp+
+      (this.playerSpecies==='charmander'
+        ?Math.min(44,Math.max(0,this.starterLevel-5)*4):0);
+    this.playerHp=this.playerMaxHp;
+    this.enemyHp=this.enemyMaxHp;
     this.finished = false;
     this.projectiles = [];
     this.flameStreams = [];
@@ -468,8 +481,9 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private updateHp() {
-    this.hpText.setText(pokemonCatalog[this.playerSpecies].name+': '
-      +this.playerHp+' / '+pokemonCatalog[this.playerSpecies].maxHp+' HP');
+    this.hpText.setText(pokemonCatalog[this.playerSpecies].name+
+      (this.playerSpecies==='charmander'?' Nv. '+this.starterLevel:'')+
+      ': '+this.playerHp+' / '+this.playerMaxHp+' HP');
     this.enemyHpText.setText(pokemonCatalog[this.enemySpecies].name+': '
       +this.enemyHp+' / '+this.enemyMaxHp+' HP');
   }
@@ -488,7 +502,7 @@ export class ArenaScene extends Phaser.Scene {
       this.shownHp[side]=Phaser.Math.Linear(this.shownHp[side],hp,
         Phaser.Math.Clamp(delta/240,0,1));
       g.fillStyle(0x081921,0.94).fillRoundedRect(x-3,y-3,width+6,12,5);
-      const maxHp=side==='player'?pokemonCatalog[this.playerSpecies].maxHp:this.enemyMaxHp;
+      const maxHp=side==='player'?this.playerMaxHp:this.enemyMaxHp;
       g.fillStyle(0x9f423b,0.92).fillRect(x,y,width*hp/maxHp,6);
       const trailWidth=Math.max(0,width*this.shownHp[side]/maxHp);
       if(trailWidth>0.1)g.fillStyle(0xf4bf72,0.72).fillRect(x,y,trailWidth,6);
@@ -927,7 +941,11 @@ export class ArenaScene extends Phaser.Scene {
     const defender=target==='player'?this.playerSpecies:this.enemySpecies;
     const multiplier=effectiveness(elemental,pokemonCatalog[defender].elements);
     const growlFactor=target==='player'&&now<this.enemyWeakenedUntil?0.68:1;
-    const received=scaledDamage(Math.max(1,Math.round(amount*growlFactor)),
+    const trainingFactor=target==='player'&&this.mode==='practice'?0.52:1;
+    const levelFactor=target==='enemy'&&this.playerSpecies==='charmander'
+      ?1+Math.min(0.7,Math.max(0,this.starterLevel-5)*0.065):1;
+    const received=scaledDamage(
+      Math.max(1,Math.round(amount*growlFactor*trainingFactor*levelFactor)),
       elemental,pokemonCatalog[defender].elements);
     if(multiplier.category!=='neutral'&&now-this.lastTypeCueAt[target]>1280){
       const label=multiplier.category==='immune'?'NÃO AFETA!':
@@ -1011,6 +1029,11 @@ export class ArenaScene extends Phaser.Scene {
     this.comboText.setVisible(false);
     this.comboMeter.clear();
     const result=this.stats.finish(this.time.now,this.playerHp>0,this.playerHp);
+    if(this.mode==='practice'){
+      window.dispatchEvent(new CustomEvent('monster-arena:practice-result',{
+        detail:{victory:result.victory,experience:result.victory?220:0}
+      }));
+    }
     this.showResults(result);
   }
 
@@ -1058,6 +1081,19 @@ export class ArenaScene extends Phaser.Scene {
       this.mobile.active?'TOQUE EM JOGAR NOVAMENTE':'ENTER PARA JOGAR NOVAMENTE',{
         fontSize:'16px',fontStyle:'bold',color:'#dbf5f2'
       }).setOrigin(0.5).setDepth(25);
+    if(this.mode==='practice'){
+      this.add.text(center,414,
+        result.victory?'TREINO CONCLUÍDO · +220 XP':
+          'TREINE SEUS MOVIMENTOS E TENTE NOVAMENTE',{
+          fontSize:'14px',fontStyle:'bold',color:'#f6d9a0'
+        }).setOrigin(0.5).setDepth(25);
+      const back=this.add.text(center,445,'↩ VOLTAR À VILA',{
+        fontSize:'16px',fontStyle:'bold',color:'#d4f9e9',
+        backgroundColor:'#22585a',padding:{x:18,y:9}
+      }).setOrigin(0.5).setDepth(27).setInteractive({useHandCursor:true});
+      back.on('pointerdown',()=>window.dispatchEvent(
+        new Event('monster-arena:return-world')));
+    }
     if(this.mode==='story'){
       const note=this.add.text(center,415,
         'GEODUDE + ONIX VENCIDOS · INSÍGNIA E PROGRESSÃO EM BREVE',{

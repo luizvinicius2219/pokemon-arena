@@ -253,3 +253,8 @@ Veja [GAME_ROADMAP.md](GAME_ROADMAP.md). A arena de Pewter é um **protótipo do
 A versão de testes de Charmander agora usa **Arranhão, Rosnar, Brasas e Cortina de Fumaça**, aprendidos nos níveis 1, 1, 4 e 8 (referência: learnset de Scarlet/Violet). O mapa do próximo capítulo começa no nível 5, quando o último golpe ainda não está disponível. Chama Giratória não é golpe inicial; surge somente em nível avançado. O plano de evolução, incluindo **Charmeleon no nível 16 e Charizard no 36**, está em `src/starterProgression.ts` com os próximos golpes desbloqueáveis. Efeitos aprimorados em `src/starterFx.ts`: cortes brilhantes, ondas sonoras, pulso de brasas e nuvem de fumaça volumosa.
 
 Referências: https://pokemondb.net/pokedex/charmander/moves/9 , https://pokemondb.net/pokedex/charmeleon/moves/9 , https://pokemondb.net/pokedex/charmander .
+
+
+### Primeira batalha antes do ginásio
+
+O modo `practice` usa Charmander contra um Pikachu de treino com HP e dano reduzidos em uma arena separada, **sem alterar a Arena Livre nem as duas etapas do Brock**. Vencer concede **220 XP** à criatura ativa, elevando nível e HP para as próximas lutas; o resultado oferece retorno à vila. O nível e as habilidades são dados persistentes da coleção. Esta é a primeira etapa de encontros anteriores ao ginásio, não o sistema definitivo de encontros selvagens.

@@ -50,6 +50,7 @@ export class WorldScene extends Phaser.Scene {
 
   create(){
     this.progress=loadStoryProgress();
+    this.mobile.setFinished(false);
     this.position.set(this.progress.lastX,this.progress.lastY);
     this.following.set(this.position.x-36,this.position.y+18);
     this.cameras.main.setBackgroundColor('#344d3b');
