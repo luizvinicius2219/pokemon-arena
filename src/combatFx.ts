@@ -6,7 +6,7 @@ import Phaser from 'phaser';
  * The persistent graphics layer renders projectiles, while short-lived
  * particles are capped to avoid performance degradation on long battles.
  */
-export type VfxKind = 'ember' | 'flame' | 'fireball' | 'fireburst' | 'spark';
+export type VfxKind = 'ember' | 'flame' | 'fireball' | 'fireburst' | 'spark' | 'rock' | 'shard';
 export interface VfxShot {
   body: { x: number; y: number; radius: number };
   velocity: { x: number; y: number };
@@ -69,6 +69,31 @@ export class CombatFx {
       const {x,y,radius:r}=shot.body;
       const a=Math.atan2(shot.velocity.y,shot.velocity.x);
       const phase=time*0.018+x*0.02+y*0.01;
+      if(shot.kind==='rock'||shot.kind==='shard'){
+        // A faceted boulder or jagged spear travels as a single grounded
+        // stone projectile rather than a recolored fireball.
+        const shard=shot.kind==='shard';
+        const size=shard?r*1.5:r;
+        const length=shard?r*2.7:r*1.35;
+        const points=[
+          this.offset(x,y,a,length,0),
+          this.offset(x,y,a,-size*0.35,-size*0.82),
+          this.offset(x,y,a,-length*0.82,-size*0.28),
+          this.offset(x,y,a,-length*0.64,size*0.81),
+          this.offset(x,y,a,size*0.16,size*0.91)
+        ];
+        g.fillStyle(0x24313a,0.53).fillCircle(x+4,y+7,r*1.23);
+        g.fillStyle(shard?0x564f48:0x5a5b56,1).fillPoints(points,true);
+        g.lineStyle(shard?2.6:2,0x313639,0.88).strokePoints(points,true);
+        g.lineStyle(2,0xc2b498,0.92);
+        g.lineBetween(points[0].x,points[0].y,points[1].x,points[1].y);
+        g.fillStyle(0xa6a596,0.94).fillTriangle(
+          points[0].x,points[0].y,points[1].x,points[1].y,
+          x-Math.cos(a)*r*0.2,y-Math.sin(a)*r*0.2
+        );
+        g.fillStyle(0xe5d7b9,0.92).fillCircle(x+r*0.1,y-r*0.45,2.1);
+        continue;
+      }
       if(shot.kind==='spark'){
         const points=[
           this.offset(x,y,a,-r*1.7,0),
@@ -196,13 +221,14 @@ export class CombatFx {
 
   trail(x:number,y:number,velocity:{x:number;y:number},kind:VfxKind,large=false) {
     const electric=kind==='spark';
+    const rock=kind==='rock'||kind==='shard';
     const length=Math.hypot(velocity.x,velocity.y)||1;
     const backwardsX=-velocity.x/length, backwardsY=-velocity.y/length;
-    const count=large?4:2;
+    const count=rock?1:large?4:2;
     for(let i=0;i<count;i++) {
       const spread=(Math.random()-0.5)*(large?35:14);
       const drift=22+Math.random()*35;
-      const color=electric
+      const color=rock?[0xb6ac92,0x8f8e82,0x626a68][i%3]:electric
         ? [0xfff6af,0xffdc52,0x8fe5ff][i%3]
         : [0xffec99,0xffb447,0xff6b30,0x874039][i%4];
       this.mote(x+spread*backwardsY,y-spread*backwardsX,color,
