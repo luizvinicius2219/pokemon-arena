@@ -34,6 +34,69 @@ const registry: SheetRegistry = {
     Hurt: { width: 48, height: 56, ticks: [2,8] },
     Hop: { width: 32, height: 88, ticks: [2,1,2,3,4,4,3,2,1,2] }
   },
+  bulbasaur: {
+    Walk:{width:40,height:40,ticks:[4,4,4,4,4,4]},
+    Idle:{width:32,height:40,ticks:[40,6,6]},
+    Shoot:{width:32,height:32,ticks:[12,4,4,4,2,2]},
+    Attack:{width:64,height:72,ticks:[4,2,4,2,2,2,2,2,2,2,4]},
+    Charge:{width:32,height:40,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:40,height:56,ticks:[2,8]},
+    Hop:{width:32,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  ivysaur: {
+    Walk:{width:32,height:32,ticks:[8,10,8,10]},
+    Idle:{width:32,height:32,ticks:[40,12,12,12]},
+    Shoot:{width:32,height:40,ticks:[12,4,4,4,2,2]},
+    Attack:{width:64,height:64,ticks:[4,2,4,2,2,2,2,2,2,2,4]},
+    Charge:{width:32,height:32,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:48,height:56,ticks:[2,8]},
+    Hop:{width:32,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  squirtle: {
+    Walk:{width:32,height:32,ticks:[12,8,12,8]},
+    Idle:{width:32,height:32,ticks:[30,2,2,4,4,4,2,2]},
+    Shoot:{width:40,height:32,ticks:[2,6,2,2,2,2,2,2,2,2,2]},
+    Attack:{width:64,height:72,ticks:[2,4,1,1,1,2,2,2,2,2]},
+    Charge:{width:32,height:32,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:40,height:56,ticks:[2,8]},
+    Hop:{width:32,height:72,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  wartortle: {
+    Walk:{width:32,height:40,ticks:[8,10,8,10]},
+    Idle:{width:24,height:40,ticks:[40,2,2,2]},
+    Shoot:{width:32,height:40,ticks:[2,8,2,2,2,2,2,2,2]},
+    Attack:{width:64,height:72,ticks:[4,2,4,2,2,2,2,2,2,2,4]},
+    Charge:{width:32,height:40,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:48,height:48,ticks:[2,8]},
+    Hop:{width:32,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  charmeleon: {
+    Walk:{width:24,height:32,ticks:[8,10,8,10]},
+    Idle:{width:32,height:56,ticks:[40,2,3,3,3,2]},
+    Shoot:{width:48,height:48,ticks:[2,2,4,1,1,2,2,2,2,2,2,2]},
+    Attack:{width:72,height:80,ticks:[2,2,2,2,4,1,1,2,2,2,2,2]},
+    Charge:{width:32,height:48,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:48,height:64,ticks:[2,8]},
+    Hop:{width:40,height:88,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  rattata: {
+    Walk:{width:48,height:40,ticks:[6,4,4,4,4,4,4]},
+    Idle:{width:32,height:32,ticks:[40,2,2,2,4,2,2,2]},
+    Shoot:{width:32,height:40,ticks:[2,2,4,1,2,2,2,2,2,2,2,2,2]},
+    Attack:{width:64,height:72,ticks:[2,4,1,1,1,2,2,2,2,2]},
+    Charge:{width:32,height:32,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:56,height:56,ticks:[2,8]},
+    Hop:{width:40,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  jigglypuff: {
+    Walk:{width:32,height:40,ticks:[6,4,4,4,6]},
+    Idle:{width:24,height:32,ticks:[25,8,15,8,15]},
+    Shoot:{width:32,height:40,ticks:[2,2,6,1,1,2,2,2,2,2,2,2]},
+    Attack:{width:72,height:80,ticks:[2,2,6,1,1,2,2,2,2,2,2,2]},
+    Charge:{width:24,height:24,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:40,height:48,ticks:[2,8]},
+    Hop:{width:24,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
   charizard: {
     Walk: { width: 40, height: 48, ticks: [8, 10, 8, 10] },
     Idle: { width: 40, height: 48, ticks: [15, 15, 15, 15] },
@@ -79,6 +142,13 @@ const registry: SheetRegistry = {
 export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Charge'): number {
   const frames: Record<Creature, Record<'Shoot'|'Attack'|'Charge',number>> = {
     charmander: { Shoot: 5, Attack: 5, Charge: 5 },
+    bulbasaur: { Shoot: 2, Attack: 5, Charge: 5 },
+    ivysaur: { Shoot: 2, Attack: 3, Charge: 5 },
+    squirtle: { Shoot: 4, Attack: 3, Charge: 5 },
+    wartortle: { Shoot: 4, Attack: 5, Charge: 5 },
+    charmeleon: { Shoot: 2, Attack: 5, Charge: 5 },
+    rattata: { Shoot: 4, Attack: 3, Charge: 5 },
+    jigglypuff: { Shoot: 2, Attack: 3, Charge: 5 },
     charizard: { Shoot: 2, Attack: 5, Charge: 5 },
     pikachu:  { Shoot: 2, Attack: 3, Charge: 5 },
     geodude:  { Shoot: 5, Attack: 5, Charge: 5 },
@@ -88,13 +158,24 @@ export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Cha
   return Math.round(info.ticks.slice(0,frames[creature][motion]).reduce((sum,t)=>sum+t,0)*1000/60);
 }
 
-const ids: Record<Creature, string> = { charmander: '0004', charizard: '0006', pikachu: '0025', geodude: '0074', onix: '0095' };
+const ids: Record<Creature,string> = {
+  charmander:'0004',charmeleon:'0005',charizard:'0006',
+  bulbasaur:'0001',ivysaur:'0002',squirtle:'0007',wartortle:'0008',
+  rattata:'0019',jigglypuff:'0039',pikachu:'0025',geodude:'0074',onix:'0095'
+};
 const motions: Motion[] = ['Walk', 'Idle', 'Shoot', 'Attack', 'Charge', 'Hurt', 'Hop'];
 const base = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/';
 
 function spriteSize(creature:Creature):number {
   switch(creature){
     case 'charmander':return 2.08;
+    case 'charmeleon':return 2.12;
+    case 'bulbasaur':return 2.04;
+    case 'ivysaur':return 2.04;
+    case 'squirtle':return 2.15;
+    case 'wartortle':return 2.10;
+    case 'rattata':return 1.88;
+    case 'jigglypuff':return 2.15;
     case 'onix':return 1.95;
     case 'geodude':return 1.95;
     case 'charizard':return 1.9;
@@ -102,7 +183,10 @@ function spriteSize(creature:Creature):number {
   }
 }
 function spriteLift(creature:Creature):number {
-  return creature==='onix'?52:creature==='charmander'?26:
+  return creature==='onix'?52:
+    creature==='charmander'||creature==='bulbasaur'||creature==='squirtle'
+    ||creature==='rattata'||creature==='jigglypuff'?24:
+    creature==='ivysaur'||creature==='wartortle'||creature==='charmeleon'?27:
     creature==='geodude'?15:17;
 }
 
@@ -275,7 +359,9 @@ export class OverworldActor {
     // PMD move sheets use different frame heights. A centered anchor made
     // Charmander appear airborne on Attack/Hop/Shoot, so keep its feet at the
     // same physical ground level regardless of which sheet is active.
-    const feetOffset=this.creature==='charmander'&&next!=='Hop'
+    const starters:readonly Creature[]=['charmander','charmeleon',
+      'bulbasaur','ivysaur','squirtle','wartortle'];
+    const feetOffset=starters.includes(this.creature)&&next!=='Hop'
       ?Math.max(0,info.height-40)*spriteSize(this.creature)*0.5:0;
     this.image.setPosition(x-this.facing.x*3*hurtPulse,
       y-spriteLift(this.creature)*(1-sinking*0.82)-feetOffset
