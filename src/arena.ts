@@ -1147,6 +1147,10 @@ export class ArenaScene extends Phaser.Scene {
     this.comboText.setVisible(false);
     this.comboMeter.clear();
     const result=this.stats.finish(this.time.now,this.playerHp>0,this.playerHp);
+    if(this.mode==='story'){
+      const back=document.querySelector<HTMLButtonElement>('[data-return-story]');
+      if(back)back.hidden=false;
+    }
     if(this.mode==='practice'||this.mode==='wild'){
       const wild=this.mode==='wild'?activeWildEncounter():null;
       window.dispatchEvent(new CustomEvent('monster-arena:practice-result',{
@@ -1206,7 +1210,10 @@ export class ArenaScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(25);
     if(this.mode==='practice'||this.mode==='wild'){
       const reward=this.mode==='wild'?activeWildEncounter().experience:220;
+      let evolution:string|null=null;
+      try{evolution=window.sessionStorage.getItem('monster-arena-evolution');}catch{}
       this.add.text(center,414,
+        evolution&&result.victory?'EVOLUÇÃO! '+evolution.toUpperCase():
         result.victory?'TREINO CONCLUÍDO · +'+reward+' XP':
           'TREINE SEUS MOVIMENTOS E TENTE NOVAMENTE',{
           fontSize:'14px',fontStyle:'bold',color:'#f6d9a0'
@@ -1220,10 +1227,17 @@ export class ArenaScene extends Phaser.Scene {
     }
     if(this.mode==='story'){
       const note=this.add.text(center,415,
-        'GEODUDE + ONIX VENCIDOS · INSÍGNIA E PROGRESSÃO EM BREVE',{
+        result.victory?'GEODUDE + ONIX VENCIDOS · INSÍGNIA DA PEDRA!':
+          'VOCÊ PODE TREINAR NA SAFARI E TENTAR NOVAMENTE',{
           fontSize:'12px',fontStyle:'bold',color:'#e8cb98',align:'center'
         }).setOrigin(0.5).setDepth(25);
       void note;
+      const returnLink=this.add.text(center,449,'↩ VOLTAR À ZONA SAFARI',{
+        fontSize:'15px',fontStyle:'bold',color:'#d4f9e9',
+        backgroundColor:'#22585a',padding:{x:16,y:8}
+      }).setOrigin(0.5).setDepth(27).setInteractive({useHandCursor:true});
+      returnLink.on('pointerdown',()=>window.dispatchEvent(
+        new Event('monster-arena:return-world')));
     }
     this.cameras.main.shake(result.victory?120:80,0.0015);
     if(result.victory)this.cinematic.burst(center,149,'fire',1.15,this.time.now);

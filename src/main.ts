@@ -117,7 +117,7 @@ app.innerHTML = `
           </div>
           <p class="battle-summary-record" data-battle-record></p>
           <button type="button" class="battle-summary-rematch" data-battle-rematch>↻ Jogar novamente</button>
-          <button type="button" class="battle-summary-rematch" data-return-story hidden>↩ Voltar à Vila Aurora</button>
+          <button type="button" class="battle-summary-rematch" data-return-story hidden>↩ Voltar à Zona Safari</button>
         </section>
       </div>
       <div id="mobile-controls" aria-label="Controle virtual para celular">
@@ -363,7 +363,10 @@ window.addEventListener('monster-arena:practice-result',event=>{
   const detail=(event as CustomEvent<{
     victory:boolean;experience:number;species?:string;level?:number
   }>).detail;
-  if(!detail?.victory)return;
+  if(!detail)return;
+  const back=document.querySelector<HTMLButtonElement>('[data-return-story]');
+  if(back)back.hidden=false;
+  if(!detail.victory)return;
   const before=getActivePokemon(loadCollection());
   const award=awardActiveExperience(loadCollection(),detail.experience);
   const after=getActivePokemon(award.collection);
@@ -372,12 +375,16 @@ window.addEventListener('monster-arena:practice-result',event=>{
     '[data-return-story]');
   if(returnButton)returnButton.hidden=false;
   if(before.species!==after.species){
+    try{window.sessionStorage.setItem('monster-arena-evolution',
+      pokemonCatalog[after.species].name);}catch{}
     const info=document.querySelector<HTMLElement>('[data-battle-record]');
     if(info)info.textContent='EVOLUÇÃO! '+
       pokemonCatalog[after.species].name+' · Nv '+after.level;
   }
 });
 window.addEventListener('monster-arena:gym-victory',()=>{
+  const back=document.querySelector<HTMLButtonElement>('[data-return-story]');
+  if(back)back.hidden=false;
   const saved=loadCollection();
   if(saved.badges.includes('pedra'))return;
   saveCollection({...saved,badges:[...saved.badges,'pedra']});

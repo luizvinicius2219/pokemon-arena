@@ -130,6 +130,20 @@ export class WorldScene extends Phaser.Scene{
     hit.on('pointerout',()=>hit.setFillStyle(0x286a60));
     this.refresh();
     this.say('Livre para explorar: mato alto, treinos e ginásio de Brock.',4200);
+    try{
+      const evolved=window.sessionStorage.getItem('monster-arena-evolution');
+      if(evolved){
+        window.sessionStorage.removeItem('monster-arena-evolution');
+        const banner=this.add.text(480,143,
+          '✨ EVOLUÇÃO! '+evolved.toUpperCase()+' ✨',{
+            fontSize:'29px',fontStyle:'bold',color:'#f4edb9',
+            stroke:'#1e4e42',strokeThickness:8
+          }).setOrigin(0.5).setDepth(32);
+        this.tweens.add({targets:banner,y:104,alpha:0,
+          duration:1350,delay:2300,onComplete:()=>banner.destroy()});
+        this.say('Seu Pokémon evoluiu para '+evolved+'! Nova forma e golpes.',5000);
+      }
+    }catch{}
     this.lastEncounterAt=this.time.now+3500;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>{
       updateStoryProgress({lastX:this.player.x,lastY:this.player.y});
@@ -263,13 +277,15 @@ export class WorldScene extends Phaser.Scene{
   }
 
   private refresh(){
-    const pokemon=getActivePokemon(loadCollection());
+    const collection=loadCollection();
+    const pokemon=getActivePokemon(collection);
+    const badge=collection.badges.includes('pedra')?'  ·  🏅 PEDRA':'';
     const evolved=pokemon.level>=16;
     const prompt=pokemon.level<16
       ?' · Evolução no Nv 16':' · Forma evoluída';
     this.info?.setText(
       pokemon.nickname.toUpperCase()+'  ·  Nv '+pokemon.level+
-      '  ·  '+pokemon.experience+' XP'+prompt
+      '  ·  '+pokemon.experience+' XP'+prompt+badge
     );
     this.objective?.setText('OBJETIVO  ·  '+nextStoryObjective(this.progress));
   }
