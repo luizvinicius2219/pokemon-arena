@@ -118,8 +118,8 @@ export class CombatFx {
    * tightly connected golden core and an incandescent end cap.
    * This is rendered once per frame and does not spawn individual bullets.
    */
-  drawFlamethrower(x:number,y:number,a:number,elapsed:number,duration=740) {
-    const length=beamReach(elapsed,duration);
+  drawFlamethrower(x:number,y:number,a:number,elapsed:number,duration=740,maxReach?:number) {
+    const length=Math.min(beamReach(elapsed,duration),maxReach??Infinity);
     if(length<=1)return;
     const phase=elapsed*0.030;
     const g=this.ink;
