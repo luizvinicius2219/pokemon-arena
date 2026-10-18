@@ -3,9 +3,10 @@ import type { Action, Bindings } from './controls';
 import { allActions, cooldownFor, dodge, skillKeys, skills, type Skill } from './abilities';
 import { currentGifFrame, hasGifClip, registerGifClip } from './gifAnimation';
 import { keyLabel } from './controls';
+import { CombatFx, type VfxKind } from './combatFx';
 
 type Side = 'player' | 'enemy';
-type ProjectileKind = 'ember' | 'flame' | 'fireball' | 'fireburst' | 'spark';
+type ProjectileKind = VfxKind;
 interface Projectile {
   body: Phaser.GameObjects.Arc;
   velocity: Phaser.Math.Vector2;
@@ -23,6 +24,8 @@ const clampY = (value: number) => Phaser.Math.Clamp(value, bounds.minY, bounds.m
 const vector = (x: number, y: number) => new Phaser.Math.Vector2(x, y);
 
 export class ArenaScene extends Phaser.Scene {
+  private fx!: CombatFx;
+  private hitStopUntil = -1000;
   private player!: Phaser.GameObjects.Arc;
   private enemy!: Phaser.GameObjects.Arc;
   private playerArt?: Phaser.GameObjects.Image;
@@ -74,6 +77,8 @@ export class ArenaScene extends Phaser.Scene {
       if (data && !this.textures.exists(name + '-anim')) registerGifClip(this, name + '-anim', data);
     }
 
+    this.fx = new CombatFx(this);
+    this.hitStopUntil = -1000;
     this.playerHp = 100;
     this.enemyHp = 100;
     this.finished = false;
@@ -192,30 +197,49 @@ export class ArenaScene extends Phaser.Scene {
     const pointer=this.input.activePointer;
     const dir=this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
     this.faceDirection('player',dir);
-    this.castCharizard(action,dir,time);
+    const windup:Record<Skill,number>={q:60,w:115,e:180,r:270};
+    const charge=action==='r'?1.8:action==='e'?1.4:1;
+    this.fx.charge(this.player.x+dir.x*23,this.player.y+dir.y*23,'fire',charge);
+    // Intentional short wind-up: the body anticipates before the projectile releases.
+    this.time.delayedCall(windup[action],()=>{
+      if(!this.finished) this.castCharizard(action,dir,this.time.now);
+    });
   }
 
   private castCharizard(skill:Skill,dir:Phaser.Math.Vector2,time:number) {
-    const x=this.player.x+dir.x*22, y=this.player.y+dir.y*22;
+    const x=this.player.x+dir.x*23, y=this.player.y+dir.y*23;
     const ability=skills.charizard[skill];
+    const angle=Math.atan2(dir.y,dir.x);
     if(skill==='q') {
-      this.projectile(x,y,dir,550,7,'ember','player',ability.damage,650,time);
-      this.flash(x,y,0xff9b43,12);
+      this.fx.breath(x,y,angle,0.5);
+      this.projectile(x,y,dir,570,7,'ember','player',ability.damage,670,time);
+      this.flash(x,y,0xffd17b,11);
     } else if(skill==='w') {
-      this.pulse(x,y,0xff7932,28,0.6);
-      for(const angle of [-0.20,-0.10,0,0.10,0.20]) {
-        const ray=dir.clone().rotate(angle);
-        this.projectile(x,y,ray,360,9,'flame','player',ability.damage,530,time);
+      // Rapid, overlapping flames become a sustained jet, not five static balls.
+      this.pulse(x,y,0xff7932,23,0.4);
+      for(let i=0;i<9;i++){
+        this.time.delayedCall(i*48,()=>{
+          if(this.finished)return;
+          const spread=Phaser.Math.FloatBetween(-0.17,0.17);
+          const ray=dir.clone().rotate(spread);
+          const sx=this.player.x+ray.x*24, sy=this.player.y+ray.y*24;
+          this.projectile(sx,sy,ray,340+Math.random()*70,8+Math.random()*3,
+            'flame','player',3,390,this.time.now);
+          this.fx.breath(sx,sy,Math.atan2(ray.y,ray.x),0.85);
+        });
       }
     } else if(skill==='e') {
-      this.projectile(x,y,dir,305,17,'fireball','player',ability.damage,930,time,72);
-      this.flash(x,y,0xff4f20,30);
+      this.fx.charge(x,y,'fire',1.35);
+      this.projectile(x,y,dir,310,18,'fireball','player',ability.damage,990,time,78);
+      this.flash(x,y,0xffb15a,26);
     } else {
-      this.pulse(x,y,0xffbd40,34,0.9);
-      this.projectile(x,y,dir,380,21,'fireburst','player',ability.damage,1150,time,104);
-      // Partículas adicionais formam as pontas da rajada especial.
-      for(const angle of [-0.34,0.34]) {
-        this.projectile(x,y,dir.clone().rotate(angle),370,8,'ember','player',6,680,time);
+      this.fx.charge(x,y,'fire',2.3);
+      this.pulse(x,y,0xffbd40,35,0.85);
+      this.cameras.main.shake(115,0.003);
+      this.projectile(x,y,dir,395,22,'fireburst','player',ability.damage,1150,time,112);
+      // The extra embers form the characteristic split flame-star silhouette.
+      for(const angleOffset of [-0.37,0.37]){
+        this.projectile(x,y,dir.clone().rotate(angleOffset),370,8,'ember','player',6,710,time);
       }
     }
   }
@@ -228,34 +252,44 @@ export class ArenaScene extends Phaser.Scene {
     const from=this.enemy;
     const dir=this.directionTo(from,this.player.x,this.player.y,this.enemyFacing);
     this.faceDirection('enemy',dir);
+    this.fx.charge(from.x,from.y-8,'electric',skill==='r'?1.8:1.1);
     if(skill==='q') {
-      const x=from.x+dir.x*22,y=from.y+dir.y*22;
-      this.projectile(x,y,dir,460,8,'spark','enemy',ability.damage,750,time);
-      this.flash(x,y,0xffee78,17);
+      const x=from.x+dir.x*19,y=from.y+dir.y*19;
+      this.time.delayedCall(120,()=>{
+        if(this.finished)return;
+        this.projectile(this.enemy.x+dir.x*19,this.enemy.y+dir.y*19,dir,490,9,'spark','enemy',
+          ability.damage,760,this.time.now);
+        this.fx.bolt(x,y,x+dir.x*35,y+dir.y*35,3,120);
+      });
     } else if(skill==='w') {
       const x=from.x,y=from.y;
-      const ring=this.add.circle(x,y,24,0xfde47e,0.13).setStrokeStyle(4,0xffed7a).setDepth(4);
-      this.tweens.add({targets:ring,scaleX:5.4,scaleY:5.4,alpha:0,duration:400,onComplete:()=>ring.destroy()});
-      for(let i=0;i<7;i++){
-        const a=i*Math.PI*2/7;
-        this.electricLine(x,y,x+Math.cos(a)*110,y+Math.sin(a)*110,0xfff6ac,2);
+      const ring=this.add.circle(x,y,24,0xfde47e,0.12).setStrokeStyle(4,0xffed7a).setDepth(4);
+      this.tweens.add({targets:ring,scaleX:5.4,scaleY:5.4,alpha:0,duration:400,
+        onComplete:()=>ring.destroy()});
+      for(let i=0;i<10;i++) {
+        const a=i*Math.PI*2/10;
+        const distance=75+Math.random()*43;
+        this.time.delayedCall(i*23,()=>{
+          if(!this.finished)this.fx.bolt(x,y,x+Math.cos(a)*distance,y+Math.sin(a)*distance,3,200);
+        });
       }
       this.time.delayedCall(350,()=>{
         if(this.finished)return;
+        this.fx.impact(x,y,'electric',1.3);
         if(Phaser.Math.Distance.Between(x,y,this.player.x,this.player.y)<133)
           this.damage('player',ability.damage,this.player.x,this.player.y,0xffec7c);
       });
     } else if(skill==='e') {
-      this.warnLightning(this.player.x,this.player.y,42,ability.damage,480);
+      this.warnLightning(this.player.x,this.player.y,43,ability.damage,510);
     } else {
       const first=vector(this.player.x,this.player.y);
       const approach=this.directionTo(this.enemy,this.player.x,this.player.y,dir);
       for(let i=0;i<3;i++){
-        const offset=(i-1)*48;
-        const x=clampX(first.x+approach.x*i*32-approach.y*offset);
-        const y=clampY(first.y+approach.y*i*32+approach.x*offset);
+        const offset=(i-1)*55;
+        const x=clampX(first.x+approach.x*i*34-approach.y*offset);
+        const y=clampY(first.y+approach.y*i*34+approach.x*offset);
         this.time.delayedCall(i*330,()=>{
-          if(!this.finished)this.warnLightning(x,y,52,ability.damage,570);
+          if(!this.finished)this.warnLightning(x,y,53,ability.damage,590);
         });
       }
     }
@@ -265,10 +299,8 @@ export class ArenaScene extends Phaser.Scene {
     x:number,y:number,dir:Phaser.Math.Vector2,speed:number,radius:number,
     kind:ProjectileKind,side:Side,damage:number,lifetime:number,time:number,blastRadius=0
   ) {
-    const colors:Record<ProjectileKind,number>={
-      ember:0xff9d37, flame:0xff5b2e,fireball:0xff4e28,fireburst:0xffca40,spark:0xfff36e
-    };
-    const body=this.add.circle(x,y,radius,colors[kind],0.95).setStrokeStyle(2,0xfff1bc).setDepth(5);
+    // Invisible hitbox: VFX draws angular flames/lightning over it every frame.
+    const body=this.add.circle(x,y,radius,0xffffff,0).setVisible(false);
     this.projectiles.push({body,velocity:dir.clone().scale(speed),side,kind,damage,expiry:time+lifetime,lastTrail:-1000,blastRadius});
   }
 
@@ -305,14 +337,11 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private warnLightning(x:number,y:number,radius:number,damage:number,warning:number) {
-    const marker=this.add.circle(x,y,radius,0xffda5e,0.13).setStrokeStyle(3,0xffe883,0.85).setDepth(2);
-    this.tweens.add({targets:marker,alpha:0.65,scaleX:0.85,scaleY:0.85,yoyo:true,repeat:2,duration:warning/6});
+    this.fx.telegraph(x,y,radius,'electric',warning);
     this.time.delayedCall(warning,()=>{
-      marker.destroy();
       if(this.finished)return;
-      this.electricLine(x+24,bounds.minY,x,y,0xffffc5,6);
-      this.electricLine(x-20,bounds.minY+45,x+10,y-25,0xffd747,3);
-      this.pulse(x,y,0xfffaaf,radius*0.7);
+      this.fx.lightning(x,y,1.2);
+      this.cameras.main.shake(105,0.0025);
       if(Phaser.Math.Distance.Between(x,y,this.player.x,this.player.y)<radius+this.player.radius)
         this.damage('player',damage,this.player.x,this.player.y,0xffe36a);
     });
@@ -320,6 +349,8 @@ export class ArenaScene extends Phaser.Scene {
 
   private explode(x:number,y:number,radius:number,damage:number,side:Side,special:boolean) {
     const color=special?0xffd058:0xff6838;
+    this.fx.impact(x,y,'fire',special?2.3:1.45);
+    if(special)this.cameras.main.shake(165,0.006);
     const bloom=this.add.circle(x,y,radius*0.5,color,0.24).setStrokeStyle(special?5:3,0xffd89b).setDepth(4);
     this.tweens.add({targets:bloom,alpha:0,scaleX:2,scaleY:2,duration:420,onComplete:()=>bloom.destroy()});
     for(let i=0;i<(special?12:8);i++){
@@ -343,7 +374,12 @@ export class ArenaScene extends Phaser.Scene {
       this.enemyHurtAt=this.time.now;
     }
     this.updateHp();
-    this.flash(x,y,color,16);
+    const heavy=amount>=17;
+    this.hitStopUntil=this.time.now+(heavy?46:22);
+    this.cameras.main.shake(heavy?125:65,heavy?0.004:0.0018);
+    this.fx.impact(x,y,color===0xffec7c||color===0xffe36a||color===0xffee7a?'electric':'fire',
+      heavy?1.05:0.65);
+    this.flash(x,y,color,heavy?23:13);
     const label=this.add.text(x,y-34,'-'+amount,{fontSize:'19px',fontStyle:'bold',color:'#fff4d3'}).setOrigin(0.5).setDepth(15);
     this.tweens.add({targets:label,y:y-63,alpha:0,duration:520,onComplete:()=>label.destroy()});
     if(this.playerHp<=0||this.enemyHp<=0)this.endBattle();
@@ -365,12 +401,11 @@ export class ArenaScene extends Phaser.Scene {
       shot.body.x+=shot.velocity.x*dt;
       shot.body.y+=shot.velocity.y*dt;
       const x=shot.body.x,y=shot.body.y;
-      if(time-shot.lastTrail>50){
+      if(time-shot.lastTrail>(shot.kind==='flame'?38:54)){
         shot.lastTrail=time;
-        this.sparkParticle(x,y,shot.kind==='spark'?0xffec7b:shot.kind==='flame'?0xff6530:0xffae46,
-          shot.kind==='fireburst'?9:shot.kind==='fireball'?7:4);
-        if(shot.kind==='spark'){
-          this.electricLine(x-shot.velocity.x*0.06,y-shot.velocity.y*0.06,x,y,0xfff8af,2);
+        this.fx.trail(x,y,shot.velocity,shot.kind,shot.kind==='fireburst'||shot.kind==='fireball');
+        if(shot.kind==='spark'&&Math.random()<0.40){
+          this.fx.bolt(x-shot.velocity.x*0.045,y-shot.velocity.y*0.045,x,y,2,105);
         }
       }
       const target=shot.side==='player'?this.enemy:this.player;
@@ -384,8 +419,11 @@ export class ArenaScene extends Phaser.Scene {
       } else if(hit) {
         this.damage(shot.side==='player'?'enemy':'player',shot.damage,target.x,target.y,
           shot.kind==='spark'?0xffee7a:0xff8b40);
-      } else this.pulse(x,y,shot.kind==='spark'?0xffe56a:0xff7637,10,0.4);
+      } else {
+        this.fx.impact(x,y,shot.kind==='spark'?'electric':'fire',0.4);
+      }
     }
+    this.fx.drawShots(this.projectiles,time);
   }
 
   private animateSprite(
@@ -403,7 +441,7 @@ export class ArenaScene extends Phaser.Scene {
   ) {
     if(!image)return;
     const walking=velocity.lengthSq()>0.05;
-    if(walking)facing.copy(velocity).normalize();
+    if(walking && (time-attackAt>290||time<attackAt))facing.copy(velocity).normalize();
     const backwards=facing.y< -0.3 && Math.abs(facing.y)>Math.abs(facing.x)*0.75;
     const pose=backwards&&this.textures.exists(back)?back:front;
     const clip=pose+'-anim';
@@ -415,9 +453,18 @@ export class ArenaScene extends Phaser.Scene {
     image.setFlipX(facing.x< -0.25);
     const step=walking?Math.abs(Math.sin(time*0.017))*2.4:0;
     const breathing=animated?0:Math.sin(time*0.003)*0.018;
-    const attack=Math.max(0,1-(time-attackAt)/190);
-    image.setDisplaySize(size*(1+breathing+attack*0.12),size*(1-breathing*0.5-attack*0.07));
-    image.setPosition(entity.x,entity.y-8-step-attack*6).setRotation(animated?0:Math.sin(time*0.002)*0.012);
+    const elapsed=time-attackAt;
+    // Anticipation -> release -> recovery, synchronized with GIF idle frames.
+    const anticipate=elapsed>=0&&elapsed<95 ? Math.sin(Math.PI*elapsed/95) : 0;
+    const release=elapsed>=95&&elapsed<220 ? Math.sin(Math.PI*(elapsed-95)/125) : 0;
+    const recovery=elapsed>=220&&elapsed<330 ? (330-elapsed)/110 : 0;
+    const squash=1-anticipate*0.12+release*0.15;
+    const stretch=1+anticipate*0.11-release*0.07+recovery*0.035;
+    image.setDisplaySize(size*squash*(1+breathing),size*stretch*(1-breathing*0.5));
+    image.setPosition(entity.x+facing.x*(release*9-anticipate*7),
+      entity.y-8-step-anticipate*3-release*7);
+    image.setRotation((animated?0:Math.sin(time*0.002)*0.012)+
+      (anticipate*-0.07+release*0.095)*Math.sign(facing.x||1));
     if(time-hurtAt<220 && Math.floor(time/55)%2===0)image.setTint(0xff7575);
     else image.clearTint();
     shadow?.setPosition(entity.x,entity.y+15);
@@ -437,6 +484,7 @@ export class ArenaScene extends Phaser.Scene {
 
   update(time:number,delta:number) {
     if(this.settingsOpen()||this.finished)return;
+    if(time<this.hitStopUntil){this.updateHud(time);return;}
     const dt=Math.min(delta/1000,0.05);
     const oldPlayer=vector(this.player.x,this.player.y);
     const oldEnemy=vector(this.enemy.x,this.enemy.y);
