@@ -139,3 +139,7 @@ Estas melhorias são visuais; a mecânica das habilidades e a estrutura de contr
 - Botão de reinício por toque e Enter seguem disponíveis.
 
 *Classificação S/A/B/C é uma métrica ilustrativa de desempenho baseada em vida restante, combos, esquivas efetivas e tempo. Não altera recompensas nem progressão de personagens.*
+
+### Resumo no celular
+
+Ao terminar a luta no celular, o painel de resultados aparece em uma janela responsiva com texto legível e botão **Jogar novamente**, sem exigir teclado ou ampliação do canvas. No computador, o resumo continua dentro da arena.

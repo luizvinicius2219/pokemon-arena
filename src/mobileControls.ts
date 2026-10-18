@@ -1,5 +1,6 @@
 import type { Action } from './controls';
 import { skills, type Fighter } from './abilities';
+import { formatBattleTime, type BattleSummary } from './battleStats';
 
 /**
  * Multi-touch gamepad independent of Phaser pointer input.
@@ -19,6 +20,8 @@ export class MobileControls {
   private readonly knob: HTMLElement;
   private readonly buttons: Map<Action, HTMLButtonElement> = new Map();
   private readonly restart: HTMLButtonElement;
+  private readonly summary: HTMLElement;
+  private readonly summaryRematch: HTMLButtonElement;
 
   constructor(root: HTMLElement) {
     this.active = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
@@ -27,6 +30,8 @@ export class MobileControls {
     this.stick = root.querySelector<HTMLElement>('[data-touch-stick]')!;
     this.knob = root.querySelector<HTMLElement>('[data-stick-knob]')!;
     this.restart = root.querySelector<HTMLButtonElement>('[data-touch-restart]')!;
+    this.summary = document.querySelector<HTMLElement>('#battle-summary')!;
+    this.summaryRematch = this.summary.querySelector<HTMLButtonElement>('[data-battle-rematch]')!;
 
     this.stick.addEventListener('pointerdown', event => {
       if (!this.active || this.stickPointer !== null || event.pointerType === 'mouse') return;
@@ -82,6 +87,7 @@ export class MobileControls {
     }
 
     this.restart.addEventListener('click', () => { this.wantsRestart = true; });
+    this.summaryRematch.addEventListener('click', () => { this.wantsRestart = true; });
     window.addEventListener('blur', () => this.clear());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) this.clear();
@@ -139,8 +145,35 @@ export class MobileControls {
     if (label) label.textContent = cooling ? (remaining / 1000).toFixed(1) + 's' : '';
   }
 
+  showSummary(result: BattleSummary) {
+    if (!this.active) return;
+    const set = (key: string, value: string) => {
+      const target=this.summary.querySelector<HTMLElement>('[data-battle-'+key+']');
+      if(target)target.textContent=value;
+    };
+    set('title', result.victory ? 'VITÓRIA!' : 'DERROTA');
+    set('rank', result.rank);
+    set('time', 'TEMPO  '+formatBattleTime(result.durationSeconds));
+    set('dealt', String(result.damageDealt));
+    set('taken', String(result.damageTaken));
+    set('hits', String(result.hitsLanded));
+    set('combo', String(result.bestCombo));
+    set('dodges', String(result.dodgesUsed));
+    set('evades', String(result.attacksDodged));
+    const best =
+      result.newTimeRecord ? 'NOVO RECORDE DE TEMPO!' :
+      result.newComboRecord ? 'NOVO RECORDE DE COMBO!' :
+      'MELHOR COMBO: '+result.bestComboRecord
+        +(result.fastestVictorySeconds===null?'':' · MELHOR TEMPO: '+formatBattleTime(result.fastestVictorySeconds));
+    set('record',best);
+    this.summary.classList.toggle('defeat',!result.victory);
+    this.summary.hidden=false;
+    this.summaryRematch.focus({preventScroll:true});
+  }
+
   setFinished(finished: boolean) {
     this.restart.hidden = !finished;
+    if (!finished) this.summary.hidden=true;
     if (finished) this.clear();
   }
 

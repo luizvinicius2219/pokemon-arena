@@ -130,3 +130,54 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
 .touch-dodge .touch-skill-number{color:#b5f4f8}
 @media(max-width:400px){.touch-skill-number{font-size:24px}.touch-skill-caption{font-size:7px}}
 @media(orientation:landscape) and (max-height:550px){.touch-skill-number{font-size:23px}.touch-skill-caption{font-size:7px}}
+
+/* Full-size mobile match summary, unlike the small canvas text on a phone. */
+.battle-summary{display:none}
+.battle-summary[hidden]{display:none!important}
+.touch-enabled .battle-summary:not([hidden]){
+  display:flex;align-items:center;justify-content:center;
+  position:fixed;inset:0;z-index:65;padding:12px;
+  overflow-y:auto;overscroll-behavior:contain;
+  background:#051016e8;backdrop-filter:blur(5px);
+}
+.battle-summary-card{
+  width:min(440px,96vw);max-height:calc(100svh - 24px);
+  overflow-y:auto;flex:none;margin:auto;
+  border:2px solid #62968e;border-radius:18px;
+  background:linear-gradient(160deg,#17373d,#081d29 82%);
+  box-shadow:0 20px 75px #000a;padding:19px 20px;color:#e9f6f8;
+}
+.battle-summary-header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.battle-summary-header h2{font-size:29px;color:#abf0cc;margin:0;letter-spacing:0.04em}
+.battle-summary.defeat .battle-summary-header h2{color:#ffb6a4}
+.battle-summary-rank{
+  border:2px solid #d9bd72;border-radius:10px;min-width:55px;padding:5px 11px;
+  background:#513d28;color:#ffe7a1;text-align:center;font-size:26px;font-weight:900;
+}
+.battle-summary-time{margin:4px 0 12px;color:#c4dddb;font-weight:800;font-size:13px;letter-spacing:1px}
+.battle-summary-grid{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  gap:9px 15px;border-top:1px solid #45747b;padding:13px 0 6px;
+  font-size:14px;color:#b9d5d8;
+}
+.battle-summary-grid strong{color:#ffffff;font-variant-numeric:tabular-nums;text-align:right;font-size:15px}
+.battle-summary-record{
+  border-top:1px solid #45747b;padding:12px 0 0;margin:10px 0 14px;
+  font-size:12px;font-weight:800;color:#ffe3a3;text-align:center;
+}
+.battle-summary-rematch{
+  width:100%;padding:13px;border:2px solid #a1e5df;border-radius:12px;
+  background:#237c7e;color:#fff;font-size:16px;font-weight:900;
+  touch-action:manipulation;
+}
+.battle-summary-rematch:focus-visible{outline:3px solid #fbe6aa;outline-offset:3px}
+@media (orientation:landscape) and (max-height:520px){
+  .battle-summary-card{padding:11px 18px;width:min(480px,93vw)}
+  .battle-summary-header h2{font-size:23px}
+  .battle-summary-rank{font-size:21px;padding:3px 8px}
+  .battle-summary-grid{gap:4px 13px;font-size:12px;padding:7px 0 2px}
+  .battle-summary-grid strong{font-size:13px}
+  .battle-summary-time{font-size:11px;margin:2px 0 6px}
+  .battle-summary-record{padding-top:7px;margin:6px 0 9px}
+  .battle-summary-rematch{padding:8px;font-size:14px}
+}

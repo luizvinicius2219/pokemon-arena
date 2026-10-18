@@ -631,7 +631,7 @@ export class ArenaScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(25);
     this.cameras.main.shake(result.victory?120:80,0.0015);
     if(result.victory)this.cinematic.burst(center,149,'fire',1.15,this.time.now);
-    // Keeps mobile restart button exactly where it already was.
+    this.mobile.showSummary(result);
     void tint;
   }
 

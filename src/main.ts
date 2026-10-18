@@ -32,6 +32,25 @@ app.innerHTML = `
   <div class="arena-column">
     <div id="game-shell">
       <div id="game" aria-label="Arena de batalha"></div>
+      <div id="battle-summary" class="battle-summary" hidden role="dialog" aria-modal="true" aria-labelledby="battle-summary-title">
+        <section class="battle-summary-card">
+          <div class="battle-summary-header">
+            <h2 id="battle-summary-title" data-battle-title>VITÓRIA!</h2>
+            <span class="battle-summary-rank" data-battle-rank>A</span>
+          </div>
+          <p class="battle-summary-time" data-battle-time>TEMPO 00:00</p>
+          <div class="battle-summary-grid">
+            <span>Dano causado</span><strong data-battle-dealt>0</strong>
+            <span>Dano recebido</span><strong data-battle-taken>0</strong>
+            <span>Acertos</span><strong data-battle-hits>0</strong>
+            <span>Maior combo</span><strong data-battle-combo>0</strong>
+            <span>Esquivas usadas</span><strong data-battle-dodges>0</strong>
+            <span>Golpes evitados</span><strong data-battle-evades>0</strong>
+          </div>
+          <p class="battle-summary-record" data-battle-record></p>
+          <button type="button" class="battle-summary-rematch" data-battle-rematch>↻ Jogar novamente</button>
+        </section>
+      </div>
       <div id="mobile-controls" aria-label="Controle virtual para celular">
         <div class="touch-joystick">
           <div class="touch-stick" data-touch-stick aria-label="Joystick de movimentação">
