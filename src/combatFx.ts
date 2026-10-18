@@ -267,6 +267,29 @@ export class CombatFx {
     this.impact(x,y,'electric',scale);
   }
 
+  /** Directional strike marks so the impact is not just a bright circle. */
+  hitAccent(x:number,y:number,angle:number,element:Element,power=1) {
+    const g=this.scene.add.graphics().setPosition(x,y).setDepth(11);
+    const electric=element==='electric';
+    const core=electric?0xffffc8:0xffedbb;
+    const rim=electric?0xffd45a:0xff793d;
+    for(let i=-2;i<=2;i++){
+      const a=angle+Math.PI+i*0.33;
+      const dx=Math.cos(a),dy=Math.sin(a);
+      const side=(i%2===0?1:-1)*8*power;
+      g.lineStyle((i===0?4:2.5)*power,rim,0.82)
+        .lineBetween(-dx*7+side*dy,-dy*7-side*dx,dx*38*power+side*dy,dy*38*power-side*dx);
+      g.lineStyle(1.6*power,core,0.9)
+        .lineBetween(dx*7,dy*7,dx*29*power+side*dy,dy*29*power-side*dx);
+    }
+    const ground=this.scene.add.ellipse(x,y+15,27*power,8*power,
+      electric?0xffe077:0xf67c45,0.38).setDepth(2);
+    this.scene.tweens.add({targets:ground,alpha:0,scaleX:2.1,scaleY:1.7,duration:260,
+      onComplete:()=>ground.destroy()});
+    this.scene.tweens.add({targets:g,alpha:0,scaleX:1.2,scaleY:1.2,
+      duration:230,ease:'Cubic.easeOut',onComplete:()=>g.destroy()});
+  }
+
   impact(x:number,y:number,element:Element,power=1) {
     const electric=element==='electric';
     const base=electric?0xffee81:0xffa14c;

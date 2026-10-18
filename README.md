@@ -1,4 +1,4 @@
-# Monster Arena — protótipo Pokémon 0.9
+# Monster Arena — protótipo Pokémon 1.0
 
 Arena 2D de combate em tempo real desenvolvida com **Phaser 3 + TypeScript + Vite**, com Charizard controlado pelo jogador e Pikachu controlado pelo computador.
 
@@ -104,3 +104,14 @@ O novo fluxo deixa o controle pronto para futura seleção de Pokémon sem antec
 ### Observações
 
 A versão 0.9 mantém o dano total do jato em uma faixa próxima à versão anterior; tempo, posição, alcance e esquiva passam a ser determinantes para acertá-lo. O jogo permanece inteiramente 2D e utiliza sprites carregados remotamente do acervo PMD, com atribuições documentadas em [CREDITS.md](CREDITS.md).
+
+## Versão 1.0 — impacto e combate com movimentação mais viva
+
+- **Reação real a golpes:** Charizard e Pikachu executam a animação `Hurt` com brilho e deformação sutil, acompanhada de recuo progressivo de 140–195 ms (conforme força do ataque). O recuo também move a hitbox, sem teletransporte.
+- **VFX de impacto:** marcas direcionais, ondas no chão e partículas combinadas com o elemento de fogo ou eletricidade. Golpes pesados têm números de dano maiores.
+- **Barras de vida flutuantes:** cada Pokémon tem HP perto do corpo, com faixa residual que acompanha a perda de vida gradualmente, além do HUD original.
+- **Pikachu mais dinâmico:** alterna perseguição, afastamento e movimentação lateral ao redor do Charizard em vez de parar completamente à distância ideal.
+- **Combate com peso:** movimento reduzido levemente durante a canalização de Lança-Chamas e breve interrupção de deslocamento após receber dano. Joystick, dash animado, mira e cooldowns seguem funcionando.
+- **Proteção contra eventos simultâneos:** um mesmo Pokémon não recebe múltiplos registros de impacto dentro de uma janela de 75 ms; ataques canalizados continuam causando dano em intervalos.
+
+A atualização continua usando as folhas PMD de animação `Hurt` e mantém as atribuições em [CREDITS.md](CREDITS.md).

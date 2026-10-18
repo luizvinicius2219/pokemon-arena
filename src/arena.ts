@@ -38,6 +38,13 @@ interface DashState {
   duration:number;
   lastGhostAt:number;
 }
+interface HitReaction {
+  startAt:number;
+  duration:number;
+  distance:number;
+  lastDistance:number;
+  direction:Phaser.Math.Vector2;
+}
 
 export class ArenaScene extends Phaser.Scene {
   private fx!: CombatFx;
@@ -63,6 +70,10 @@ export class ArenaScene extends Phaser.Scene {
   private projectiles: Projectile[] = [];
   private flameStreams: FlameStream[] = [];
   private dash?: DashState;
+  private reactions: Record<Side,HitReaction|null> = {player:null,enemy:null};
+  private lastHitAt:Record<Side,number>={player:-1000,enemy:-1000};
+  private healthBars!:Phaser.GameObjects.Graphics;
+  private shownHp:Record<Side,number>={player:100,enemy:100};
   private playerCastAt: Record<Action, number> = { q: -450, w: -2300, e: -3800, r: -7600, dodge: -1900 };
   private enemyCastAt: Record<Skill, number> = { q: -850, w: -3400, e: -4500, r: -9000 };
   private playerAttackAt = -1000;
@@ -109,6 +120,9 @@ export class ArenaScene extends Phaser.Scene {
     this.projectiles = [];
     this.flameStreams = [];
     this.dash = undefined;
+    this.reactions={player:null,enemy:null};
+    this.lastHitAt={player:-1000,enemy:-1000};
+    this.shownHp={player:100,enemy:100};
     this.mobile.setAbilityNames('charizard');
     this.playerCastAt = { q: -450, w: -2300, e: -3800, r: -7600, dodge: -1900 };
     this.enemyCastAt = { q: -850, w: -3400, e: -4500, r: -9000 };
@@ -142,6 +156,8 @@ export class ArenaScene extends Phaser.Scene {
     this.enemyLabel = this.add.text(750,253,'PIKACHU',{color:'#ffe9b2',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
     this.hpText = this.add.text(32,24,'Charizard: 100 HP',{fontSize:'20px',color:'#a5eeff'}).setDepth(10);
     this.enemyHpText = this.add.text(740,24,'Pikachu: 100 HP',{fontSize:'20px',color:'#ffcd9e'}).setDepth(10);
+    this.healthBars=this.add.graphics().setDepth(9);
+    this.drawHealthBars(0);
     this.destination.set(this.player.x,this.player.y);
     this.input.mouse?.disableContextMenu();
     this.input.on('pointerdown',(p: Phaser.Input.Pointer) => {
@@ -171,6 +187,30 @@ export class ArenaScene extends Phaser.Scene {
   private updateHp() {
     this.hpText.setText('Charizard: ' + this.playerHp + ' HP');
     this.enemyHpText.setText('Pikachu: ' + this.enemyHp + ' HP');
+  }
+
+  /** Small overhead bars make damage visible even on narrow mobile screens. */
+  private drawHealthBars(delta:number) {
+    if(!this.healthBars)return;
+    const g=this.healthBars;
+    g.clear();
+    for(const side of ['player','enemy'] as Side[]) {
+      const entity=side==='player'?this.player:this.enemy;
+      const hp=side==='player'?this.playerHp:this.enemyHp;
+      const width=side==='player'?76:68;
+      const y=entity.y-(side==='player'?42:33);
+      const x=entity.x-width/2;
+      this.shownHp[side]=Phaser.Math.Linear(this.shownHp[side],hp,
+        Phaser.Math.Clamp(delta/240,0,1));
+      g.fillStyle(0x081921,0.94).fillRoundedRect(x-3,y-3,width+6,12,5);
+      g.fillStyle(0x9f423b,0.92).fillRect(x,y,width*hp/100,6);
+      const trailWidth=Math.max(0,width*this.shownHp[side]/100);
+      if(trailWidth>0.1)g.fillStyle(0xf4bf72,0.72).fillRect(x,y,trailWidth,6);
+      const hpWidth=Math.max(0,width*hp/100);
+      if(hpWidth>0.1)g.fillStyle(hp>28?(side==='player'?0x65d5b5:0xe7db72):0xf06262,1)
+        .fillRect(x,y,hpWidth,6);
+      g.lineStyle(1,0xc6e8e4,0.5).strokeRoundedRect(x-1,y-1,width+2,8,3);
+    }
   }
 
   private updateHud(time:number, force=false) {
@@ -411,27 +451,47 @@ export class ArenaScene extends Phaser.Scene {
 
   private damage(target:Side,amount:number,x:number,y:number,color:number) {
     if(this.finished)return;
-    // Initial portion of the visible Hop dodge grants real evasive frames.
-    if(target==='player' && this.dash
-      && this.time.now-this.dash.startAt<this.dash.duration*0.70) return;
+    const now=this.time.now;
+    // Real dodge invulnerability is tied to the visible Hop, not a teleport.
+    if(target==='player' && this.dash && now-this.dash.startAt<this.dash.duration*0.70)return;
+    // Prevent overlapping impact events in the same couple of frames; long
+    // streams can still tick as the Pokémon remains exposed to them.
+    if(now-this.lastHitAt[target]<75)return;
+    this.lastHitAt[target]=now;
+    const victim=target==='player'?this.player:this.enemy;
+    const source=target==='player'?this.enemy:this.player;
+    const direction=vector(victim.x-source.x,victim.y-source.y);
+    if(direction.lengthSq()<0.0001)direction.set(target==='player'?-1:1,0);
+    direction.normalize();
+    const heavy=amount>=17;
+    this.reactions[target]={
+      startAt:now,duration:heavy?195:140,distance:heavy?29:15,
+      lastDistance:0,direction
+    };
     if(target==='player') {
       this.playerHp=Math.max(0,this.playerHp-amount);
-      this.playerHurtAt=this.time.now;
-      this.playerMotion?.hurt(this.time.now);
+      this.playerHurtAt=now;
+      this.playerMotion?.hurt(now);
     } else {
       this.enemyHp=Math.max(0,this.enemyHp-amount);
-      this.enemyHurtAt=this.time.now;
-      this.enemyMotion?.hurt(this.time.now);
+      this.enemyHurtAt=now;
+      this.enemyMotion?.hurt(now);
     }
     this.updateHp();
-    const heavy=amount>=17;
-    this.hitStopUntil=this.time.now+(heavy?46:22);
-    this.cameras.main.shake(heavy?125:65,heavy?0.004:0.0018);
-    this.fx.impact(x,y,color===0xffec7c||color===0xffe36a||color===0xffee7a?'electric':'fire',
-      heavy?1.05:0.65);
-    this.flash(x,y,color,heavy?23:13);
-    const label=this.add.text(x,y-34,'-'+amount,{fontSize:'19px',fontStyle:'bold',color:'#fff4d3'}).setOrigin(0.5).setDepth(15);
-    this.tweens.add({targets:label,y:y-63,alpha:0,duration:520,onComplete:()=>label.destroy()});
+    this.hitStopUntil=now+(heavy?48:24);
+    this.cameras.main.shake(heavy?115:64,heavy?0.0038:0.0017);
+    const electric=[0xffec7c,0xffe36a,0xffee7a].includes(color);
+    const element=electric?'electric':'fire';
+    this.fx.impact(x,y,element,heavy?1.18:0.72);
+    this.fx.hitAccent(x,y,Math.atan2(direction.y,direction.x),element,heavy?1.35:0.85);
+    this.flash(x,y,color,heavy?21:13);
+    const label=this.add.text(victim.x,victim.y-36,'-'+amount,{
+      fontSize:heavy?'24px':'18px',fontStyle:'bold',
+      color:electric?'#fff5aa':'#ffe6c9',
+      stroke:'#16222e',strokeThickness:3
+    }).setOrigin(0.5).setDepth(15);
+    this.tweens.add({targets:label,y:victim.y-(heavy?83:63),alpha:0,scaleX:heavy?1.2:1.05,
+      scaleY:heavy?1.2:1.05,duration:heavy?570:460,onComplete:()=>label.destroy()});
     if(this.playerHp<=0||this.enemyHp<=0)this.endBattle();
   }
 
@@ -556,6 +616,22 @@ export class ArenaScene extends Phaser.Scene {
     shadow?.setScale(1-step*0.025);
   }
 
+  private applyHitReaction(side:Side,time:number):boolean {
+    const reaction=this.reactions[side];
+    if(!reaction)return false;
+    const t=Phaser.Math.Clamp((time-reaction.startAt)/reaction.duration,0,1);
+    const distance=reaction.distance*(1-Math.pow(1-t,3));
+    const shift=distance-reaction.lastDistance;
+    reaction.lastDistance=distance;
+    const target=side==='player'?this.player:this.enemy;
+    target.setPosition(
+      clampX(target.x+reaction.direction.x*shift),
+      clampY(target.y+reaction.direction.y*shift)
+    );
+    if(t>=1){this.reactions[side]=null;return false;}
+    return true;
+  }
+
   private enemyDecision(time:number) {
     if(time<this.nextEnemyDecision||this.finished)return;
     this.nextEnemyDecision=time+Phaser.Math.Between(960,1330);
@@ -610,21 +686,27 @@ export class ArenaScene extends Phaser.Scene {
     const dt=Math.min(delta/1000,0.05);
     const oldPlayer=vector(this.player.x,this.player.y);
     const oldEnemy=vector(this.enemy.x,this.enemy.y);
+    const staggeredPlayer=this.reactions.player!==null
+      && time-this.reactions.player.startAt<105;
+    const channeling=this.flameStreams.some(stream=>time-stream.startAt<stream.duration);
+    const moveFactor=channeling?0.72:1;
     if(this.dash){
       this.animateDash(time);
+    } else if(staggeredPlayer){
+      // A brief stagger lets the Hurt animation read without dropping inputs.
     } else if(this.mobile.active) {
       // Analog joystick: movement follows the finger and stops when released.
       const stick=this.mobile.axis;
       if(Math.hypot(stick.x,stick.y)>0.12) {
-        this.player.x=clampX(this.player.x+stick.x*215*dt);
-        this.player.y=clampY(this.player.y+stick.y*215*dt);
+        this.player.x=clampX(this.player.x+stick.x*215*dt*moveFactor);
+        this.player.y=clampY(this.player.y+stick.y*215*dt*moveFactor);
         this.destination.set(this.player.x,this.player.y);
       }
     } else {
       const to=this.destination.clone().subtract(oldPlayer);
       const length=to.length();
       if(length>3){
-        const step=to.normalize().scale(Math.min(215*dt,length));
+        const step=to.normalize().scale(Math.min(215*dt*moveFactor,length));
         this.player.x=clampX(this.player.x+step.x);
         this.player.y=clampY(this.player.y+step.y);
       }
@@ -634,17 +716,23 @@ export class ArenaScene extends Phaser.Scene {
         this.playerCast(action,time);
       }
     }
+    // Pikachu stays active: closes distance, retreats, and circles the target.
+    // Direction changes gradually so it does not oscillate on every frame.
     const toward=vector(this.player.x-this.enemy.x,this.player.y-this.enemy.y);
     const distance=toward.length();
-    if(distance>185){
+    if(distance>0.01 && !this.reactions.enemy){
       toward.normalize();
-      this.enemy.x=clampX(this.enemy.x+toward.x*115*dt);
-      this.enemy.y=clampY(this.enemy.y+toward.y*115*dt);
-    } else if(distance<125){
-      toward.normalize();
-      this.enemy.x=clampX(this.enemy.x-toward.x*90*dt);
-      this.enemy.y=clampY(this.enemy.y-toward.y*90*dt);
+      const drift=vector(-toward.y,toward.x);
+      const sign=Math.floor(time/3200)%2===0?1:-1;
+      const chase=distance>208?112:distance<122?-94:distance>174?23:-12;
+      const strafe=distance>285?18:distance<100?12:72;
+      const step=toward.scale(chase).add(drift.scale(sign*strafe))
+        .limit(122).scale(dt);
+      this.enemy.x=clampX(this.enemy.x+step.x);
+      this.enemy.y=clampY(this.enemy.y+step.y);
     }
+    this.applyHitReaction('player',time);
+    this.applyHitReaction('enemy',time);
     this.enemyDecision(time);
     this.updateProjectiles(time,dt);
     const playerVelocity=vector(this.player.x-oldPlayer.x,this.player.y-oldPlayer.y);
@@ -665,6 +753,7 @@ export class ArenaScene extends Phaser.Scene {
     }
     this.playerLabel.setPosition(this.player.x,this.player.y-55);
     this.enemyLabel.setPosition(this.enemy.x,this.enemy.y-43);
+    this.drawHealthBars(delta);
     this.updateHud(time);
   }
 }

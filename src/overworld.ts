@@ -203,11 +203,16 @@ export class OverworldActor {
     }
 
     this.image.setFlipX(false).setRotation(0);
+    const hurtElapsed=time-this.hurtStartedAt;
+    const hurtPulse=hurtActive?Math.sin(Math.PI*Phaser.Math.Clamp(hurtElapsed/200,0,1)):0;
+    if(hurtActive && Math.floor(hurtElapsed/50)%2===0) this.image.setTint(0xffb3a7);
+    else this.image.clearTint();
     const walkingBob = moving && next === 'Walk' ? Math.abs(Math.sin(time * 0.012)) * 1.2 : 0;
     const hopProgress=hop && this.actionDuration>0
       ? Phaser.Math.Clamp((time-this.actionStartedAt)/this.actionDuration,0,1) : 0;
     const lift=hop?Math.sin(Math.PI*hopProgress)*8:0;
-    this.image.setPosition(x, y - 17 - walkingBob - lift);
-    this.image.setScale(this.creature === 'charizard' ? 1.9 : 1.7);
+    this.image.setPosition(x-this.facing.x*3*hurtPulse, y - 17 - walkingBob - lift - 3*hurtPulse);
+    const size=this.creature === 'charizard' ? 1.9 : 1.7;
+    this.image.setScale(size*(1+hurtPulse*0.075),size*(1-hurtPulse*0.055));
   }
 }
