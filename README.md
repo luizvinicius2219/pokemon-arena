@@ -246,3 +246,10 @@ Direção: um **jogo de ação e exploração com batalhas em tempo real**, capt
 ## Roteiro do jogo / primeiro capítulo
 
 Veja [GAME_ROADMAP.md](GAME_ROADMAP.md). A arena de Pewter é um **protótipo do chefe** e continuará acessível como atalho de teste enquanto construímos a vila, a rota de encontros e a área de treinamento. O objetivo é enfrentar Brock com o inicial obtido na história, e não começar com Charizard. A Arena Livre mantém os personagens avançados para testes de combate.
+
+
+## Charmander: golpes oficiais e direção visual
+
+A versão de testes de Charmander agora usa **Arranhão, Rosnar, Brasas e Cortina de Fumaça**, aprendidos nos níveis 1, 1, 4 e 8 (referência: learnset de Scarlet/Violet). O mapa do próximo capítulo começa no nível 5, quando o último golpe ainda não está disponível. Chama Giratória não é golpe inicial; surge somente em nível avançado. O plano de evolução, incluindo **Charmeleon no nível 16 e Charizard no 36**, está em `src/starterProgression.ts` com os próximos golpes desbloqueáveis. Efeitos aprimorados em `src/starterFx.ts`: cortes brilhantes, ondas sonoras, pulso de brasas e nuvem de fumaça volumosa.
+
+Referências: https://pokemondb.net/pokedex/charmander/moves/9 , https://pokemondb.net/pokedex/charmeleon/moves/9 , https://pokemondb.net/pokedex/charmander .

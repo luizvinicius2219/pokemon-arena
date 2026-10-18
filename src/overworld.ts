@@ -102,7 +102,8 @@ function spriteSize(creature:Creature):number {
   }
 }
 function spriteLift(creature:Creature):number {
-  return creature==='onix'?52:creature==='geodude'?15:17;
+  return creature==='onix'?52:creature==='charmander'?26:
+    creature==='geodude'?15:17;
 }
 
 function key(creature: Creature, motion: Motion) {
@@ -271,8 +272,13 @@ export class OverworldActor {
       ? Phaser.Math.Clamp((time-this.actionStartedAt)/this.actionDuration,0,1) : 0;
     const lift=hop?Math.sin(Math.PI*hopProgress)*8:0;
     const sinking=this.burrowDepth;
+    // PMD move sheets use different frame heights. A centered anchor made
+    // Charmander appear airborne on Attack/Hop/Shoot, so keep its feet at the
+    // same physical ground level regardless of which sheet is active.
+    const feetOffset=this.creature==='charmander'&&next!=='Hop'
+      ?Math.max(0,info.height-40)*spriteSize(this.creature)*0.5:0;
     this.image.setPosition(x-this.facing.x*3*hurtPulse,
-      y-spriteLift(this.creature)*(1-sinking*0.82)
+      y-spriteLift(this.creature)*(1-sinking*0.82)-feetOffset
       -walkingBob*(1-sinking)-lift*(1-sinking)-3*hurtPulse);
     const size=spriteSize(this.creature);
     const width= this.creature==='onix'?1.17:1;

@@ -17,10 +17,10 @@ export interface Ability {
 
 export const skills: Record<Fighter, Record<Skill, Ability>> = {
   charmander: {
-    q: { name: 'Brasas', description: 'Pequena rajada de brasas.', icon: '🔥', cooldown: 750, damage: 7, element: 'fire' },
-    w: { name: 'Arranhão', description: 'Golpe físico curto de tipo Normal.', icon: '🐾', cooldown: 1400, damage: 12, element: 'normal' },
-    e: { name: 'Cortina de Fumaça', description: 'Reduz a velocidade e atrapalha o ritmo de ataque inimigo.', icon: '💨', cooldown: 6400, damage: 0, element: 'normal' },
-    r: { name: 'Chama Giratória', description: 'Projétil de fogo que se espalha em área.', icon: '🌀', cooldown: 8200, damage: 19, element: 'fire' }
+    q: { name: 'Arranhão', description: 'Scratch: golpe físico de garras na frente do Pokémon.', icon: '🐾', cooldown: 780, damage: 10, element: 'normal' },
+    w: { name: 'Rosnar', description: 'Growl: ondas sonoras reduzem temporariamente o dano do rival.', icon: '🔊', cooldown: 4200, damage: 0, element: 'normal' },
+    e: { name: 'Brasas', description: 'Ember: chamas nítidas em um projétil com rastro luminoso.', icon: '🔥', cooldown: 1180, damage: 11, element: 'fire' },
+    r: { name: 'Cortina de Fumaça', description: 'Smokescreen: nuvem densa reduz a mobilidade e o ritmo do rival.', icon: '💨', cooldown: 6700, damage: 0, element: 'normal' }
   },
   charizard: {
     q: { name: 'Brasas', description: 'Projétil veloz de fogo.', icon: '🔥', cooldown: 450, damage: 8, element: 'fire' },
