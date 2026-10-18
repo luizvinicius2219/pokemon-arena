@@ -14,6 +14,14 @@ export interface VfxShot {
 }
 type Element = 'fire' | 'electric';
 
+/** Common collision/render geometry for the Flamethrower beam. */
+export function beamReach(elapsed:number,duration:number): number {
+  if(elapsed<0||elapsed>=duration)return 0;
+  const extend=Phaser.Math.Clamp(elapsed/135,0,1);
+  const retract=Phaser.Math.Clamp((duration-elapsed)/115,0,1);
+  return 385*Math.min(extend,retract);
+}
+
 export class CombatFx {
   private ink: Phaser.GameObjects.Graphics;
   private particles = 0;
@@ -105,33 +113,77 @@ export class CombatFx {
    * A single cohesive, animated ribbon visually links Charizard's muzzle
    * to the far end of Flamethrower. Collision stays with existing hitboxes.
    */
-  drawFlamethrower(
-    x:number,y:number,a:number,elapsed:number,duration=580
-  ) {
-    if(elapsed<0||elapsed>=duration)return;
-    const grow=Phaser.Math.Clamp(elapsed/230,0,1);
-    const fade=Phaser.Math.Clamp((duration-elapsed)/145,0,1);
-    const factor=Math.min(grow,fade);
-    const length=(30+245*factor);
-    const phase=elapsed*0.032;
-    // Flickering layers flow across each other to avoid static wedge shapes.
-    this.tongue(x,y,a,length,25*factor+6,0xa73b25,0.53,phase);
-    this.tongue(x,y,a+Math.sin(phase*0.6)*0.025,length*0.92,20*factor+4,
-      0xff632b,0.89,phase+0.7);
-    this.tongue(x,y,a-0.015,length*0.83,14*factor+3,0xffa13e,0.95,phase+1.2);
-    this.tongue(x,y,a,length*0.67,8*factor+2,0xffe6a2,0.96,phase+2);
-    // Small moving embers and lobes give the beam a flowing flame texture.
-    for(let i=0;i<6;i++){
-      const t=((i/6+elapsed*0.0019)%1);
-      const lengthAt=(t-0.18)*length;
-      const side=Math.sin(t*12+phase)*13*factor;
-      const p=this.offset(x,y,a,lengthAt,side);
-      this.ink.fillStyle(i%2?0xffd36d:0xff5b23,0.78*factor)
-        .fillCircle(p.x,p.y,2.5+Math.sin(t*Math.PI)*3.5*factor);
+  /**
+   * A long, nearly parallel fire-beam: broad orange haze, turbulent edges,
+   * tightly connected golden core and an incandescent end cap.
+   * This is rendered once per frame and does not spawn individual bullets.
+   */
+  drawFlamethrower(x:number,y:number,a:number,elapsed:number,duration=740) {
+    const length=beamReach(elapsed,duration);
+    if(length<=1)return;
+    const phase=elapsed*0.030;
+    const g=this.ink;
+    const c=Math.cos(a),s=Math.sin(a);
+    const normalX=-s,normalY=c;
+    const progress=Math.min(1,length/150);
+
+    const ribbon=(halfWidth:number,color:number,alpha:number,frequency:number)=>{
+      const left:{x:number;y:number}[]=[];
+      const right:{x:number;y:number}[]=[];
+      const slices=24;
+      for(let i=0;i<=slices;i++){
+        const t=i/slices;
+        const travel=t*length;
+        const entry=Phaser.Math.Clamp(travel/26,0,1);
+        const end=Phaser.Math.Clamp((length-travel)/14,0.2,1);
+        const turbulence=(Math.sin(phase*1.2+t*27)+Math.sin(phase*0.72+t*46))*halfWidth*0.12*entry;
+        const bend=Math.sin(phase*0.66+t*11)*halfWidth*0.12*t;
+        const centerX=x+c*travel+normalX*bend;
+        const centerY=y+s*travel+normalY*bend;
+        const width=(5+halfWidth*entry*progress)*end;
+        left.push({x:centerX+normalX*(width+turbulence),y:centerY+normalY*(width+turbulence)});
+        right.push({x:centerX-normalX*(width-turbulence),y:centerY-normalY*(width-turbulence)});
+      }
+      g.fillStyle(color,alpha);
+      g.fillPoints([...left,...right.reverse()],true);
+    };
+
+    // Four ribbons with moving edges and a straight, brilliant center.
+    ribbon(38,0x9d3520,0.22,0.7);
+    ribbon(29,0xe34b20,0.84,1.1);
+    ribbon(20,0xff902f,0.95,1.5);
+    ribbon(10,0xffdf7b,1,1.9);
+    ribbon(3,0xfff8ce,0.95,2.2);
+    const endX=x+c*length,endY=y+s*length;
+    g.fillStyle(0xff8a30,0.70).fillCircle(endX,endY,24*progress);
+    g.fillStyle(0xffd86b,0.94).fillCircle(endX,endY,14*progress);
+    g.fillStyle(0xfff8d4,0.95).fillCircle(endX,endY,6*progress);
+    // Individual flares move along the fire beam instead of appearing as bullets.
+    for(let i=0;i<10;i++){
+      const t=(i/10+elapsed*0.0023)%1;
+      const px=x+c*length*t+normalX*Math.sin(phase+t*17)*20*progress;
+      const py=y+s*length*t+normalY*Math.sin(phase+t*17)*20*progress;
+      g.fillStyle(i%2?0xffd668:0xff682b,0.7)
+       .fillCircle(px,py,2+3*Math.sin(Math.PI*t));
     }
   }
 
-  private mote(x: number, y: number, color: number, size: number, vx: number, vy: number, lifetime: number, alpha=1) {
+  dashDust(x:number,y:number,dir:{x:number;y:number},power=1) {
+    const px=-dir.y,py=dir.x;
+    for(let i=0;i<8;i++){
+      const drift=(Math.random()-0.5)*52;
+      const backward=16+Math.random()*48;
+      this.mote(x,y,[0xbdf9fa,0x67c7e4,0x3c7895][i%3],
+        2+Math.random()*5,
+        -dir.x*backward+px*drift,
+        -dir.y*backward+py*drift,
+        190+Math.random()*140,0.74*power);
+    }
+  }
+
+
+
+    private mote(x: number, y: number, color: number, size: number, vx: number, vy: number, lifetime: number, alpha=1) {
     if(this.particles >= this.maxParticles || !this.scene.sys.isActive()) return;
     this.particles++;
     const rect=this.scene.add.rectangle(x,y,size,size,color,alpha).setDepth(7).setRotation(Math.random()*Math.PI);

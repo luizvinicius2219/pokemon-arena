@@ -3,7 +3,7 @@ import type { Action, Bindings } from './controls';
 import { allActions, cooldownFor, dodge, skillKeys, skills, type Skill } from './abilities';
 import { currentGifFrame, hasGifClip, registerGifClip } from './gifAnimation';
 import { keyLabel } from './controls';
-import { CombatFx, type VfxKind } from './combatFx';
+import { CombatFx, beamReach, type VfxKind } from './combatFx';
 import { OverworldActor, preloadOverworld, releaseFrameMs } from './overworld';
 import type { MobileControls } from './mobileControls';
 
@@ -24,6 +24,20 @@ const bounds = { minX: 42, maxX: 918, minY: 42, maxY: 534 };
 const clampX = (value: number) => Phaser.Math.Clamp(value, bounds.minX, bounds.maxX);
 const clampY = (value: number) => Phaser.Math.Clamp(value, bounds.minY, bounds.maxY);
 const vector = (x: number, y: number) => new Phaser.Math.Vector2(x, y);
+interface FlameStream {
+  startAt:number;
+  direction:Phaser.Math.Vector2;
+  duration:number;
+  nextHitAt:number;
+}
+interface DashState {
+  from:Phaser.Math.Vector2;
+  to:Phaser.Math.Vector2;
+  direction:Phaser.Math.Vector2;
+  startAt:number;
+  duration:number;
+  lastGhostAt:number;
+}
 
 export class ArenaScene extends Phaser.Scene {
   private fx!: CombatFx;
@@ -47,7 +61,8 @@ export class ArenaScene extends Phaser.Scene {
   private enemyHp = 100;
   private finished = false;
   private projectiles: Projectile[] = [];
-  private flameStreams: { startAt: number; direction: Phaser.Math.Vector2; duration: number }[] = [];
+  private flameStreams: FlameStream[] = [];
+  private dash?: DashState;
   private playerCastAt: Record<Action, number> = { q: -450, w: -2300, e: -3800, r: -7600, dodge: -1900 };
   private enemyCastAt: Record<Skill, number> = { q: -850, w: -3400, e: -4500, r: -9000 };
   private playerAttackAt = -1000;
@@ -93,6 +108,7 @@ export class ArenaScene extends Phaser.Scene {
     this.finished = false;
     this.projectiles = [];
     this.flameStreams = [];
+    this.dash = undefined;
     this.mobile.setAbilityNames('charizard');
     this.playerCastAt = { q: -450, w: -2300, e: -3800, r: -7600, dodge: -1900 };
     this.enemyCastAt = { q: -850, w: -3400, e: -4500, r: -9000 };
@@ -195,8 +211,7 @@ export class ArenaScene extends Phaser.Scene {
 
   private playerCast(action:Action,time:number) {
     if(action==='dodge') {
-      if(time-this.playerCastAt.dodge<dodge.cooldown)return;
-      this.playerCastAt.dodge=time;
+      if(this.dash || time-this.playerCastAt.dodge<dodge.cooldown)return;
       const pointer=this.input.activePointer;
       const stick=this.mobile.axis;
       const dir=this.mobile.active
@@ -204,17 +219,20 @@ export class ArenaScene extends Phaser.Scene {
           ? vector(stick.x,stick.y).normalize()
           : this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing))
         : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
+      const start=vector(this.player.x,this.player.y);
+      const end=vector(clampX(start.x+dir.x*120),clampY(start.y+dir.y*120));
+      if(start.distance(end)<5)return;
+      this.playerCastAt.dodge=time;
       this.playerFacing.copy(dir);
-      if(this.playerArt) {
-        const ghost=this.add.image(this.player.x,this.player.y-8,this.playerArt.texture.key,this.playerArt.frame.name)
-          .setDisplaySize(88,88).setDepth(2).setTint(0x86dcff).setAlpha(0.52).setFlipX(this.playerArt.flipX);
-        this.tweens.add({targets:ghost,alpha:0,scaleX:0.7,scaleY:0.7,duration:240,onComplete:()=>ghost.destroy()});
-      }
-      this.player.setPosition(clampX(this.player.x+dir.x*100),clampY(this.player.y+dir.y*100));
-      this.destination.set(this.player.x,this.player.y);
-      this.pulse(this.player.x,this.player.y,0x94e8ff,22,0.5);
+      this.dash={from:start,to:end,direction:dir,startAt:time,duration:230,lastGhostAt:-1000};
+      this.playerMotion?.trigger('Hop',time,dir,230);
+      this.fx.dashDust(start.x,start.y,dir);
+      this.pulse(start.x,start.y,0x94e8ff,20,0.4);
+      this.destination.copy(end);
       return;
     }
+    // Dodge locks other casts briefly so the Hop frames play clearly.
+    if(this.dash)return;
     if(!this.canCast('player',action,time))return;
     this.playerCastAt[action]=time;
     this.playerAttackAt=time;
@@ -225,7 +243,7 @@ export class ArenaScene extends Phaser.Scene {
       : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
     this.faceDirection('player',dir);
     const motion=action==='r'?'Attack':action==='e'?'Charge':'Shoot';
-    this.playerMotion?.trigger(motion,time,dir);
+    this.playerMotion?.trigger(motion,time,dir,action==='w'?785:undefined);
     // Use the exact launch frame from PMD animations, not guessed timers.
     const windupMs=this.playerMotion ? releaseFrameMs('charizard',motion)
       : ({q:60,w:115,e:180,r:270} as Record<Skill,number>)[action];
@@ -246,20 +264,14 @@ export class ArenaScene extends Phaser.Scene {
       this.projectile(x,y,dir,570,7,'ember','player',ability.damage,670,time);
       this.flash(x,y,0xffd17b,11);
     } else if(skill==='w') {
-      // Rapid, overlapping flames become a sustained jet, not five static balls.
+      // One coherent, aimable beam with synchronized visual and hit geometry.
+      this.flameStreams.push({
+        startAt:time,direction:dir.clone(),duration:740,nextHitAt:time+145
+      });
+      this.fx.charge(x,y,'fire',1.25);
+      this.fx.breath(x,y,angle,0.75);
       this.pulse(x,y,0xff7932,23,0.4);
-      this.flameStreams.push({startAt:time,direction:dir.clone(),duration:580});
-      for(let i=0;i<9;i++){
-        this.time.delayedCall(i*48,()=>{
-          if(this.finished)return;
-          const spread=Phaser.Math.FloatBetween(-0.17,0.17);
-          const ray=dir.clone().rotate(spread);
-          const sx=this.player.x+ray.x*25, sy=this.player.y-10+ray.y*20;
-          this.projectile(sx,sy,ray,390+Math.random()*65,8+Math.random()*3,
-            'flame','player',3,660,this.time.now);
-          this.fx.breath(sx,sy,Math.atan2(ray.y,ray.x),0.85);
-        });
-      }
+    }
     } else if(skill==='e') {
       this.fx.charge(x,y,'fire',1.35);
       this.projectile(x,y,dir,310,18,'fireball','player',ability.damage,990,time,78);
@@ -400,6 +412,9 @@ export class ArenaScene extends Phaser.Scene {
 
   private damage(target:Side,amount:number,x:number,y:number,color:number) {
     if(this.finished)return;
+    // Initial portion of the visible Hop dodge grants real evasive frames.
+    if(target==='player' && this.dash
+      && this.time.now-this.dash.startAt<this.dash.duration*0.70) return;
     if(target==='player') {
       this.playerHp=Math.max(0,this.playerHp-amount);
       this.playerHurtAt=this.time.now;
@@ -463,10 +478,37 @@ export class ArenaScene extends Phaser.Scene {
     this.fx.drawShots(this.projectiles,time);
     this.flameStreams=this.flameStreams.filter(stream=>time-stream.startAt<stream.duration);
     for(const stream of this.flameStreams){
+      const elapsed=time-stream.startAt;
+      const pointer=this.input.activePointer;
+      // The beam rotates gradually, so the player can sweep the fire while moving.
+      const aim=this.mobile.active
+        ? this.directionTo(this.player,this.enemy.x,this.enemy.y,stream.direction)
+        : this.directionTo(this.player,pointer.worldX,pointer.worldY,stream.direction);
+      const currentAngle=Math.atan2(stream.direction.y,stream.direction.x);
+      const desiredAngle=Math.atan2(aim.y,aim.x);
+      const difference=Phaser.Math.Angle.Wrap(desiredAngle-currentAngle);
+      const nextAngle=currentAngle+Phaser.Math.Clamp(difference,-dt*3.0,dt*3.0);
+      stream.direction.set(Math.cos(nextAngle),Math.sin(nextAngle));
+      this.playerFacing.copy(stream.direction);
+      this.playerMotion?.face(stream.direction);
       const dir=stream.direction;
       const x=this.player.x+dir.x*25,y=this.player.y-10+dir.y*20;
-      this.fx.drawFlamethrower(x,y,Math.atan2(dir.y,dir.x),
-        time-stream.startAt,stream.duration);
+      const reach=beamReach(elapsed,stream.duration);
+      this.fx.drawFlamethrower(x,y,nextAngle,elapsed,stream.duration);
+
+      if(time>=stream.nextHitAt && reach>25 && !this.finished){
+        stream.nextHitAt=time+113;
+        const vx=this.enemy.x-x,vy=this.enemy.y-y;
+        const along=vx*dir.x+vy*dir.y;
+        const lateral=Math.abs(vx*dir.y-vy*dir.x);
+        if(along>=0&&along<=reach+this.enemy.radius&&lateral<=27+this.enemy.radius){
+          this.damage('enemy',4,this.enemy.x,this.enemy.y,0xff9f41);
+        }
+        if(Math.random()<0.65){
+          const tipX=x+dir.x*reach,tipY=y+dir.y*reach;
+          this.fx.breath(tipX,tipY,nextAngle,0.22);
+        }
+      }
     }
   }
 
@@ -526,6 +568,38 @@ export class ArenaScene extends Phaser.Scene {
     if(this.canCast('enemy',selection,time))this.castPikachu(selection,time);
   }
 
+  private animateDash(time:number) {
+    const dash=this.dash;
+    if(!dash)return;
+    const t=Phaser.Math.Clamp((time-dash.startAt)/dash.duration,0,1);
+    // Smooth acceleration and deceleration: no instantaneous relocation.
+    const eased=0.5-0.5*Math.cos(Math.PI*t);
+    this.player.setPosition(
+      Phaser.Math.Linear(dash.from.x,dash.to.x,eased),
+      Phaser.Math.Linear(dash.from.y,dash.to.y,eased)
+    );
+    this.destination.set(this.player.x,this.player.y);
+    if(time-dash.lastGhostAt>=47){
+      dash.lastGhostAt=time;
+      if(this.playerArt){
+        const art=this.playerArt;
+        const ghost=this.add.image(this.player.x,art.y,art.texture.key,art.frame.name)
+          .setOrigin(art.originX,art.originY)
+          .setDisplaySize(art.displayWidth,art.displayHeight)
+          .setFlipX(art.flipX).setDepth(2).setAlpha(0.35).setTint(0x9be7f2);
+        this.tweens.add({targets:ghost,alpha:0,duration:170,
+          onComplete:()=>ghost.destroy()});
+      }
+      this.fx.dashDust(this.player.x,this.player.y,dash.direction,0.28);
+    }
+    if(t>=1){
+      this.player.setPosition(dash.to.x,dash.to.y);
+      this.destination.copy(dash.to);
+      this.fx.dashDust(dash.to.x,dash.to.y,dash.direction,0.65);
+      this.dash=undefined;
+    }
+  }
+
   update(time:number,delta:number) {
     if(this.mobile.consumeRestart() && this.finished) {
       this.mobile.clear();
@@ -537,7 +611,9 @@ export class ArenaScene extends Phaser.Scene {
     const dt=Math.min(delta/1000,0.05);
     const oldPlayer=vector(this.player.x,this.player.y);
     const oldEnemy=vector(this.enemy.x,this.enemy.y);
-    if(this.mobile.active) {
+    if(this.dash){
+      this.animateDash(time);
+    } else if(this.mobile.active) {
       // Analog joystick: movement follows the finger and stops when released.
       const stick=this.mobile.axis;
       if(Math.hypot(stick.x,stick.y)>0.12) {

@@ -12,7 +12,7 @@ import Phaser from 'phaser';
  */
 
 export type Creature = 'charizard' | 'pikachu';
-export type Motion = 'Walk' | 'Idle' | 'Shoot' | 'Attack' | 'Charge' | 'Hurt';
+export type Motion = 'Walk' | 'Idle' | 'Shoot' | 'Attack' | 'Charge' | 'Hurt' | 'Hop';
 
 interface SheetInfo {
   width: number;
@@ -29,7 +29,8 @@ const registry: SheetRegistry = {
     Shoot: { width: 56, height: 56, ticks: [4, 6, 2, 2, 2, 2, 2, 2, 2, 2, 2] },
     Attack: { width: 80, height: 88, ticks: [2, 2, 2, 2, 4, 1, 1, 2, 2, 2, 2, 2, 2, 2] },
     Charge: { width: 48, height: 48, ticks: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2] },
-    Hurt: { width: 64, height: 64, ticks: [2, 8] }
+    Hurt: { width: 64, height: 64, ticks: [2, 8] },
+    Hop: { width: 48, height: 96, ticks: [2, 1, 2, 3, 4, 4, 3, 2, 1, 2] }
   },
   pikachu: {
     Walk: { width: 32, height: 40, ticks: [8, 10, 8, 10] },
@@ -37,7 +38,8 @@ const registry: SheetRegistry = {
     Shoot: { width: 40, height: 56, ticks: [1, 2, 6, 2, 2, 2, 2, 2, 2, 2, 2] },
     Attack: { width: 80, height: 80, ticks: [2, 4, 1, 1, 1, 2, 2, 2, 2, 4] },
     Charge: { width: 40, height: 40, ticks: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2] },
-    Hurt: { width: 48, height: 64, ticks: [2, 8] }
+    Hurt: { width: 48, height: 64, ticks: [2, 8] },
+    Hop: { width: 40, height: 88, ticks: [2, 1, 2, 3, 4, 4, 3, 2, 1, 2] }
   }
 };
 
@@ -55,7 +57,7 @@ export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Cha
 }
 
 const ids: Record<Creature, string> = { charizard: '0006', pikachu: '0025' };
-const motions: Motion[] = ['Walk', 'Idle', 'Shoot', 'Attack', 'Charge', 'Hurt'];
+const motions: Motion[] = ['Walk', 'Idle', 'Shoot', 'Attack', 'Charge', 'Hurt', 'Hop'];
 const base = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/';
 
 function key(creature: Creature, motion: Motion) {
@@ -108,6 +110,7 @@ export class OverworldActor {
   private action: Motion | null = null;
   private actionStartedAt = -1000;
   private actionExpiresAt = -1000;
+  private actionDuration = 0;
   private hurtStartedAt = -1000;
   private hurtExpiresAt = -1000;
   private lastFrame = -1;
@@ -129,11 +132,16 @@ export class OverworldActor {
       .setDepth(3);
   }
 
-  trigger(motion: 'Shoot' | 'Attack' | 'Charge', time: number, dir: Phaser.Math.Vector2) {
+  trigger(motion: 'Shoot' | 'Attack' | 'Charge' | 'Hop', time: number, dir: Phaser.Math.Vector2, duration?: number) {
     if (!this.scene.textures.exists(key(this.creature, motion))) return;
     this.action = motion;
     this.actionStartedAt = time;
-    this.actionExpiresAt = time + totalMs(registry[this.creature][motion]);
+    this.actionDuration = duration ?? totalMs(registry[this.creature][motion]);
+    this.actionExpiresAt = time + this.actionDuration;
+    if (dir.lengthSq() > 0.0001) this.facing.copy(dir).normalize();
+  }
+
+  face(dir: Phaser.Math.Vector2) {
     if (dir.lengthSq() > 0.0001) this.facing.copy(dir).normalize();
   }
 
@@ -176,7 +184,13 @@ export class OverworldActor {
     const elapsed = next === 'Hurt' ? time - this.hurtStartedAt
       : actionActive && next === this.action ? time - this.actionStartedAt
       : time - this.poseStart;
-    const index = Math.min(currentFrame(info, Math.max(0, elapsed), next === 'Walk' || next === 'Idle'), columns - 1);
+    const hop = actionActive && next === 'Hop';
+    const elapsedFrames = hop && this.actionDuration>0
+      ? elapsed * totalMs(info) / this.actionDuration : elapsed;
+    const sustainedShoot = actionActive && next === 'Shoot'
+      && this.actionDuration > totalMs(info)+50;
+    const index = Math.min(currentFrame(info, Math.max(0,elapsedFrames),
+      next === 'Walk' || next === 'Idle' || sustainedShoot),columns-1);
     const frame = row * columns + index;
 
     if (spriteKey !== this.lastTexture) {
@@ -190,7 +204,10 @@ export class OverworldActor {
 
     this.image.setFlipX(false).setRotation(0);
     const walkingBob = moving && next === 'Walk' ? Math.abs(Math.sin(time * 0.012)) * 1.2 : 0;
-    this.image.setPosition(x, y - 17 - walkingBob);
+    const hopProgress=hop && this.actionDuration>0
+      ? Phaser.Math.Clamp((time-this.actionStartedAt)/this.actionDuration,0,1) : 0;
+    const lift=hop?Math.sin(Math.PI*hopProgress)*8:0;
+    this.image.setPosition(x, y - 17 - walkingBob - lift);
     this.image.setScale(this.creature === 'charizard' ? 1.9 : 1.7);
   }
 }

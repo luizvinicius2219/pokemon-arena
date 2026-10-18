@@ -1,4 +1,4 @@
-# Monster Arena — protótipo Pokémon 0.8
+# Monster Arena — protótipo Pokémon 0.9
 
 Arena 2D de combate em tempo real desenvolvida com **Phaser 3 + TypeScript + Vite**, com Charizard controlado pelo jogador e Pikachu controlado pelo computador.
 
@@ -90,3 +90,17 @@ As informações de tamanho de cada quadro e sua duração vieram do `AnimData.x
 - Movimentação, mira automática, multitouch e cooldowns no mobile foram preservados.
 
 O novo fluxo deixa o controle pronto para futura seleção de Pokémon sem antecipar a implementação dessa tela.
+
+## Novidades da versão 0.9 — feixe de fogo e esquiva real
+
+- **W (Lança-Chamas)** agora é um feixe de fogo contínuo de até aproximadamente 385 pixels de alcance, com camadas de calor, corpo laranja, núcleo amarelo/branco e extremidade incandescente.
+- O feixe acompanha a mira de forma gradual; seu dano é aplicado em intervalos durante o contato, usando a mesma geometria de alcance exibida na tela. Não existem mais as nove pequenas bolas desse golpe.
+- **Esquiva (espaço / dash mobile)** desloca o personagem progressivamente ao longo de 230ms, com aceleração/desaceleração suaves, fantasmas de movimento e partículas de poeira azul.
+- Durante a esquiva, Charizard utiliza a folha de animação **Hop** do PMD Sprite Repository, incluindo quadros reais de salto/esquiva. Os primeiros 70% do dash concedem um breve período de invulnerabilidade.
+- No desktop, a esquiva mantém a direção do cursor; no celular, segue o joystick ou, quando parado, a direção do inimigo.
+- Ataques não interrompem a animação de esquiva. O joystick e os botões universais 1–4 permanecem iguais.
+- O lançamento do Lança-Chamas continua sincronizado ao quadro de disparo do sprite; a animação de Shoot se prolonga durante o jato.
+
+### Observações
+
+A versão 0.9 mantém o dano total do jato em uma faixa próxima à versão anterior; tempo, posição, alcance e esquiva passam a ser determinantes para acertá-lo. O jogo permanece inteiramente 2D e utiliza sprites carregados remotamente do acervo PMD, com atribuições documentadas em [CREDITS.md](CREDITS.md).
