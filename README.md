@@ -1,4 +1,4 @@
-# Monster Arena — protótipo Pokémon 0.7
+# Monster Arena — protótipo Pokémon 0.8
 
 Arena 2D de combate em tempo real desenvolvida com **Phaser 3 + TypeScript + Vite**, com Charizard controlado pelo jogador e Pikachu controlado pelo computador.
 
@@ -79,3 +79,14 @@ As informações de tamanho de cada quadro e sua duração vieram do `AnimData.x
 - Controles do mouse/teclado no computador permanecem inalterados; o jogo não exige aplicativo ou instalação.
 
 **Arquivos:** `src/mobileControls.ts` implementa o gamepad multitouch; `src/main.ts` oferece a interface; `src/arena.ts` integra movimento analógico, mira e recarga.
+
+## Novidades da versão 0.8 — habilidades com identidade e controle universal
+
+- Os botões móveis agora são **1, 2, 3, 4 e esquiva**, sem ícones associados a um Pokémon específico.
+- A função `MobileControls.setAbilityNames(pokemon)` atualiza os nomes acessíveis para outros Pokémon sem trocar o layout do controle.
+- A saída dos ataques usa a marcação `HitFrame` das animações PMD para sincronizar corpo e magia.
+- Os projéteis de fogo foram redesenhados com chamas onduladas em camadas, no lugar das formas triangulares.
+- **Lança-Chamas** tem um jato visual contínuo, com alcance maior e núcleo luminoso, além de seus hitboxes já existentes.
+- Movimentação, mira automática, multitouch e cooldowns no mobile foram preservados.
+
+O novo fluxo deixa o controle pronto para futura seleção de Pokémon sem antecipar a implementação dessa tela.

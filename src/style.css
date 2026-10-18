@@ -72,7 +72,7 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
 .touch-skill{
   padding:0;width:61px;height:61px;min-width:0;min-height:0;border-radius:50%;
   position:relative;overflow:hidden;touch-action:none;-webkit-tap-highlight-color:transparent;
-  border:2px solid #b47b4488;background:radial-gradient(circle at 30% 22%,#744326,#321d20 75%);
+  border:2px solid #618f9a;background:radial-gradient(circle at 30% 22%,#365764,#162b38 78%);
   display:flex;align-items:center;justify-content:center;flex-direction:column;
   box-shadow:0 5px 0 #08141c,inset 0 2px 7px #ffffff23;transition:filter 70ms,transform 70ms;
 }
@@ -122,3 +122,11 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
   .touch-enabled .touch-skill{width:50px;height:50px;background-color:#281f23ec}
   .touch-enabled .arena-hint{display:none}
 }
+
+/* Universal action slots: the same virtual controls work for every Pokémon. */
+.touch-skill-number{font-size:27px;font-weight:900;line-height:1.05;color:#effaff;z-index:2;pointer-events:none;font-variant-numeric:tabular-nums;text-shadow:0 2px 5px #0007}
+.touch-skill-caption{font-size:8px;line-height:1;letter-spacing:0.9px;font-weight:800;color:#b3d8de;z-index:2;pointer-events:none}
+.touch-r .touch-skill-number{color:#ffe2a0}
+.touch-dodge .touch-skill-number{color:#b5f4f8}
+@media(max-width:400px){.touch-skill-number{font-size:24px}.touch-skill-caption{font-size:7px}}
+@media(orientation:landscape) and (max-height:550px){.touch-skill-number{font-size:23px}.touch-skill-caption{font-size:7px}}

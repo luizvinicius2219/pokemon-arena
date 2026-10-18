@@ -41,6 +41,19 @@ const registry: SheetRegistry = {
   }
 };
 
+/**
+ * Actual hit/launch frames from the PMDCollab AnimData.xml (zero-based).
+ * The projectile releases when the body reaches its attack frame.
+ */
+export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Charge'): number {
+  const frames: Record<Creature, Record<'Shoot'|'Attack'|'Charge',number>> = {
+    charizard: { Shoot: 2, Attack: 5, Charge: 5 },
+    pikachu:  { Shoot: 2, Attack: 3, Charge: 5 }
+  };
+  const info=registry[creature][motion];
+  return Math.round(info.ticks.slice(0,frames[creature][motion]).reduce((sum,t)=>sum+t,0)*1000/60);
+}
+
 const ids: Record<Creature, string> = { charizard: '0006', pikachu: '0025' };
 const motions: Motion[] = ['Walk', 'Idle', 'Shoot', 'Attack', 'Charge', 'Hurt'];
 const base = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/';

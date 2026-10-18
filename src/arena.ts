@@ -4,7 +4,7 @@ import { allActions, cooldownFor, dodge, skillKeys, skills, type Skill } from '.
 import { currentGifFrame, hasGifClip, registerGifClip } from './gifAnimation';
 import { keyLabel } from './controls';
 import { CombatFx, type VfxKind } from './combatFx';
-import { OverworldActor, preloadOverworld } from './overworld';
+import { OverworldActor, preloadOverworld, releaseFrameMs } from './overworld';
 import type { MobileControls } from './mobileControls';
 
 type Side = 'player' | 'enemy';
@@ -47,6 +47,7 @@ export class ArenaScene extends Phaser.Scene {
   private enemyHp = 100;
   private finished = false;
   private projectiles: Projectile[] = [];
+  private flameStreams: { startAt: number; direction: Phaser.Math.Vector2; duration: number }[] = [];
   private playerCastAt: Record<Action, number> = { q: -450, w: -2300, e: -3800, r: -7600, dodge: -1900 };
   private enemyCastAt: Record<Skill, number> = { q: -850, w: -3400, e: -4500, r: -9000 };
   private playerAttackAt = -1000;
@@ -91,6 +92,8 @@ export class ArenaScene extends Phaser.Scene {
     this.enemyHp = 100;
     this.finished = false;
     this.projectiles = [];
+    this.flameStreams = [];
+    this.mobile.setAbilityNames('charizard');
     this.playerCastAt = { q: -450, w: -2300, e: -3800, r: -7600, dodge: -1900 };
     this.enemyCastAt = { q: -850, w: -3400, e: -4500, r: -9000 };
     this.playerFacing.set(1,0);
@@ -221,18 +224,21 @@ export class ArenaScene extends Phaser.Scene {
       ? this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing)
       : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
     this.faceDirection('player',dir);
-    this.playerMotion?.trigger(action==='r'?'Attack':action==='e'?'Charge':'Shoot',time,dir);
-    const windup:Record<Skill,number>={q:60,w:115,e:180,r:270};
+    const motion=action==='r'?'Attack':action==='e'?'Charge':'Shoot';
+    this.playerMotion?.trigger(motion,time,dir);
+    // Use the exact launch frame from PMD animations, not guessed timers.
+    const windupMs=this.playerMotion ? releaseFrameMs('charizard',motion)
+      : ({q:60,w:115,e:180,r:270} as Record<Skill,number>)[action];
     const charge=action==='r'?1.8:action==='e'?1.4:1;
     this.fx.charge(this.player.x+dir.x*23,this.player.y+dir.y*23,'fire',charge);
     // Intentional short wind-up: the body anticipates before the projectile releases.
-    this.time.delayedCall(windup[action],()=>{
+    this.time.delayedCall(windupMs,()=>{
       if(!this.finished) this.castCharizard(action,dir,this.time.now);
     });
   }
 
   private castCharizard(skill:Skill,dir:Phaser.Math.Vector2,time:number) {
-    const x=this.player.x+dir.x*23, y=this.player.y+dir.y*23;
+    const x=this.player.x+dir.x*25, y=this.player.y-10+dir.y*20;
     const ability=skills.charizard[skill];
     const angle=Math.atan2(dir.y,dir.x);
     if(skill==='q') {
@@ -242,12 +248,13 @@ export class ArenaScene extends Phaser.Scene {
     } else if(skill==='w') {
       // Rapid, overlapping flames become a sustained jet, not five static balls.
       this.pulse(x,y,0xff7932,23,0.4);
+      this.flameStreams.push({startAt:time,direction:dir.clone(),duration:580});
       for(let i=0;i<9;i++){
         this.time.delayedCall(i*48,()=>{
           if(this.finished)return;
           const spread=Phaser.Math.FloatBetween(-0.17,0.17);
           const ray=dir.clone().rotate(spread);
-          const sx=this.player.x+ray.x*24, sy=this.player.y+ray.y*24;
+          const sx=this.player.x+ray.x*25, sy=this.player.y-10+ray.y*20;
           this.projectile(sx,sy,ray,390+Math.random()*65,8+Math.random()*3,
             'flame','player',3,660,this.time.now);
           this.fx.breath(sx,sy,Math.atan2(ray.y,ray.x),0.85);
@@ -277,11 +284,12 @@ export class ArenaScene extends Phaser.Scene {
     const from=this.enemy;
     const dir=this.directionTo(from,this.player.x,this.player.y,this.enemyFacing);
     this.faceDirection('enemy',dir);
-    this.enemyMotion?.trigger(skill==='r'?'Attack':skill==='w'?'Charge':'Shoot',time,dir);
+    const enemyMotion=skill==='r'?'Attack':skill==='w'||skill==='e'?'Charge':'Shoot';
+    this.enemyMotion?.trigger(enemyMotion,time,dir);
     this.fx.charge(from.x,from.y-8,'electric',skill==='r'?1.8:1.1);
     if(skill==='q') {
       const x=from.x+dir.x*19,y=from.y+dir.y*19;
-      this.time.delayedCall(120,()=>{
+      this.time.delayedCall(this.enemyMotion?releaseFrameMs('pikachu','Shoot'):120,()=>{
         if(this.finished)return;
         this.projectile(this.enemy.x+dir.x*19,this.enemy.y+dir.y*19,dir,490,9,'spark','enemy',
           ability.damage,760,this.time.now);
@@ -453,6 +461,13 @@ export class ArenaScene extends Phaser.Scene {
       }
     }
     this.fx.drawShots(this.projectiles,time);
+    this.flameStreams=this.flameStreams.filter(stream=>time-stream.startAt<stream.duration);
+    for(const stream of this.flameStreams){
+      const dir=stream.direction;
+      const x=this.player.x+dir.x*25,y=this.player.y-10+dir.y*20;
+      this.fx.drawFlamethrower(x,y,Math.atan2(dir.y,dir.x),
+        time-stream.startAt,stream.duration);
+    }
   }
 
   private animateSprite(

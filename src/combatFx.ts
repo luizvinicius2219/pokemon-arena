@@ -23,74 +23,111 @@ export class CombatFx {
     this.ink = scene.add.graphics().setDepth(6);
   }
 
-  private point(x: number, y: number, a: number, forward: number, side: number) {
-    const c = Math.cos(a), s = Math.sin(a);
-    return { x: x + c * forward - s * side, y: y + s * forward + c * side };
+  private offset(x:number,y:number,a:number,forward:number,side=0) {
+    const c=Math.cos(a),s=Math.sin(a);
+    return {x:x+c*forward-s*side,y:y+s*forward+c*side};
   }
 
-  private triangle(x: number, y: number, a: number, length: number, width: number, color: number) {
-    const g = this.ink;
-    g.fillStyle(color, 1);
-    g.fillPoints([
-      this.point(x, y, a, length * 0.72, 0),
-      this.point(x, y, a, -length * 0.55, width),
-      this.point(x, y, a, -length * 0.78, 0),
-      this.point(x, y, a, -length * 0.55, -width)
-    ], true);
+  /**
+   * Wavy flame layers with rounded lobes instead of triangular projectiles.
+   * The outline is recalculated at 60 fps so it visibly flows through the air.
+   */
+  private tongue(
+    x:number,y:number,a:number,length:number,width:number,color:number,alpha:number,phase:number
+  ) {
+    const samples=12;
+    const left:{x:number;y:number}[]=[];
+    const right:{x:number;y:number}[]=[];
+    for(let i=0;i<=samples;i++){
+      const t=i/samples;
+      const soft=Math.pow(Math.sin(Math.PI*Math.min(0.999,Math.max(0.001,t))),0.65);
+      const half=width*(0.15+0.85*soft);
+      const flicker=(Math.sin(phase*1.7+t*13)+Math.sin(phase*0.7+t*20))*width*0.09*t;
+      const displacement=Math.sin(phase+t*8)*width*0.10*t;
+      const p=this.offset(x,y,a,(t-0.35)*length,displacement+flicker);
+      left.push(this.offset(p.x,p.y,a,0,half));
+      right.push(this.offset(p.x,p.y,a,0,-half));
+    }
+    this.ink.fillStyle(color,alpha);
+    this.ink.fillPoints([...left,...right.reverse()],true);
+    const tip=this.offset(x,y,a,length*0.64,0);
+    this.ink.fillCircle(tip.x,tip.y,Math.max(1.5,width*0.15));
   }
 
-  drawShots(shots: ReadonlyArray<VfxShot>, time: number) {
-    const g = this.ink;
+  drawShots(shots:ReadonlyArray<VfxShot>,time:number) {
+    const g=this.ink;
     g.clear();
-
-    for (const shot of shots) {
-      const { x, y, radius: r } = shot.body;
-      const angle = Math.atan2(shot.velocity.y, shot.velocity.x);
-      const pulse = Math.sin(time * 0.023 + x * 0.07 + y * 0.04);
-      if (shot.kind === 'spark') {
-        const base = this.point(x, y, angle, -r * 1.5, 0);
-        const tip = this.point(x, y, angle, r * 1.7, 0);
-        const p1 = this.point(x, y, angle, -r * 0.6, -r * 0.9);
-        const p2 = this.point(x, y, angle, r * 0.2, r * (0.6 + pulse * 0.15));
-        g.lineStyle(r > 8 ? 8 : 6, 0xe39d2c, 0.32);
-        g.lineBetween(base.x, base.y, p1.x, p1.y);
-        g.lineBetween(p1.x, p1.y, p2.x, p2.y);
-        g.lineBetween(p2.x, p2.y, tip.x, tip.y);
-        g.lineStyle(3, 0xffe559, 1);
-        g.lineBetween(base.x, base.y, p1.x, p1.y);
-        g.lineBetween(p1.x, p1.y, p2.x, p2.y);
-        g.lineBetween(p2.x, p2.y, tip.x, tip.y);
-        g.fillStyle(0xffffcf, 1).fillCircle(x, y, 2);
-        const fork = this.point(x, y, angle, r * 0.9, -r * 1.2);
-        g.lineStyle(2, 0xffffa3, 0.95).lineBetween(p2.x, p2.y, fork.x, fork.y);
+    for(const shot of shots){
+      const {x,y,radius:r}=shot.body;
+      const a=Math.atan2(shot.velocity.y,shot.velocity.x);
+      const phase=time*0.018+x*0.02+y*0.01;
+      if(shot.kind==='spark'){
+        const points=[
+          this.offset(x,y,a,-r*1.7,0),
+          this.offset(x,y,a,-r*0.8,r*0.75),
+          this.offset(x,y,a,r*0.1,-r*0.8),
+          this.offset(x,y,a,r*0.65,r*0.38),
+          this.offset(x,y,a,r*1.6,0)
+        ];
+        for(const [width,color,alpha] of [[9,0xffb439,0.21],[4,0xffe768,1],[2,0xffffff,0.95]] as const){
+          g.lineStyle(width,color,alpha);
+          for(let i=1;i<points.length;i++)g.lineBetween(points[i-1].x,points[i-1].y,points[i].x,points[i].y);
+        }
+        g.fillStyle(0xffffff,0.85).fillCircle(x,y,2.2);
         continue;
       }
 
-      const big = shot.kind === 'fireball' || shot.kind === 'fireburst';
-      const flame = shot.kind === 'flame';
-      const length = big ? r * 2.8 : flame ? r * 3.2 : r * 2.5;
-      const width = r * (big ? 1.2 : 0.85);
-
-      g.fillStyle(0xff5e16, big ? 0.32 : 0.23).fillCircle(x, y, r * (big ? 1.8 : 1.4));
-      this.triangle(x, y, angle, length, width, big ? 0xff6524 : flame ? 0xff6124 : 0xff8d2a);
-      this.triangle(x + Math.cos(angle)*r*0.1, y + Math.sin(angle)*r*0.1,
-        angle, length * 0.68, width * 0.60, 0xffc54b);
-      this.triangle(x + Math.cos(angle)*r*0.25, y + Math.sin(angle)*r*0.25,
-        angle, length * 0.35, width * 0.30, 0xfff3ab);
-
-      // Side tongues create a flickering fire silhouette without circular bullets.
-      if(big || flame) {
-        this.triangle(x, y, angle + 0.50 + pulse * 0.12, length * 0.60, width * 0.48, 0xff8c2a);
-        this.triangle(x, y, angle - 0.52 - pulse * 0.12, length * 0.55, width * 0.43, 0xffaa30);
-      }
-      if(shot.kind === 'fireburst') {
-        g.lineStyle(2, 0xffe29a, 0.7).strokeCircle(x, y, r * (1.25 + Math.abs(pulse)*0.23));
-        for(let i=0;i<5;i++) {
-          const spin=time*0.006+i*Math.PI*2/5;
-          const px=x+Math.cos(spin)*r*1.35,py=y+Math.sin(spin)*r*1.35;
-          g.fillStyle(0xffce6c, 1).fillRect(px-2, py-2, 4, 4);
+      const big=shot.kind==='fireburst'||shot.kind==='fireball';
+      const flame=shot.kind==='flame';
+      const size=big?3:flame?2.5:2.1;
+      // Outer heat halo, twisting orange body and hot cream-colored center.
+      g.fillStyle(0xff5b22,big?0.22:0.16).fillCircle(x,y,r*(big?2.05:1.35));
+      this.tongue(x,y,a,r*size,r*(big?1.35:flame?1.1:0.9),
+        0xd54321,0.92,phase);
+      this.tongue(x+r*0.14*Math.cos(a),y+r*0.14*Math.sin(a),
+        a+Math.sin(phase)*0.10,r*size*0.79,r*(big?0.92:0.74),
+        0xff8c30,0.96,phase+1);
+      this.tongue(x+r*0.24*Math.cos(a),y+r*0.24*Math.sin(a),
+        a,r*size*0.51,r*(big?0.61:0.47),0xffd66c,1,phase+2);
+      if(big) {
+        const swirl=time*0.006;
+        for(let i=0;i<4;i++){
+          const p=this.offset(x,y,swirl+i*Math.PI/2,r*1.25);
+          g.fillStyle(i%2?0xffbb5a:0xff6930,0.85)
+            .fillCircle(p.x,p.y,2.4+r*0.12);
         }
+        g.fillStyle(0xfff2b0,0.88).fillCircle(x,y,r*0.27);
       }
+    }
+  }
+
+  /**
+   * A single cohesive, animated ribbon visually links Charizard's muzzle
+   * to the far end of Flamethrower. Collision stays with existing hitboxes.
+   */
+  drawFlamethrower(
+    x:number,y:number,a:number,elapsed:number,duration=580
+  ) {
+    if(elapsed<0||elapsed>=duration)return;
+    const grow=Phaser.Math.Clamp(elapsed/230,0,1);
+    const fade=Phaser.Math.Clamp((duration-elapsed)/145,0,1);
+    const factor=Math.min(grow,fade);
+    const length=(30+245*factor);
+    const phase=elapsed*0.032;
+    // Flickering layers flow across each other to avoid static wedge shapes.
+    this.tongue(x,y,a,length,25*factor+6,0xa73b25,0.53,phase);
+    this.tongue(x,y,a+Math.sin(phase*0.6)*0.025,length*0.92,20*factor+4,
+      0xff632b,0.89,phase+0.7);
+    this.tongue(x,y,a-0.015,length*0.83,14*factor+3,0xffa13e,0.95,phase+1.2);
+    this.tongue(x,y,a,length*0.67,8*factor+2,0xffe6a2,0.96,phase+2);
+    // Small moving embers and lobes give the beam a flowing flame texture.
+    for(let i=0;i<6;i++){
+      const t=((i/6+elapsed*0.0019)%1);
+      const lengthAt=(t-0.18)*length;
+      const side=Math.sin(t*12+phase)*13*factor;
+      const p=this.offset(x,y,a,lengthAt,side);
+      this.ink.fillStyle(i%2?0xffd36d:0xff5b23,0.78*factor)
+        .fillCircle(p.x,p.y,2.5+Math.sin(t*Math.PI)*3.5*factor);
     }
   }
 

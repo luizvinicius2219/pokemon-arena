@@ -42,11 +42,12 @@ app.innerHTML = `
         </div>
         <div class="touch-actions" aria-label="Habilidades de combate">
           ${allActions.map(action=>{
-            const skill=action==='dodge'?dodge:skills.charizard[action];
-            return `<button type="button" class="touch-skill touch-${action}" data-touch-action="${action}" aria-label="${skill.name}">
+            const slot=action==='dodge'?'↗':String(['q','w','e','r'].indexOf(action)+1);
+            const label=action==='dodge'?'Esquiva':`Habilidade ${slot}`;
+            return `<button type="button" class="touch-skill touch-${action}" data-touch-action="${action}" aria-label="${label}">
               <span class="touch-skill-shade" data-touch-shade></span>
-              <span class="touch-skill-icon">${skill.icon}</span>
-              <span class="touch-skill-key">${action==='dodge'?'↝':action.toUpperCase()}</span>
+              <span class="touch-skill-number">${slot}</span>
+              <span class="touch-skill-caption">${action==='dodge'?'DASH':'SKILL'}</span>
               <span class="touch-skill-timer" data-touch-timer></span>
             </button>`;
           }).join('')}
@@ -57,7 +58,7 @@ app.innerHTML = `
     <div id="hud" class="hud" aria-label="Habilidades e tempos de recarga">
       ${allActions.map(cardHTML).join('')}
     </div>
-    <div class="arena-hint"><span class="desktop-hint">Clique direito para se mover · Aponte o cursor para atacar · Pressione Enter para reiniciar</span><span class="mobile-hint">Arraste o joystick para andar · Toque nas habilidades para atacar · Mira automática no Pikachu</span></div>
+    <div class="arena-hint"><span class="desktop-hint">Clique direito para se mover · Aponte o cursor para atacar · Pressione Enter para reiniciar</span><span class="mobile-hint">Joystick: andar · 1–4: habilidades · ↗: esquiva · Mira automática</span></div>
   </div>
   <aside>
     <h2>Como jogar</h2>
@@ -81,6 +82,7 @@ const modal = document.querySelector<HTMLDivElement>('#modal')!;
 const bindingList = document.querySelector<HTMLDivElement>('#bindings')!;
 const error = document.querySelector<HTMLParagraphElement>('#error')!;
 const mobile = new MobileControls(document.querySelector<HTMLElement>('#mobile-controls')!);
+mobile.setAbilityNames('charizard');
 
 function updateBindingLabels() {
   for (const action of allActions) {

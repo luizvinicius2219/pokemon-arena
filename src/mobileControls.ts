@@ -1,4 +1,5 @@
 import type { Action } from './controls';
+import { skills, type Fighter } from './abilities';
 
 /**
  * Multi-touch gamepad independent of Phaser pointer input.
@@ -85,6 +86,19 @@ export class MobileControls {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) this.clear();
     });
+  }
+
+  /** Update accessible ability labels without replacing generic 1-4 buttons. */
+  setAbilityNames(fighter: Fighter) {
+    for (const action of ['q','w','e','r'] as const) {
+      const button=this.buttons.get(action);
+      if(!button)continue;
+      const slot=['q','w','e','r'].indexOf(action)+1;
+      button.setAttribute('aria-label','Habilidade '+slot+': '+skills[fighter][action].name);
+      button.title='Habilidade '+slot+': '+skills[fighter][action].name;
+    }
+    const dash=this.buttons.get('dodge');
+    if(dash)dash.setAttribute('aria-label','Esquiva');
   }
 
   private moveStick(event: PointerEvent) {
