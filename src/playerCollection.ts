@@ -152,8 +152,11 @@ export function awardActiveExperience(
   const active=getActivePokemon(collection);
   const gainedXp=active.experience+amount;
   const updatedLevel=Math.max(active.level,levelFromExperience(gainedXp));
+  const gained={...active,experience:gainedXp,level:updatedLevel};
+  const evolution=nextEvolution(gained);
   const party=collection.party.map(member=>member.id===active.id?{
-    ...member,experience:gainedXp,level:updatedLevel
+    ...gained,species:evolution??gained.species,
+    nickname:evolution?pokemonCatalog[evolution].name:gained.nickname
   }:member);
   const next:PlayerCollection={...collection,party};
   saveCollection(next);
@@ -162,3 +165,31 @@ export function awardActiveExperience(
     currentLevel:updatedLevel,earned:amount
   };
 }
+
+/** The story starts only once a starter has been deliberately selected. */
+export function chosenStarter():import('./abilities').Starter|null{
+  try{
+    const name=window.localStorage.getItem('monster-arena-starter-v1');
+    return name==='charmander'||name==='bulbasaur'||name==='squirtle'
+      ?name:null;
+  }catch{return null;}
+}
+export function chooseStarter(species:import('./abilities').Starter):PlayerCollection{
+  const entry:OwnedPokemon={
+    id:'starter-'+species,species,nickname:pokemonCatalog[species].name,
+    level:5,experience:0,capturedAt:Date.now(),origin:'starter'
+  };
+  const state:PlayerCollection={
+    version:1,activePokemonId:entry.id,party:[entry],storage:[],badges:[]
+  };
+  saveCollection(state);
+  try{window.localStorage.setItem('monster-arena-starter-v1',species);}catch{}
+  return state;
+}
+const nextEvolution=(pokemon:OwnedPokemon):import('./abilities').Fighter|null=>{
+  if(pokemon.level<16)return null;
+  if(pokemon.species==='charmander')return 'charmeleon';
+  if(pokemon.species==='bulbasaur')return 'ivysaur';
+  if(pokemon.species==='squirtle')return 'wartortle';
+  return null;
+};

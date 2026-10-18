@@ -7,11 +7,15 @@ import type { PokemonType } from './pokemonCatalog';
  */
 export const typeChart: Record<PokemonType, Partial<Record<PokemonType, number>>> = {
   normal:   {rock:0.5},
-  fire:     {fire:0.5, rock:0.5},
-  flying:   {electric:0.5, rock:0.5},
-  electric: {electric:0.5, ground:0, flying:2},
-  rock:     {fire:2, flying:2, ground:0.5},
-  ground:   {fire:2, electric:2, rock:2, flying:0}
+  fire:     {fire:0.5,water:0.5,grass:2,rock:0.5},
+  water:    {fire:2,water:0.5,grass:0.5,rock:2,ground:2},
+  grass:    {fire:0.5,water:2,grass:0.5,poison:0.5,flying:0.5,rock:2,ground:2},
+  poison:   {grass:2,poison:0.5,rock:0.5,ground:0.5,fairy:2},
+  fairy:    {fire:0.5,poison:0.5},
+  flying:   {electric:0.5,rock:0.5,grass:2},
+  electric: {electric:0.5,ground:0,flying:2,water:2,grass:0.5},
+  rock:     {fire:2,flying:2,ground:0.5},
+  ground:   {fire:2,electric:2,rock:2,flying:0,grass:0.5}
 };
 
 export interface ElementalHit {
