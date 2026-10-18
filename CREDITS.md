@@ -33,7 +33,7 @@ https://github.com/PokeAPI/sprites
 Esses recursos também podem estar sujeitos a direitos de terceiros.
 
 
-## Treinadores clássicos — Pokémon Showdown
+## Histórico: imagens do Pokémon Showdown (substituídas pelos PNGs locais)
 
 Na prévia do Ginásio de Pewter, o Brock e o treinador Red são exibidos a partir de sprites da **Geração 3** disponibilizados pelo índice público do Pokémon Showdown, sem alterações às imagens:
 

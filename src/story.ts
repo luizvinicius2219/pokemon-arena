@@ -5,7 +5,7 @@ import Phaser from 'phaser';
  * The stage registry is data-driven so future Kanto gyms can reuse the
  * same combat scene, world collision and environmental damage hooks.
  *
- * Brock / Pewter stage is an EARLY PREVIEW; Pikachu remains the test rival.
+ * Brock / Pewter stage is a two-Pokémon challenge: Geodude then Onix.
  */
 export type GameMode = 'training' | 'story';
 export type ObstacleKind = 'rock' | 'pillar';
@@ -159,7 +159,7 @@ export class StoryEnvironment {
         fontSize:'13px',color:'#f1f5e9'
       });
     const hint=this.scene.add.text(-178,15,
-      'PRÉVIA  ·  PIKACHU É O RIVAL DE TESTE',{
+      'GEODUDE → ONIX  ·  INSÍGNIA EM BREVE',{
         fontSize:'11px',color:'#a9c4c8'
       });
     panel.add([plate,title,quote,hint]);
