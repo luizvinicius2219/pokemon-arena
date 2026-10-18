@@ -150,19 +150,19 @@ export class StoryEnvironment {
   private showStageIntroduction(){
     // One inexpensive introductory panel, then the scene remains entirely
     // static. The battle continues underneath; no mandatory cutscene or pause.
-    const panel=this.scene.add.container(480,491).setDepth(16).setAlpha(0);
-    const plate=this.scene.add.rectangle(0,0,540,59,0x102632,0.91)
+    const panel=this.scene.add.container(230,517).setDepth(16).setAlpha(0);
+    const plate=this.scene.add.rectangle(0,0,395,59,0x102632,0.91)
       .setStrokeStyle(2,0xbda274);
-    const title=this.scene.add.text(-251,-23,
+    const title=this.scene.add.text(-178,-23,
       'GINÁSIO DE PEWTER  ·  BROCK',{
         fontSize:'14px',fontStyle:'bold',color:'#ffe4ae'
       });
-    const quote=this.scene.add.text(-251,-3,
-      'A força de uma rocha está na resistência. Mostre o que sabe!',{
+    const quote=this.scene.add.text(-178,-3,
+      'A força da rocha está na resistência!',{
         fontSize:'13px',color:'#f1f5e9'
       });
-    const hint=this.scene.add.text(-251,15,
-      'PRÉVIA  ·  PIKACHU AINDA É O RIVAL DE TESTE',{
+    const hint=this.scene.add.text(-178,15,
+      'PRÉVIA  ·  PIKACHU É O RIVAL DE TESTE',{
         fontSize:'11px',color:'#a9c4c8'
       });
     panel.add([plate,title,quote,hint]);

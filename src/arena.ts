@@ -104,7 +104,7 @@ export class ArenaScene extends Phaser.Scene {
 
   preload() {
     preloadOverworld(this);
-    preloadPewter(this);
+    if(this.getMode()==='story')preloadPewter(this);
     // Sprites da PokeAPI carregados remotamente; não são copiados para o repositório.
     const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
     for (const [name,id] of [['charizard','6'],['pikachu','25']]) {
