@@ -51,3 +51,14 @@ Os sprites clássicos pertencem aos respectivos titulares de Pokémon. O índice
 - Fallbacks de imagens fixas: https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/
 
 Valem as observações de direitos e uso **não comercial** já registradas acima. Os efeitos de rocha e a lógica das habilidades são implementações originais do projeto.
+
+
+## Treinadores pixelados originais de jogos Pokémon — Pewter
+
+Esta atualização usa arquivos PNG locais de sprites **extraídos de jogos existentes**, no lugar dos desenhos vetoriais dos personagens:
+
+- Brock — sprite de **Pokémon Black 2 / White 2**: [origem](https://github.com/zeroxm/pokemon-roulette-trainer-sprites/blob/main/sprites/Spr_B2W2_Brock.png).
+- Red — sprite de **Pokémon FireRed / LeafGreen**: [origem](https://github.com/zeroxm/pokemon-roulette-trainer-sprites/blob/main/sprites/Spr_FRLG_Red.png).
+- Treinador Montanhista e Campista — sprites da **Geração III**: [origem](https://github.com/Seidi460/Sprites-Pokemon-Trainers/tree/main/Trainer_Sprites_All).
+
+Os PNGs originais foram incluídos no repositório para evitar falhas de rede. Essas artes seguem pertencendo aos titulares de Pokémon e são usadas apenas neste fan game **não comercial**, sem licença comercial presumida. Nenhum arquivo de fonte ou sprite modificado está sendo atribuído a esses repositórios.

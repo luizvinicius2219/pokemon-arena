@@ -197,3 +197,8 @@ O Ginásio de Pewter agora exibe o líder Brock com sprite clássico mais fiel �
 ### Refinamento dos treinadores e do mobile
 
 Os sprites clássicos originais de Brock e Red agora recebem espaço visual maior, com posicionamento mais fiel a um palco de ginásio. Os SVGs locais de reserva foram ajustados em cores e figurino. O cabeçalho da sequência de combate foi deslocado para não cobrir o rosto do Brock. O carregamento das animações de Geodude e Onix evita o sprite de esquiva que não é utilizado por esses adversários, economizando rede e memória durante o modo história.
+
+
+### Sprites reais de treinadores — locais
+
+O cenário Pewter carrega os sprites pixelados clássicos diretamente de PNGs locais: Brock (Black 2/White 2), Red (FireRed/LeafGreen), Montanhista e Campista (Gen III). Foram retiradas as dependências em portraits externos e os desenhos improvisados dos treinadores do palco. O fundo, as pedras quebráveis e o combate seguem intactos. Licenciamento documentado em `CREDITS.md`.

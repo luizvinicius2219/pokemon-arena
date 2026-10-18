@@ -82,14 +82,14 @@ export const kantoGymOrder = [
 export function preloadPewter(scene:Phaser.Scene) {
   const root='/assets/story/pewter/';
   scene.load.svg('pewter-floor',root+'gym.svg',{width:960,height:576});
-  for(const name of ['brock','red','trainer-a','trainer-b','rock','rock-cracked','pillar','pillar-cracked']){
+  for(const name of ['rock','rock-cracked','pillar','pillar-cracked']){
     scene.load.svg('pewter-'+name,root+name+'.svg',{width:64,height:64});
   }
-  // Genuine retro trainer portraits (unaltered), with local original pixel-art
-  // fallbacks if the external host is unavailable or CORS blocks the image.
-  const portraits='https://play.pokemonshowdown.com/sprites/trainers/';
-  scene.load.image('pewter-brock-classic',portraits+'brock-gen3.png');
-  scene.load.image('pewter-red-classic',portraits+'red-gen3.png');
+  // Original game sprites bundled locally: no remote runtime fetch or
+  // fallback to the earlier vector-drawn trainer caricatures.
+  for(const name of ['brock','red','hiker','camper']){
+    scene.load.image('pewter-'+name+'-game',root+name+'-game.png');
+  }
 }
 
 interface RockState extends BreakableObstacle {
@@ -105,16 +105,15 @@ export class StoryEnvironment {
     scene.add.image(480,288,'pewter-floor').setDepth(-20).setOrigin(0.5);
     for(const npc of stage.npc){
       const leader=npc.role==='leader';
-      const fallback=leader?'pewter-brock':
-        npc.id==='guide-west'||npc.id==='spectator-west'?'pewter-trainer-a':'pewter-trainer-b';
-      const texture=leader&&scene.textures.exists('pewter-brock-classic')
-        ?'pewter-brock-classic':fallback;
-      const width=leader?118:43,height=leader?118:57;
-      const image=scene.add.image(npc.x,npc.y-(leader?10:13),texture)
+      const texture=leader?'pewter-brock-game':
+        npc.id==='guide-west'||npc.id==='spectator-west'
+          ?'pewter-hiker-game':'pewter-camper-game';
+      // The native 80px NDS / 64px GBA sprites retain their pixel shading
+      // and outlines when scaled without smoothing on the Phaser canvas.
+      const width=leader?116:83,height=leader?116:83;
+      scene.add.ellipse(npc.x,npc.y+21,leader?68:47,12,0x1b2a2c,0.47).setDepth(1);
+      scene.add.image(npc.x,npc.y-(leader?9:16),texture)
         .setDisplaySize(width,height).setDepth(2).setOrigin(0.5);
-      // Retro portraits are supplied on a square transparent canvas; fallback
-      // overworld art is taller, so their dimensions differ by design.
-      if(leader && texture===fallback)image.setDisplaySize(56,70);
     }
     const leader=stage.npc.find(npc=>npc.role==='leader');
     if(leader){
@@ -126,12 +125,10 @@ export class StoryEnvironment {
 
     if(stage.hero){
       const hero=stage.hero;
-      const texture=scene.textures.exists('pewter-red-classic')
-        ?'pewter-red-classic':'pewter-red';
+      const texture='pewter-red-game';
       scene.add.ellipse(hero.x,hero.y+18,44,12,0x182d35,0.5).setDepth(1);
-      const player=scene.add.image(hero.x,hero.y-13,texture)
-        .setDisplaySize(109,109).setOrigin(0.5).setDepth(2);
-      if(texture==='pewter-red')player.setDisplaySize(55,76);
+      scene.add.image(hero.x,hero.y-13,texture)
+        .setDisplaySize(105,105).setOrigin(0.5).setDepth(2);
       scene.add.text(hero.x,hero.y+32,hero.name,{
         fontSize:'12px',fontStyle:'bold',color:'#fff0d2',
         stroke:'#21343c',strokeThickness:3
