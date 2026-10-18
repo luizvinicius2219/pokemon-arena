@@ -82,12 +82,10 @@ interface RockState extends BreakableObstacle {currentHp:number; destroyed:boole
 export class StoryEnvironment {
   readonly rocks: RockState[] = [];
   private readonly background: Phaser.GameObjects.Graphics;
-  private readonly debris: Phaser.GameObjects.Graphics;
   private readonly npcSprites: Phaser.GameObjects.Container[] = [];
 
   constructor(private readonly scene: Phaser.Scene, readonly stage: StoryStage) {
     this.background=scene.add.graphics().setDepth(-20);
-    this.debris=scene.add.graphics().setDepth(6);
     this.drawFloor();
     this.drawNpc();
     for(const data of stage.obstacles){

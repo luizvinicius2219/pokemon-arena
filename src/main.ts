@@ -3,12 +3,14 @@ import { Action, Bindings, defaults, loadBindings, saveBindings, assignBinding, 
 import { allActions, dodge, skills } from './abilities';
 import { ArenaScene } from './arena';
 import { MobileControls } from './mobileControls';
+import type { GameMode } from './story';
 import './style.css';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let bindings: Bindings = loadBindings();
 let capturing: Action | null = null;
 let menuOpen = false;
+let gameMode:GameMode='training';
 const heldKeys = new Set<string>();
 
 const labels: Record<Action, string> = {
@@ -27,7 +29,7 @@ const cardHTML = (action: Action): string => {
 };
 
 app.innerHTML = `
-<header><div><h1>MONSTER <span>ARENA</span></h1><p>Arena 2D · Batalha em tempo real</p></div><button id="settings" type="button">⚙ Controles</button></header>
+<header><div><h1>MONSTER <span>ARENA</span></h1><p>Arena 2D · Batalha em tempo real</p></div><div class="header-actions"><button id="switch-mode" type="button">🪨 História: Pewter</button><button id="settings" type="button">⚙ Controles</button></div></header>
 <main>
   <div class="arena-column">
     <div id="game-shell">
@@ -158,12 +160,23 @@ window.addEventListener('keydown', event => {
 window.addEventListener('keyup', event => heldKeys.delete(event.code));
 window.addEventListener('blur', () => heldKeys.clear());
 
-new Phaser.Game({
+const game=new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   width: 960, height: 576,
   backgroundColor: '#142e31',
   render: { pixelArt: true },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [new ArenaScene(() => bindings, () => heldKeys, () => menuOpen, mobile)]
+  scene: [new ArenaScene(() => bindings, () => heldKeys, () => menuOpen, mobile,()=>gameMode)]
+});
+
+const switchMode=document.querySelector<HTMLButtonElement>('#switch-mode')!;
+switchMode.addEventListener('click',()=>{
+  gameMode=gameMode==='training'?'story':'training';
+  switchMode.textContent=gameMode==='story'?'⚔ Arena Livre':'🪨 História: Pewter';
+  heldKeys.clear();
+  mobile.clear();
+  if(menuOpen)toggleSettings(false);
+  document.querySelector<HTMLElement>('#battle-summary')!.hidden=true;
+  game.scene.getScene('Arena').scene.restart();
 });

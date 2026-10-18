@@ -181,3 +181,10 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
   .battle-summary-record{padding-top:7px;margin:6px 0 9px}
   .battle-summary-rematch{padding:8px;font-size:14px}
 }
+
+/* Kanto story launch control; keeps the existing small-screen layout. */
+.header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.header-actions button{white-space:nowrap}
+#switch-mode{background:#65513a;border:1px solid #a89470;color:#f6e5c7;border-radius:10px;padding:10px 12px;font-weight:800}
+#switch-mode:hover{background:#7a6044}
+@media(max-width:500px){.header-actions{gap:5px}.header-actions button{font-size:12px;padding:7px 8px}.touch-enabled header h1{font-size:17px}}

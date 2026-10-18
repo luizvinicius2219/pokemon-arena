@@ -7,6 +7,7 @@ import { CombatFx, beamReach, type VfxKind } from './combatFx';
 import { CinematicFx } from './cinematicFx';
 import { OverworldActor, preloadOverworld, releaseFrameMs } from './overworld';
 import type { MobileControls } from './mobileControls';
+import { StoryEnvironment, pewterGym, type GameMode } from './story';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
 
 type Side = 'player' | 'enemy';
@@ -49,6 +50,8 @@ interface HitReaction {
 }
 
 export class ArenaScene extends Phaser.Scene {
+  private environment?:StoryEnvironment;
+  private mode:GameMode='training';
   private fx!: CombatFx;
   private cinematic!: CinematicFx;
   private stats!: BattleStats;
@@ -95,7 +98,8 @@ export class ArenaScene extends Phaser.Scene {
     private readonly getBindings: () => Bindings,
     private readonly heldKeys: () => ReadonlySet<string>,
     private readonly settingsOpen: () => boolean,
-    private readonly mobile: MobileControls
+    private readonly mobile: MobileControls,
+    private readonly getMode:()=>GameMode
   ) { super({ key: 'Arena' }); }
 
   preload() {
@@ -116,6 +120,8 @@ export class ArenaScene extends Phaser.Scene {
       if (data && !this.textures.exists(name + '-anim')) registerGifClip(this, name + '-anim', data);
     }
 
+    this.mode=this.getMode();
+    this.environment=undefined;
     this.fx = new CombatFx(this);
     this.cinematic = new CinematicFx(this);
     this.stats = new BattleStats(this.time.now);
@@ -143,25 +149,28 @@ export class ArenaScene extends Phaser.Scene {
     this.mobile.setFinished(false);
 
     this.cameras.main.setBackgroundColor('#142e31');
-    this.drawArena();
-    this.player = this.add.circle(210,288,19,0x60d1ff).setStrokeStyle(4,0xffffff).setVisible(false);
-    this.enemy = this.add.circle(750,288,19,0xff8b69).setStrokeStyle(4,0xffffff).setVisible(false);
-    this.playerShadow = this.add.ellipse(210,303,48,14,0x06181c,0.5).setDepth(1);
-    this.enemyShadow = this.add.ellipse(750,303,32,10,0x06181c,0.5).setDepth(1);
+    if(this.mode==='story')this.environment=new StoryEnvironment(this,pewterGym);
+    else this.drawArena();
+    const playerSpawn=this.mode==='story'?pewterGym.spawnPlayer:{x:210,y:288};
+    const enemySpawn=this.mode==='story'?pewterGym.spawnRival:{x:750,y:288};
+    this.player = this.add.circle(playerSpawn.x,playerSpawn.y,19,0x60d1ff).setStrokeStyle(4,0xffffff).setVisible(false);
+    this.enemy = this.add.circle(enemySpawn.x,enemySpawn.y,19,0xff8b69).setStrokeStyle(4,0xffffff).setVisible(false);
+    this.playerShadow = this.add.ellipse(playerSpawn.x,playerSpawn.y+15,48,14,0x06181c,0.5).setDepth(1);
+    this.enemyShadow = this.add.ellipse(enemySpawn.x,enemySpawn.y+15,32,10,0x06181c,0.5).setDepth(1);
     if (OverworldActor.available(this, 'charizard')) {
-      this.playerMotion = new OverworldActor(this, 'charizard', 210, 288);
+      this.playerMotion = new OverworldActor(this, 'charizard', playerSpawn.x, playerSpawn.y);
       this.playerArt = this.playerMotion.image;
     } else if (this.textures.exists('charizard')) {
-      this.playerArt = this.add.image(210,280,hasGifClip('charizard-anim')?'charizard-anim':'charizard').setDisplaySize(88,88).setDepth(3);
+      this.playerArt = this.add.image(playerSpawn.x,playerSpawn.y-8,hasGifClip('charizard-anim')?'charizard-anim':'charizard').setDisplaySize(88,88).setDepth(3);
     } else this.player.setVisible(true);
     if (OverworldActor.available(this, 'pikachu')) {
-      this.enemyMotion = new OverworldActor(this, 'pikachu', 750, 288);
+      this.enemyMotion = new OverworldActor(this, 'pikachu', enemySpawn.x, enemySpawn.y);
       this.enemyArt = this.enemyMotion.image;
     } else if (this.textures.exists('pikachu')) {
-      this.enemyArt = this.add.image(750,280,hasGifClip('pikachu-anim')?'pikachu-anim':'pikachu').setDisplaySize(56,56).setDepth(3);
+      this.enemyArt = this.add.image(enemySpawn.x,enemySpawn.y-8,hasGifClip('pikachu-anim')?'pikachu-anim':'pikachu').setDisplaySize(56,56).setDepth(3);
     } else this.enemy.setVisible(true);
-    this.playerLabel = this.add.text(210,233,'CHARIZARD',{color:'#c4f7ff',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
-    this.enemyLabel = this.add.text(750,253,'PIKACHU',{color:'#ffe9b2',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
+    this.playerLabel = this.add.text(playerSpawn.x,playerSpawn.y-55,'CHARIZARD',{color:'#c4f7ff',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
+    this.enemyLabel = this.add.text(enemySpawn.x,enemySpawn.y-35,'PIKACHU',{color:'#ffe9b2',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
     this.hpText = this.add.text(32,24,'Charizard: 100 HP',{fontSize:'20px',color:'#a5eeff'}).setDepth(10);
     this.enemyHpText = this.add.text(740,24,'Pikachu: 100 HP',{fontSize:'20px',color:'#ffcd9e'}).setDepth(10);
     this.comboText=this.add.text(W/2,75,'',{
@@ -182,6 +191,12 @@ export class ArenaScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ENTER',() => {
       if (this.finished) this.scene.restart();
     });
+    if(this.mode==='story'){
+      this.add.text(W/2,551,'PRÉVIA: o adversário ainda é Pikachu. Brock e Pokémon de pedra virão nas próximas etapas.',{
+        color:'#eadcbb',fontSize:'12px',fontStyle:'bold',
+        stroke:'#30251c',strokeThickness:3
+      }).setOrigin(0.5).setDepth(12);
+    }
     this.updateHp();
     this.updateHud(0,true);
   }
@@ -301,7 +316,9 @@ export class ArenaScene extends Phaser.Scene {
           : this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing))
         : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
       const start=vector(this.player.x,this.player.y);
-      const end=vector(clampX(start.x+dir.x*120),clampY(start.y+dir.y*120));
+      const raw=vector(clampX(start.x+dir.x*120),clampY(start.y+dir.y*120));
+      const safe=this.environment?.resolve(raw.x,raw.y,this.player.radius);
+      const end=safe?vector(safe.x,safe.y):raw;
       if(start.distance(end)<5)return;
       this.playerCastAt.dodge=time;
       this.stats.registerDodge();
@@ -629,6 +646,13 @@ export class ArenaScene extends Phaser.Scene {
       this.mobile.active?'TOQUE EM JOGAR NOVAMENTE':'ENTER PARA JOGAR NOVAMENTE',{
         fontSize:'16px',fontStyle:'bold',color:'#dbf5f2'
       }).setOrigin(0.5).setDepth(25);
+    if(this.mode==='story'){
+      const note=this.add.text(center,415,
+        'PRÉVIA DE PEWTER CONCLUÍDA · O DESAFIO DE BROCK AINDA NÃO ESTÁ LIBERADO',{
+          fontSize:'12px',fontStyle:'bold',color:'#e8cb98',align:'center'
+        }).setOrigin(0.5).setDepth(25);
+      void note;
+    }
     this.cameras.main.shake(result.victory?120:80,0.0015);
     if(result.victory)this.cinematic.burst(center,149,'fire',1.15,this.time.now);
     this.mobile.showSummary(result);
@@ -650,11 +674,14 @@ export class ArenaScene extends Phaser.Scene {
       }
       const target=shot.side==='player'?this.enemy:this.player;
       const hit=Phaser.Math.Distance.Between(x,y,target.x,target.y)<shot.body.radius+target.radius;
+      const rockHit=this.environment?.intercept(x,y,shot.body.radius,shot.damage)??false;
       const expired=time>=shot.expiry||x<30||x>W-30||y<30||y>H-30;
-      if(!hit&&!expired)continue;
+      if(!hit&&!expired&&!rockHit)continue;
       shot.body.destroy();
       this.projectiles.splice(i,1);
-      if(shot.blastRadius>0) {
+      if(rockHit){
+        this.fx.impact(x,y,'fire',0.55);
+      } else if(shot.blastRadius>0) {
         this.explode(x,y,shot.blastRadius,shot.damage,shot.side,shot.kind==='fireburst');
       } else if(hit) {
         this.damage(shot.side==='player'?'enemy':'player',shot.damage,target.x,target.y,
@@ -682,18 +709,20 @@ export class ArenaScene extends Phaser.Scene {
       const dir=stream.direction;
       const x=this.player.x+dir.x*25,y=this.player.y-10+dir.y*20;
       const reach=beamReach(elapsed,stream.duration);
-      this.fx.drawFlamethrower(x,y,nextAngle,elapsed,stream.duration);
+      const blocked=this.environment?.beam(x,y,dir.x,dir.y,reach,0)??reach;
+      this.fx.drawFlamethrower(x,y,nextAngle,elapsed,stream.duration,blocked);
 
       if(time>=stream.nextHitAt && reach>25 && !this.finished){
         stream.nextHitAt=time+113;
+        this.environment?.beam(x,y,dir.x,dir.y,reach,4);
         const vx=this.enemy.x-x,vy=this.enemy.y-y;
         const along=vx*dir.x+vy*dir.y;
         const lateral=Math.abs(vx*dir.y-vy*dir.x);
-        if(along>=0&&along<=reach+this.enemy.radius&&lateral<=27+this.enemy.radius){
+        if(along>=0&&along<=blocked+this.enemy.radius&&lateral<=27+this.enemy.radius){
           this.damage('enemy',4,this.enemy.x,this.enemy.y,0xff9f41);
         }
         if(Math.random()<0.65){
-          const tipX=x+dir.x*reach,tipY=y+dir.y*reach;
+          const tipX=x+dir.x*blocked,tipY=y+dir.y*blocked;
           this.fx.breath(tipX,tipY,nextAngle,0.22);
         }
       }
@@ -862,6 +891,13 @@ export class ArenaScene extends Phaser.Scene {
     }
     this.applyHitReaction('player',time);
     this.applyHitReaction('enemy',time);
+    if(this.environment){
+      for(const entity of [this.player,this.enemy]){
+        const safe=this.environment.resolve(entity.x,entity.y,entity.radius);
+        entity.setPosition(safe.x,safe.y);
+      }
+      if(!this.dash && this.mobile.active)this.destination.set(this.player.x,this.player.y);
+    }
     this.enemyDecision(time);
     this.updateProjectiles(time,dt);
     const playerVelocity=vector(this.player.x-oldPlayer.x,this.player.y-oldPlayer.y);

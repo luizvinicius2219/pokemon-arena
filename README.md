@@ -143,3 +143,22 @@ Estas melhorias são visuais; a mecânica das habilidades e a estrutura de contr
 ### Resumo no celular
 
 Ao terminar a luta no celular, o painel de resultados aparece em uma janela responsiva com texto legível e botão **Jogar novamente**, sem exigir teclado ou ampliação do canvas. No computador, o resumo continua dentro da arena.
+
+## Versão 1.3 — Kanto: prévia do Ginásio de Pewter (Brock)
+
+A primeira base técnica do modo história já está no jogo. No cabeçalho, escolha **História: Pewter** para entrar no ginásio; **Arena Livre** retorna ao campo de treino.
+
+- **Design:** piso em ladrilhos de pedra, zona central de combate, pódio do líder e marcações rochosas. Brock e quatro treinadores/espectadores aparecem nos cantos e ao fundo como **NPCs provisórios, desenhados proceduralmente**.
+- **Cenário interativo:** quatro rochas (42 HP) e dois pilares (64 HP), com estados **inteiro / rachado / destruído**. Ataques convencionais destroem obstáculos e abrem rotas; projéteis colidem nas pedras. O Lança-Chamas é visualmente interrompido pela cobertura e causa dano nas rochas ao longo do contato.
+- **Movimentação:** Charizard, Pikachu e a esquiva usam resolução de colisão contra os obstáculos intactos.
+- **Estrutura técnica:** `src/story.ts` contém `StoryStage`, `StageNpc`, `BreakableObstacle`, `StoryEnvironment`, `kantoGymOrder`, desenho de cenário, interceptação, colisão e destruição. A cena principal alterna a arena por `GameMode`; os controles mobile e PC continuam compartilhados.
+- **Limitação intencional:** a luta permanece **Charizard vs. Pikachu como adversário provisório**. O Brock é um NPC visual do ginásio, **não é ainda um treinador com seu time**, e vencer a prévia não concede insígnia nem desbloqueia ginásios.
+
+### Próximas etapas do modo história
+1. Adicionar Geodude e Onix com animações e conjuntos próprios de quatro habilidades.
+2. Criar `TrainerEncounter` e sequência de desafios dos treinadores auxiliares até o Brock.
+3. Conceder a Insígnia de Pedra e salvar o progresso somente após a verdadeira batalha de Brock.
+4. Implementar o sistema `PokemonRoster` com captura, experiência e evolução, preservando os controles universais.
+5. Reaproveitar o registro `kantoGymOrder` para Misty, Lt. Surge, Erika, Koga, Sabrina, Blaine e Giovanni.
+
+As representações temporárias dos treinadores são figuras geométricas originais; nenhum sprite externo de Brock foi incorporado nesta etapa.
