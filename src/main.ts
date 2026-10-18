@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Action, Bindings, defaults, loadBindings, saveBindings, assignBinding, keyLabel } from './controls';
 import { allActions, dodge, skills } from './abilities';
 import { ArenaScene } from './arena';
+import { MobileControls } from './mobileControls';
 import './style.css';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -29,11 +30,34 @@ app.innerHTML = `
 <header><div><h1>MONSTER <span>ARENA</span></h1><p>Arena 2D · Batalha em tempo real</p></div><button id="settings" type="button">⚙ Controles</button></header>
 <main>
   <div class="arena-column">
-    <div id="game" aria-label="Arena de batalha"></div>
+    <div id="game-shell">
+      <div id="game" aria-label="Arena de batalha"></div>
+      <div id="mobile-controls" aria-label="Controle virtual para celular">
+        <div class="touch-joystick">
+          <div class="touch-stick" data-touch-stick aria-label="Joystick de movimentação">
+            <div class="touch-stick-ring"></div>
+            <div class="touch-knob" data-stick-knob><span></span></div>
+          </div>
+          <span class="touch-move-label">MOVER</span>
+        </div>
+        <div class="touch-actions" aria-label="Habilidades de combate">
+          ${allActions.map(action=>{
+            const skill=action==='dodge'?dodge:skills.charizard[action];
+            return `<button type="button" class="touch-skill touch-${action}" data-touch-action="${action}" aria-label="${skill.name}">
+              <span class="touch-skill-shade" data-touch-shade></span>
+              <span class="touch-skill-icon">${skill.icon}</span>
+              <span class="touch-skill-key">${action==='dodge'?'↝':action.toUpperCase()}</span>
+              <span class="touch-skill-timer" data-touch-timer></span>
+            </button>`;
+          }).join('')}
+        </div>
+        <button type="button" class="touch-restart" data-touch-restart hidden>↻ Jogar novamente</button>
+      </div>
+    </div>
     <div id="hud" class="hud" aria-label="Habilidades e tempos de recarga">
       ${allActions.map(cardHTML).join('')}
     </div>
-    <div class="arena-hint">Clique direito para se mover · Aponte o cursor para atacar · Pressione Enter para reiniciar</div>
+    <div class="arena-hint"><span class="desktop-hint">Clique direito para se mover · Aponte o cursor para atacar · Pressione Enter para reiniciar</span><span class="mobile-hint">Arraste o joystick para andar · Toque nas habilidades para atacar · Mira automática no Pikachu</span></div>
   </div>
   <aside>
     <h2>Como jogar</h2>
@@ -56,6 +80,7 @@ app.innerHTML = `
 const modal = document.querySelector<HTMLDivElement>('#modal')!;
 const bindingList = document.querySelector<HTMLDivElement>('#bindings')!;
 const error = document.querySelector<HTMLParagraphElement>('#error')!;
+const mobile = new MobileControls(document.querySelector<HTMLElement>('#mobile-controls')!);
 
 function updateBindingLabels() {
   for (const action of allActions) {
@@ -77,6 +102,7 @@ function toggleSettings(open: boolean) {
   menuOpen = open;
   capturing = null;
   heldKeys.clear();
+  mobile.clear();
   modal.classList.toggle('hidden', !open);
   error.textContent = '';
   renderBindings();
@@ -118,5 +144,5 @@ new Phaser.Game({
   backgroundColor: '#142e31',
   render: { pixelArt: true },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [new ArenaScene(() => bindings, () => heldKeys, () => menuOpen)]
+  scene: [new ArenaScene(() => bindings, () => heldKeys, () => menuOpen, mobile)]
 });

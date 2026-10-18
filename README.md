@@ -1,4 +1,4 @@
-# Monster Arena — protótipo Pokémon 0.6
+# Monster Arena — protótipo Pokémon 0.7
 
 Arena 2D de combate em tempo real desenvolvida com **Phaser 3 + TypeScript + Vite**, com Charizard controlado pelo jogador e Pikachu controlado pelo computador.
 
@@ -66,3 +66,16 @@ O jogo agora carrega folhas de animação de exploração do **PMD Sprite Reposi
 As informações de tamanho de cada quadro e sua duração vieram do `AnimData.xml` de cada Pokémon. O projeto **não utiliza modelos 3D**, para preservar desempenho e o visual pixel art.
 
 **Créditos e direitos:** consulte [CREDITS.md](./CREDITS.md). Os assets do repositório incluem sprites originais de jogos Pokémon e contribuições de fãs. A licença CC BY-NC 4.0 dos colaboradores não substitui os direitos da Nintendo/The Pokémon Company e detentores originais. Uso restrito ao protótipo não comercial.
+
+## Novidades da versão 0.7 — controles de celular
+
+- Joystick virtual analógico no lado esquerdo: mova o dedo em qualquer direção para caminhar, solte para parar.
+- Cinco botões de habilidades no lado direito: **Q / W / E / R / esquiva**. É possível mover e atacar simultaneamente usando dois dedos.
+- **Mira automática** no Pikachu para habilidades no celular. A esquiva usa a direção do joystick; caso esteja parado, usa a direção do inimigo.
+- Cooldowns individuais nos botões de toque, atualizados durante a partida.
+- Botão **Jogar novamente** ao finalizar a partida; o celular não precisa de teclado.
+- Layout responsivo: controles abaixo da arena no modo retrato e sobrepostos nas bordas no modo paisagem.
+- Prevenção de scroll e zoom acidental durante o uso do joystick; reconhecimento de toques rápidos mesmo entre quadros.
+- Controles do mouse/teclado no computador permanecem inalterados; o jogo não exige aplicativo ou instalação.
+
+**Arquivos:** `src/mobileControls.ts` implementa o gamepad multitouch; `src/main.ts` oferece a interface; `src/arena.ts` integra movimento analógico, mira e recarga.

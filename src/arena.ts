@@ -5,6 +5,7 @@ import { currentGifFrame, hasGifClip, registerGifClip } from './gifAnimation';
 import { keyLabel } from './controls';
 import { CombatFx, type VfxKind } from './combatFx';
 import { OverworldActor, preloadOverworld } from './overworld';
+import type { MobileControls } from './mobileControls';
 
 type Side = 'player' | 'enemy';
 type ProjectileKind = VfxKind;
@@ -60,7 +61,8 @@ export class ArenaScene extends Phaser.Scene {
   constructor(
     private readonly getBindings: () => Bindings,
     private readonly heldKeys: () => ReadonlySet<string>,
-    private readonly settingsOpen: () => boolean
+    private readonly settingsOpen: () => boolean,
+    private readonly mobile: MobileControls
   ) { super({ key: 'Arena' }); }
 
   preload() {
@@ -97,6 +99,7 @@ export class ArenaScene extends Phaser.Scene {
     this.nextEnemyDecision = 1100;
     this.enemyActionIndex = 0;
     this.lastHudUpdate = -1000;
+    this.mobile.setFinished(false);
 
     this.cameras.main.setBackgroundColor('#142e31');
     this.drawArena();
@@ -167,6 +170,7 @@ export class ArenaScene extends Phaser.Scene {
       if(text)text.textContent=remaining>0?(remaining/1000).toFixed(1)+'s':'PRONTO';
       if(fill)fill.style.height=(remaining/duration*100).toFixed(2)+'%';
       if(key)key.textContent=keyLabel(bindings[action]);
+      this.mobile.setCooldown(action,remaining,duration);
     }
   }
 
@@ -191,7 +195,12 @@ export class ArenaScene extends Phaser.Scene {
       if(time-this.playerCastAt.dodge<dodge.cooldown)return;
       this.playerCastAt.dodge=time;
       const pointer=this.input.activePointer;
-      const dir=this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
+      const stick=this.mobile.axis;
+      const dir=this.mobile.active
+        ? (Math.hypot(stick.x,stick.y)>0.12
+          ? vector(stick.x,stick.y).normalize()
+          : this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing))
+        : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
       this.playerFacing.copy(dir);
       if(this.playerArt) {
         const ghost=this.add.image(this.player.x,this.player.y-8,this.playerArt.texture.key,this.playerArt.frame.name)
@@ -207,7 +216,10 @@ export class ArenaScene extends Phaser.Scene {
     this.playerCastAt[action]=time;
     this.playerAttackAt=time;
     const pointer=this.input.activePointer;
-    const dir=this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
+    // Touchscreen has no mouse cursor: attacks automatically aim at Pikachu.
+    const dir=this.mobile.active
+      ? this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing)
+      : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
     this.faceDirection('player',dir);
     this.playerMotion?.trigger(action==='r'?'Attack':action==='e'?'Charge':'Shoot',time,dir);
     const windup:Record<Skill,number>={q:60,w:115,e:180,r:270};
@@ -404,9 +416,10 @@ export class ArenaScene extends Phaser.Scene {
   private endBattle() {
     if(this.finished)return;
     this.finished=true;
+    this.mobile.setFinished(true);
     this.add.rectangle(W/2,H/2,590,135,0x09181d,0.94).setDepth(20);
     this.add.text(W/2,H/2,
-      (this.playerHp<=0?'DERROTA':'VITÓRIA')+'\nENTER para reiniciar',
+      (this.playerHp<=0?'DERROTA':'VITÓRIA')+(this.mobile.active?'\nToque em Jogar novamente':'\nENTER para reiniciar'),
       {fontSize:'30px',align:'center',color:'#ffffff'}
     ).setOrigin(0.5).setDepth(21);
   }
@@ -499,20 +512,37 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   update(time:number,delta:number) {
+    if(this.mobile.consumeRestart() && this.finished) {
+      this.mobile.clear();
+      this.scene.restart();
+      return;
+    }
     if(this.settingsOpen()||this.finished)return;
     if(time<this.hitStopUntil){this.updateHud(time);return;}
     const dt=Math.min(delta/1000,0.05);
     const oldPlayer=vector(this.player.x,this.player.y);
     const oldEnemy=vector(this.enemy.x,this.enemy.y);
-    const to=this.destination.clone().subtract(oldPlayer);
-    const length=to.length();
-    if(length>3){
-      const step=to.normalize().scale(Math.min(215*dt,length));
-      this.player.x=clampX(this.player.x+step.x);
-      this.player.y=clampY(this.player.y+step.y);
+    if(this.mobile.active) {
+      // Analog joystick: movement follows the finger and stops when released.
+      const stick=this.mobile.axis;
+      if(Math.hypot(stick.x,stick.y)>0.12) {
+        this.player.x=clampX(this.player.x+stick.x*215*dt);
+        this.player.y=clampY(this.player.y+stick.y*215*dt);
+        this.destination.set(this.player.x,this.player.y);
+      }
+    } else {
+      const to=this.destination.clone().subtract(oldPlayer);
+      const length=to.length();
+      if(length>3){
+        const step=to.normalize().scale(Math.min(215*dt,length));
+        this.player.x=clampX(this.player.x+step.x);
+        this.player.y=clampY(this.player.y+step.y);
+      }
     }
     for(const action of allActions){
-      if(this.heldKeys().has(this.getBindings()[action]))this.playerCast(action,time);
+      if(this.heldKeys().has(this.getBindings()[action]) || (this.mobile.active && this.mobile.isPressed(action))) {
+        this.playerCast(action,time);
+      }
     }
     const toward=vector(this.player.x-this.enemy.x,this.player.y-this.enemy.y);
     const distance=toward.length();
