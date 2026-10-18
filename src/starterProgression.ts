@@ -50,3 +50,24 @@ export const levelFromExperience=(xp:number,minimum=5)=>
   Math.min(100,Math.max(minimum,minimum+Math.floor(
     Math.sqrt(Math.max(0,xp)/22)
   )));
+
+export const bulbasaurLearnset:readonly LearnableMove[]=[
+  {level:1,name:'Investida',original:'Tackle',category:'physical'},
+  {level:1,name:'Rosnar',original:'Growl',category:'status'},
+  {level:3,name:'Chicote de Vinha',original:'Vine Whip',category:'physical'},
+  {level:7,name:'Semente Sanguessuga',original:'Leech Seed',category:'status'},
+  {level:13,name:'Pó Venenoso',original:'Poison Powder',category:'status'},
+  {level:16,name:'Folhas Navalha',original:'Razor Leaf',category:'physical'}
+];
+export const squirtleLearnset:readonly LearnableMove[]=[
+  {level:1,name:'Investida',original:'Tackle',category:'physical'},
+  {level:1,name:'Abanar de Cauda',original:'Tail Whip',category:'status'},
+  {level:3,name:'Jato d’Água',original:'Water Gun',category:'special'},
+  {level:9,name:'Retirada',original:'Withdraw',category:'status'},
+  {level:12,name:'Giro Rápido',original:'Rapid Spin',category:'physical'},
+  {level:15,name:'Pulsação de Água',original:'Water Pulse',category:'special'}
+];
+export const learnsetForStarter=(species:
+  'charmander'|'bulbasaur'|'squirtle'
+):readonly LearnableMove[]=>species==='charmander'?charmanderLearnset:
+  species==='bulbasaur'?bulbasaurLearnset:squirtleLearnset;

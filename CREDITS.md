@@ -71,3 +71,10 @@ Os treinadores do chão do ginásio agora usam os **sprites de exploração orig
 ## Charmander (#0004) — sprite de exploração
 
 Sprite PMD original de Charmander utilizado no modo História: https://github.com/PMDCollab/SpriteCollab/tree/master/sprite/0004 (SpriteCollab, com autoria/condições creditadas pelo repositório de origem). Os direitos de Pokémon permanecem com seus titulares; uso somente no fan game experimental não comercial.
+
+
+## Novas espécies da Safari e iniciais
+
+- Bulbasaur #0001, Ivysaur #0002, Charmeleon #0005, Squirtle #0007, Wartortle #0008, Rattata #0019 e Jigglypuff #0039: animações de PMDCollab/SpriteCollab (https://github.com/PMDCollab/SpriteCollab/tree/master/sprite).
+- Retratos pixelados da seleção e encontros: PokeAPI Sprites (https://github.com/PokeAPI/sprites).
+- Pokémon e personagens pertencem aos respectivos titulares. Protótipo experimental não comercial.

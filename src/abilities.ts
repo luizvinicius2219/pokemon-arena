@@ -35,13 +35,13 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
     q:{name:'Investida',description:'Golpe físico curto.',icon:'🐾',cooldown:800,damage:10,element:'normal'},
     w:{name:'Rosnar',description:'Reduz o ataque inimigo.',icon:'🔊',cooldown:3900,damage:0,element:'normal'},
     e:{name:'Chicote de Vinha',description:'Vinhas verdes alcançam o rival.',icon:'🌿',cooldown:1270,damage:13,element:'grass'},
-    r:{name:'Semente Sangue',description:'Drena HP durante alguns segundos.',icon:'🌱',cooldown:7000,damage:5,element:'grass'}
+    r:{name:'Semente Sanguessuga',description:'Drena HP durante alguns segundos.',icon:'🌱',cooldown:7000,damage:5,element:'grass'}
   },
   ivysaur: {
     q:{name:'Investida',description:'Golpe físico.',icon:'🐾',cooldown:720,damage:15,element:'normal'},
     w:{name:'Rosnar',description:'Enfraquece o rival.',icon:'🔊',cooldown:3600,damage:0,element:'normal'},
     e:{name:'Chicote de Vinha',description:'Vinhas longas atingem o rival.',icon:'🌿',cooldown:1030,damage:21,element:'grass'},
-    r:{name:'Semente Sangue',description:'Drena energia do inimigo.',icon:'🌱',cooldown:6400,damage:8,element:'grass'}
+    r:{name:'Semente Sanguessuga',description:'Drena energia do inimigo.',icon:'🌱',cooldown:6400,damage:8,element:'grass'}
   },
   squirtle: {
     q:{name:'Investida',description:'Golpe rápido com o casco.',icon:'🐢',cooldown:790,damage:10,element:'normal'},

@@ -1,3 +1,9 @@
+## ATUAL: SAFARI KANTO (outubro de 2026)
+
+O jogo abre em um **menu** com Treinamento ou História. O modo História oferece os três iniciais, zona Safari aberta com grama alta, encontros selvagens Rattata (58%), Jigglypuff (34%), Pikachu raro (8%), XP, evolução no nível 16 e acesso livre ao ginásio com handicap por nível. A captura jogável ainda não está disponível. Consulte [GAME_ROADMAP.md](GAME_ROADMAP.md) para a direção atual.
+
+---
+
 # Monster Arena — protótipo Pokémon 1.2
 
 Arena 2D de combate em tempo real desenvolvida com **Phaser 3 + TypeScript + Vite**, com Charizard controlado pelo jogador e Pikachu controlado pelo computador.

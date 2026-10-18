@@ -1,38 +1,32 @@
-# Monster Arena — roteiro do capítulo 1 (MVP)
+# MONSTER ARENA — roteiro do projeto
 
-O ginásio de Pewter é uma **meta**, não a primeira tela. O jogador começa com um Pokémon pequeno e desenvolve estratégia, níveis e habilidades antes de enfrentar Brock. O jogo prioriza exploração top-down, encontros visíveis, ação em tempo real, esquiva, terreno e uso inteligente dos tipos, e **não copia o sistema de combate por turnos**.
+**Visão:** aventura curta, não linear, focada em explorar, treinar, evoluir e lutar em tempo real. Sem laboratório, pesquisador ou missões longas obrigatórias. Inspirado pela zona Safari de Pokémon, mas com ação, esquiva, habilidades visuais e progressão simplificada.
 
-## Jornada do jogador
+## Fluxo atual jogável
 
-| Marco | Área | Mecânica | Condição de progresso |
-| --- | --- | --- | --- |
-| 0 | Vila do Início / laboratório | Escolha entre Charmander, Squirtle e Bulbasaur. Inicial nível 5, tutorial de movimento/esquiva/ataque | Receber inicial |
-| 1 | Trilha do Bosque | Exploração, encontros selvagens visíveis, primeira captura; batalhas opcionais para subir nível | Concluir tutorial de captura |
-| 2 | Campo de Treinamento | Treinadores comuns e desafios de precisão, HP, recompensa de experiência e movimentos | Completar primeira luta contra treinador |
-| 3 | Estrada de Pedra | Inimigos rochosos, objetos destrutíveis, cura e atalhos; testar resistência e fraquezas | Encontrar entrada de Pewter |
-| 4 | Cidade de Pewter | NPCs, loja, cura, equipe/reserva, missões opcionais, porta do ginásio | Requisitos de tutorial cumpridos |
-| 5 | Ginásio de Brock | Geodude (nível 12) e Onix (nível 14), fraquezas, Escavar, pedras quebráveis | Vencer os dois com sua equipe |
-| 6 | Pós-ginásio | Insígnia, habilidade de travessia e acesso à próxima região | Receber recompensa |
+1. **MENU** — Modo História ou Modo Treinamento (Charizard × Pikachu). Um botão extra permite testar Brock diretamente.
+2. **INICIAL** — Escolher Charmander (Fogo), Squirtle (Água) ou Bulbasaur (Planta/Veneno), todos nível 5. Salvar ou continuar a jornada. Novo inicial reinicia a campanha após confirmação.
+3. **SAFARI** — Exploração livre com mato alto, um treinador opcional e caminho para o ginásio. O jogador pode escolher TREINAR ou encontrar selvagens caminhando no mato.
+4. **ENCONTROS** — Rattata 58%, Jigglypuff 34% e Pikachu 8% (raro). Batalhar ou fugir; vitória dá XP. O mato não distribui XP parado.
+5. **NÍVEIS E EVOLUÇÃO** — XP e equipe salvos. Nível 16: Charmander → Charmeleon, Squirtle → Wartortle, Bulbasaur → Ivysaur. A arte e os movimentos mudam junto com a evolução.
+6. **GINÁSIO DE BROCK** — disponível livremente. Geodude e Onix ajustam HP conforme nível do inicial (handicap). Tipos Água/Planta levam vantagem; Fogo é desafiador.
+7. **INSÍGNIA DA PEDRA** — persistida após a vitória e mostrada no HUD da Safari.
 
-## Regras de progressão
+## Diretrizes
 
-- Um Pokémon por vez em campo; equipe inicial com até **3** criaturas e reserva persistente.
-- Nenhum Pokémon começa evoluído. A evolução é resultado de **XP + marcos de progresso**, não de liberar um personagem gratuito.
-- Ganho de XP e nível muda HP, velocidade, resistências e desbloqueia movimentos em marcos determinados. Evitar ganho de poder sem teto.
-- Encontros selvagens têm telegráficos legíveis, chance de fuga e **captura durante janelas de vulnerabilidade**; Pokémon de treinadores e líderes não são capturáveis.
-- Zonas de treino oferecem rota alternativa contra desvantagem de tipos. Não exigir grind infinito para atravessar o capítulo.
-- Salvar equipe, níveis, inventário, insígnias, posição e missões; mundo, combate e criaturas desacoplados.
-- Cada Pokémon reutiliza **uma definição única** de atributos, sprites, golpes e tipos em exploração, combate, captura e tela de equipe.
-- Aprimorar mobilidade, movimentação, câmera e combate para mobile. Preservar cenário estático e texturas leves no navegador.
+- **Não linear:** explorar, lutar e treinar são opções, não etapas obrigatórias.
+- **Ação visual:** golpes possuem alcance, tipo, tempo de recarga e efeitos distintos; terreno quebrável faz parte da luta.
+- **Foco mobile:** sprite pixelado, mapa estático, controles por joystick e botões grandes.
+- **Equipe reutilizável:** ficha de espécie centralizada e coleção persistente com até três Pokémon ativos e reserva.
 
-## Ordem de desenvolvimento
+## Fases seguintes
 
-1. **Starter jogável (agora):** Charmander substitui Charizard apenas no desafio de Pewter. Arena Livre mantém Charizard. O acesso ao ginásio continua como atalho de testes até existir a jornada.
-2. **Tela de seleção:** implementar Squirtle e Bulbasaur com kits e VFX próprios. Escolher e persistir exatamente um inicial.
-3. **Mapa explorável:** vila, trilha e campo de treino com câmera, colisão, NPCs e portais; manter o ginásio atual como cena conectável.
-4. **Batalhas/XP:** encontro selvagem, treinador comum, experiência, níveis e desbloqueio de habilidades.
-5. **Captura/equipe:** Pokébola, indicador de chances, captura contextual, reserva e troca controlada.
-6. **Cidade/ginásio:** cura, loja, diálogos, gatilho para o chefe, insígnia e desbloqueio.
-7. **Polimento:** variedade de encontros, música, som, acessibilidade, otimização, saves e testes móveis.
+**Captura jogável:** Pokébola em encontros selvagens, janelas de vulnerabilidade e mecânica própria; os módulos de regras existem, mas ainda falta conectá-los à interface.
 
-**Estado atual:** o starter Charmander jogável é a primeira entrega técnica. Os mapas e a tela de seleção são etapas futuras; nenhuma interface de mapa foi anunciada como pronta.
+**Equipe e troca:** tela de coleção, seleção do Pokémon ativo e retorno/reenvio da Pokébola.
+
+**Safari expandida:** mais encontros, treinadores e pequenos atalhos; depois evoluções finais Venusaur, Blastoise, Charizard e golpes por nível.
+
+**Novos ginásios:** mais líderes, insígnias e regiões pequenas, mantendo ritmo livre e sem missões longas.
+
+**Importante:** captura e trocas de equipe ainda não são jogáveis nesta versão.
