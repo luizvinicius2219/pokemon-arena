@@ -1,10 +1,16 @@
 import Phaser from 'phaser';
 import { Action, Bindings, defaults, loadBindings, saveBindings, assignBinding, keyLabel } from './controls';
-import { allActions, dodge, skills } from './abilities';
+import { allActions,dodge,skills,type Starter } from './abilities';
+import { pokemonCatalog } from './pokemonCatalog';
 import { ArenaScene } from './arena';
 import { WorldScene } from './world';
-import { awardActiveExperience,loadCollection } from './playerCollection';
-import { registerTrainingVictory } from './storyProgress';
+import {
+  awardActiveExperience,loadCollection,saveCollection,
+  chooseStarter,chosenStarter,getActivePokemon
+} from './playerCollection';
+import {
+  registerTrainingVictory,resetStoryProgress
+} from './storyProgress';
 import { MobileControls } from './mobileControls';
 import type { GameMode } from './story';
 import './style.css';
@@ -14,6 +20,8 @@ let bindings: Bindings = loadBindings();
 let capturing: Action | null = null;
 let menuOpen = false;
 let gameMode:GameMode='world';
+let mainMenuOpen=true;
+let candidate:Starter='charmander';
 const heldKeys = new Set<string>();
 
 const labels: Record<Action, string> = {
@@ -21,7 +29,7 @@ const labels: Record<Action, string> = {
 };
 
 const selectedSpecies = () =>
-  gameMode==='training'?'charizard':'charmander';
+  gameMode==='training'?'charizard':getActivePokemon(loadCollection()).species;
 const cardHTML = (action: Action): string => {
   const skill = action === 'dodge' ? dodge : skills[selectedSpecies()][action];
   return `<div class="skill-card ${action === 'r' ? 'ultimate' : ''}" data-action="${action}" title="${skill.description}">
@@ -169,8 +177,8 @@ function refreshActivePokemonInfo(){
   document.querySelector<HTMLElement>('#hud')!.innerHTML=
     allActions.map(cardHTML).join('');
   const heading=document.querySelector<HTMLElement>('#player-character-help');
-  if(heading)heading.textContent='🔥 Q W E R: habilidades de '+
-    (species==='charmander'?'Charmander':'Charizard');
+  if(heading)heading.textContent='Q W E R: habilidades de '+
+    pokemonCatalog[species].name;
   const help=document.querySelector<HTMLElement>('#player-skill-help');
   if(help)help.innerHTML=(['q','w','e','r'] as const).map(action=>{
     const move=skills[species][action];
@@ -186,16 +194,16 @@ function refreshActivePokemonInfo(){
   const aside=document.querySelector<HTMLElement>('aside');
   if(aside)aside.hidden=world;
   const gym=document.querySelector<HTMLButtonElement>('#gym-preview');
-  if(gym)gym.hidden=gameMode==='story';
+  if(gym)gym.hidden=true;
   const hint=document.querySelector<HTMLElement>('.arena-hint');
   if(hint){
     const desktop=hint.querySelector<HTMLElement>('.desktop-hint');
     const touch=hint.querySelector<HTMLElement>('.mobile-hint');
     if(desktop)desktop.textContent=world
-      ?'WASD ou setas: explorar · E: interagir · Aproximar-se dos NPCs'
+      ?'WASD / setas: explorar · E: treinar no mato alto ou enfrentar Brock'
       :'Clique direito: mover · Teclas Q W E R: habilidades · Enter: reiniciar';
     if(touch)touch.textContent=world
-      ?'Joystick: explorar · INTERAGIR: conversar e abrir portais'
+      ?'Joystick: explorar · Botão TREINAR no mato alto · Ginásio livre'
       :'Joystick: andar · 1–4: habilidades · ↗: esquiva';
   }
 }
@@ -247,6 +255,7 @@ window.addEventListener('keydown', event => {
     renderBindings(); return;
   }
   if (menuOpen) { if (event.code === 'Escape') toggleSettings(false); return; }
+  if(mainMenuOpen)return;
   if (Object.values(bindings).includes(event.code)) {
     event.preventDefault();
     heldKeys.add(event.code);
@@ -255,17 +264,36 @@ window.addEventListener('keydown', event => {
 window.addEventListener('keyup', event => heldKeys.delete(event.code));
 window.addEventListener('blur', () => heldKeys.clear());
 
+const landing=document.querySelector<HTMLElement>('#landing-menu')!;
+const panels=Array.from(document.querySelectorAll<HTMLElement>('[data-menu-panel]'));
+function showPanel(panel:'home'|'choose'|'resume'){
+  panels.forEach(node=>node.hidden=node.dataset.menuPanel!==panel);
+  if(panel==='resume'){
+    const pokemon=getActivePokemon(loadCollection());
+    const preview=document.querySelector<HTMLElement>('[data-save-preview]')!;
+    preview.textContent=pokemon.nickname+' · Nível '+pokemon.level+
+      ' · '+pokemon.experience+' XP · Pronto para treinar';
+  }
+}
+function openMainMenu(){
+  mainMenuOpen=true;
+  landing.hidden=false;
+  mobile.clear();
+  heldKeys.clear();
+  document.querySelector<HTMLElement>('#battle-summary')!.hidden=true;
+  if(game.scene.isActive('Arena'))game.scene.pause('Arena');
+  showPanel('home');
+}
 function startGameMode(nextMode:GameMode){
+  mainMenuOpen=false;
+  landing.hidden=true;
   gameMode=nextMode;
   heldKeys.clear();
   mobile.clear();
   if(menuOpen)toggleSettings(false);
   document.querySelector<HTMLElement>('#battle-summary')!.hidden=true;
-  const returnButton=document.querySelector<HTMLButtonElement>('[data-return-story]');
-  if(returnButton)returnButton.hidden=true;
-  const switchMode=document.querySelector<HTMLButtonElement>('#switch-mode')!;
-  switchMode.textContent=nextMode==='world'?'⚔ Arena Livre':
-    '🌿 Voltar à História';
+  const back=document.querySelector<HTMLButtonElement>('[data-return-story]');
+  if(back)back.hidden=true;
   refreshActivePokemonInfo();
   game.scene.stop('World');
   game.scene.stop('Arena');
@@ -280,30 +308,77 @@ const game=new Phaser.Game({
   render:{pixelArt:true,antialias:false,roundPixels:true},
   scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},
   scene:[
-    new WorldScene(mobile,mode=>startGameMode(mode)),
+    new WorldScene(mobile,mode=>startGameMode(mode),()=>mainMenuOpen),
     new ArenaScene(
       ()=>bindings,()=>heldKeys,()=>menuOpen,mobile,()=>gameMode
     )
   ]
 });
 refreshActivePokemonInfo();
+showPanel('home');
 
 document.querySelector<HTMLButtonElement>('#switch-mode')!
-  .addEventListener('click',()=>startGameMode(
-    gameMode==='world'?'training':'world'
-  ));
+  .addEventListener('click',()=>openMainMenu());
 document.querySelector<HTMLButtonElement>('#gym-preview')!
   .addEventListener('click',()=>startGameMode('story'));
+document.querySelector<HTMLButtonElement>('[data-start-training]')!
+  .addEventListener('click',()=>startGameMode('training'));
+document.querySelector<HTMLButtonElement>('[data-start-brock]')!
+  .addEventListener('click',()=>startGameMode('story'));
+document.querySelector<HTMLButtonElement>('[data-start-story]')!
+  .addEventListener('click',()=>showPanel(chosenStarter()?'resume':'choose'));
+document.querySelector<HTMLButtonElement>('[data-continue-story]')!
+  .addEventListener('click',()=>startGameMode('world'));
+document.querySelector<HTMLButtonElement>('[data-new-story]')!
+  .addEventListener('click',()=>showPanel('choose'));
+document.querySelectorAll<HTMLButtonElement>('[data-menu-back]')
+  .forEach(button=>button.addEventListener('click',()=>showPanel('home')));
+document.querySelectorAll<HTMLButtonElement>('[data-starter]')
+  .forEach(button=>button.addEventListener('click',()=>{
+    const value=button.dataset.starter;
+    if(value==='charmander'||value==='bulbasaur'||value==='squirtle')
+      candidate=value;
+    document.querySelectorAll<HTMLButtonElement>('[data-starter]')
+      .forEach(option=>{
+        const chosen=option.dataset.starter===candidate;
+        option.classList.toggle('selected',chosen);
+        option.setAttribute('aria-pressed',String(chosen));
+      });
+  }));
+document.querySelector<HTMLButtonElement>('[data-confirm-starter]')!
+  .addEventListener('click',()=>{
+    if(chosenStarter()&& !window.confirm(
+      'Começar outra jornada? O nível e a equipe salvos serão reiniciados.'
+    ))return;
+    chooseStarter(candidate);
+    resetStoryProgress();
+    startGameMode('world');
+  });
 document.querySelector<HTMLButtonElement>('[data-return-story]')!
   .addEventListener('click',()=>startGameMode('world'));
 window.addEventListener('monster-arena:return-world',
   ()=>startGameMode('world'));
 
 window.addEventListener('monster-arena:practice-result',event=>{
-  const detail=(event as CustomEvent<{victory:boolean;experience:number}>).detail;
+  const detail=(event as CustomEvent<{
+    victory:boolean;experience:number;species?:string;level?:number
+  }>).detail;
   if(!detail?.victory)return;
-  awardActiveExperience(loadCollection(),detail.experience);
+  const before=getActivePokemon(loadCollection());
+  const award=awardActiveExperience(loadCollection(),detail.experience);
+  const after=getActivePokemon(award.collection);
   registerTrainingVictory();
-  const returnButton=document.querySelector<HTMLButtonElement>('[data-return-story]');
+  const returnButton=document.querySelector<HTMLButtonElement>(
+    '[data-return-story]');
   if(returnButton)returnButton.hidden=false;
+  if(before.species!==after.species){
+    const info=document.querySelector<HTMLElement>('[data-battle-record]');
+    if(info)info.textContent='EVOLUÇÃO! '+
+      pokemonCatalog[after.species].name+' · Nv '+after.level;
+  }
+});
+window.addEventListener('monster-arena:gym-victory',()=>{
+  const saved=loadCollection();
+  if(saved.badges.includes('pedra'))return;
+  saveCollection({...saved,badges:[...saved.badges,'pedra']});
 });
