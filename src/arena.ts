@@ -9,7 +9,7 @@ import { OverworldActor, preloadOverworld, releaseFrameMs } from './overworld';
 import type { MobileControls } from './mobileControls';
 import { StoryEnvironment, pewterGym, preloadPewter, type GameMode } from './story';
 import { pokemonCatalog, gymTeams, type PokemonEncounter } from './pokemonCatalog';
-import { RockFx, RockMoves, type RockSpecies } from './rockMoves';
+import { RockFx, RockMoves, type RockStatus } from './rockMoves';
 import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
 
@@ -58,6 +58,13 @@ export class ArenaScene extends Phaser.Scene {
   private fx!: CombatFx;
   private rockFx?:RockFx;
   private rockMoves?:RockMoves;
+  private playerSlowUntil=0;
+  private playerBindUntil=0;
+  private enemySlowUntil=0;
+  private enemyBindUntil=0;
+  private enemyCastLockUntil=0;
+  private rolloutUntil=0;
+  private statusText?:Phaser.GameObjects.Text;
   private enemySpecies:Fighter='pikachu';
   private enemyMaxHp=100;
   private storyEncounters:readonly PokemonEncounter[]=[];
@@ -146,6 +153,13 @@ export class ArenaScene extends Phaser.Scene {
     this.storySwitching=false;
     this.enemyActiveAt=0;
     this.storyWaveText=undefined;
+    this.statusText=undefined;
+    this.playerSlowUntil=0;
+    this.playerBindUntil=0;
+    this.enemySlowUntil=0;
+    this.enemyBindUntil=0;
+    this.enemyCastLockUntil=0;
+    this.rolloutUntil=0;
     this.rockFx=this.mode==='story'?new RockFx(this):undefined;
     this.rockMoves=this.rockFx?new RockMoves(this,this.rockFx):undefined;
     this.fx = new CombatFx(this);
@@ -205,6 +219,10 @@ export class ArenaScene extends Phaser.Scene {
         stroke:'#192c38',strokeThickness:4
       }).setOrigin(0.5).setDepth(12);
       this.updateWaveText();
+      this.statusText=this.add.text(playerSpawn.x,playerSpawn.y-75,'',{
+        fontSize:'13px',fontStyle:'bold',color:'#ffe8ac',
+        stroke:'#152a34',strokeThickness:4
+      }).setOrigin(0.5).setDepth(15).setVisible(false);
     }
     this.comboText=this.add.text(W/2,75,'',{
       color:'#ffe6a6',fontSize:'22px',fontStyle:'bold',
@@ -296,6 +314,10 @@ export class ArenaScene extends Phaser.Scene {
       this.reactions.enemy=null;
       this.lastHitAt.enemy=-1000;
       this.enemyCastAt=this.enemyReadyAt(this.time.now);
+      this.enemyCastLockUntil=0;
+      this.enemySlowUntil=0;
+      this.enemyBindUntil=0;
+      this.rolloutUntil=0;
       this.enemyAttackAt=-1000;
       this.enemyHurtAt=-1000;
       this.enemyShadow?.setVisible(true).setDisplaySize(
@@ -576,6 +598,11 @@ export class ArenaScene extends Phaser.Scene {
     if(!this.rockMoves)return;
     this.enemyCastAt[skill]=time;
     this.enemyAttackAt=time;
+    // Prevent AI strafing or casting a second attack during longer telegraphs.
+    const lock=skill==='r'?1200:skill==='e'?740:
+      skill==='w'&&species==='geodude'?1190:skill==='w'?480:210;
+    this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+lock);
+    if(skill==='w'&&species==='geodude')this.rolloutUntil=time+1110;
     const dir=this.directionTo(this.enemy,this.player.x,this.player.y,this.enemyFacing);
     this.faceDirection('enemy',dir);
     const motion=skill==='q'?'Shoot':skill==='w'?'Attack':'Charge';
@@ -588,16 +615,35 @@ export class ArenaScene extends Phaser.Scene {
       targetPosition:()=>({x:this.player.x,y:this.player.y,radius:this.player.radius}),
       sourcePosition:()=>({x:this.enemy.x,y:this.enemy.y}),
       hitArea:(x,y,radius,damage,side)=>{
-        const target=side==='enemy'?this.player:this.enemy;
-        if(Phaser.Math.Distance.Between(x,y,target.x,target.y)<radius+target.radius){
-          this.damage(side==='enemy'?'player':'enemy',damage,target.x,target.y,0xcbb18b);
+        const victimSide=side==='enemy'?'player':'enemy';
+        const target=victimSide==='player'?this.player:this.enemy;
+        const healthBefore=victimSide==='player'?this.playerHp:this.enemyHp;
+        if(Phaser.Math.Distance.Between(x,y,target.x,target.y)>=radius+target.radius)
+          return false;
+        this.damage(victimSide,damage,target.x,target.y,0xcbb18b);
+        return (victimSide==='player'?this.playerHp:this.enemyHp)<healthBefore;
+      },
+      applyStatus:(status:RockStatus,duration,side)=>{
+        const until=this.time.now+duration;
+        if(side==='enemy'){
+          if(status==='bind')this.playerBindUntil=Math.max(this.playerBindUntil,until);
+          else this.playerSlowUntil=Math.max(this.playerSlowUntil,until);
+        }else{
+          if(status==='bind')this.enemyBindUntil=Math.max(this.enemyBindUntil,until);
+          else this.enemySlowUntil=Math.max(this.enemySlowUntil,until);
         }
+      },
+      moveSource:(x,y)=>{
+        const safe=this.environment?.resolve(x,y,this.enemy.radius)??{x,y};
+        this.enemy.setPosition(safe.x,safe.y);
+        this.enemyShadow?.setPosition(safe.x,safe.y+15);
+        return safe;
       },
       stillActive:()=>!this.finished&&!this.storySwitching&&this.enemySpecies===species,
       charge:(power,duration)=>this.cinematic.charge('enemy','rock',power,
         this.time.now,duration),
       signal:(name)=>{
-        if(skill==='e'||skill==='r')this.skillCallout(this.enemy.x,
+        if(skill!=='q'||species==='onix')this.skillCallout(this.enemy.x,
           this.enemy.y-(species==='onix'?110:71),name,0xdfbb8b);
       }
     });
@@ -957,12 +1003,14 @@ export class ArenaScene extends Phaser.Scene {
 
   private enemyDecision(time:number) {
     if(time<this.nextEnemyDecision || time<this.enemyActiveAt
-      || this.storySwitching || this.finished || this.enemyHp<=0)return;
-    this.nextEnemyDecision=time+Phaser.Math.Between(1040,1490);
+      || time<this.enemyCastLockUntil || this.storySwitching
+      || this.finished || this.enemyHp<=0)return;
+    this.nextEnemyDecision=time+Phaser.Math.Between(1120,1570);
     const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,this.enemy.x,this.enemy.y);
     const preferred=this.enemyPattern[this.enemyActionIndex++ % this.enemyPattern.length];
     let selection:Skill=preferred;
-    const meleeReach=this.enemySpecies==='onix'?154:140;
+    const meleeReach=this.enemySpecies==='geodude'?265:
+      this.enemySpecies==='onix'?145:140;
     if(selection==='w' && distance>meleeReach)selection='q';
     if(!this.canCast('enemy',selection,time))selection='q';
     if(this.canCast('enemy',selection,time)){
@@ -1017,7 +1065,9 @@ export class ArenaScene extends Phaser.Scene {
     const staggeredPlayer=this.reactions.player!==null
       && time-this.reactions.player.startAt<105;
     const channeling=this.flameStreams.some(stream=>time-stream.startAt<stream.duration);
-    const moveFactor=channeling?0.72:1;
+    const slowed=time<this.playerSlowUntil?0.64:1;
+    const bound=time<this.playerBindUntil?0.52:1;
+    const moveFactor=(channeling?0.72:1)*Math.min(slowed,bound);
     if(this.dash){
       this.animateDash(time);
     } else if(staggeredPlayer){
@@ -1048,16 +1098,18 @@ export class ArenaScene extends Phaser.Scene {
     // Direction changes gradually so it does not oscillate on every frame.
     const toward=vector(this.player.x-this.enemy.x,this.player.y-this.enemy.y);
     const distance=toward.length();
-    if(distance>0.01 && !this.reactions.enemy && !this.storySwitching){
+    if(distance>0.01 && !this.reactions.enemy && !this.storySwitching
+      && time>=this.enemyCastLockUntil){
       toward.normalize();
       const drift=vector(-toward.y,toward.x);
       const sign=Math.floor(time/3200)%2===0?1:-1;
       const chase=distance>208?112:distance<122?-94:distance>174?23:-12;
       const strafe=distance>285?18:distance<100?12:72;
       const profile=pokemonCatalog[this.enemySpecies];
-      const scale=profile.moveSpeed/122;
+      const impeded=time<this.enemyBindUntil?0.52:time<this.enemySlowUntil?0.64:1;
+      const scale=profile.moveSpeed/122*impeded;
       const step=toward.scale(chase*scale).add(drift.scale(sign*strafe*scale))
-        .limit(profile.moveSpeed).scale(dt);
+        .limit(profile.moveSpeed*impeded).scale(dt);
       this.enemy.x=clampX(this.enemy.x+step.x);
       this.enemy.y=clampY(this.enemy.y+step.y);
     }
@@ -1090,6 +1142,18 @@ export class ArenaScene extends Phaser.Scene {
         enemyVelocity,this.enemySpecies,this.enemySpecies+'-back',
         this.enemySpecies==='onix'?112:this.enemySpecies==='geodude'?68:56,
         time,this.enemyAttackAt,this.enemyHurtAt);
+    }
+    // Sprite-body Rollout is intentionally short and never affects the arena
+    // floor; the hitboxes are controlled by RockMoves.
+    if(this.enemySpecies==='geodude'&&time<this.rolloutUntil){
+      this.enemyArt?.setRotation(time*0.020);
+    }
+    if(this.statusText){
+      const status=time<this.playerBindUntil?'⛓ CONSTRIÇÃO':
+        time<this.playerSlowUntil?'↓ VELOCIDADE':'';
+      if(this.statusText.text!==status)this.statusText.setText(status);
+      this.statusText.setVisible(status!=='')
+        .setPosition(this.player.x,this.player.y-78);
     }
     this.playerLabel.setPosition(this.player.x,this.player.y-55);
     this.enemyLabel.setPosition(this.enemy.x,
