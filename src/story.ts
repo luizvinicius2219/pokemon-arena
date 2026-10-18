@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { pokemonCatalog, gymTeams } from './pokemonCatalog';
+import type { Fighter } from './abilities';
 
 /**
  * Story-mode level definitions and environmental interactions.
@@ -107,7 +109,8 @@ interface RockState extends BreakableObstacle {
 
 export class StoryEnvironment {
   readonly rocks:RockState[]=[];
-  constructor(private readonly scene:Phaser.Scene,readonly stage:StoryStage){
+  constructor(private readonly scene:Phaser.Scene,readonly stage:StoryStage,
+    private readonly playerSpecies:Fighter='charizard'){
     scene.add.image(480,288,'pewter-floor').setDepth(-20).setOrigin(0.5);
     for(const npc of stage.npc){
       const leader=npc.role==='leader';
@@ -152,45 +155,69 @@ export class StoryEnvironment {
   }
 
   private showStageIntroduction(){
-    // Retro VS card uses the large original game character portraits. They
-    // never appear as standing characters inside the overworld gym.
-    // This runs once, never animates the floor, and lasts about 3.1 seconds.
+    // Battle portraits and Pokemon in this VS screen are loaded from the
+    // SAME team roster used by ArenaScene; no manual text/asset duplication.
     const scene=this.scene;
+    const challenger=pokemonCatalog[this.playerSpecies];
+    const defenders=(gymTeams[this.stage.id]??[])
+      .map(encounter=>pokemonCatalog[encounter.species]);
     const overlay=scene.add.container(480,288).setDepth(40).setAlpha(0);
     const darkness=scene.add.rectangle(0,0,960,576,0x0a1620,0.94);
-    const left=scene.add.rectangle(-233,-10,404,400,0x1e3540,1)
+    const left=scene.add.rectangle(-233,-10,404,400,0x1e3540)
       .setStrokeStyle(5,0x9ed4c9);
-    const right=scene.add.rectangle(233,-10,404,400,0x302b30,1)
+    const right=scene.add.rectangle(233,-10,404,400,0x302b30)
       .setStrokeStyle(5,0xe8b77b);
     const line=scene.add.rectangle(0,-10,4,412,0xdcc18e,0.87);
     const title=scene.add.text(0,-252,'DESAFIO DO GINÁSIO DE PEWTER',{
       fontSize:'25px',fontStyle:'bold',color:'#ffe3ae',
       stroke:'#17262c',strokeThickness:5
     }).setOrigin(0.5);
-    const red=scene.add.image(-234,-29,'pewter-red-game').setDisplaySize(181,181);
-    const brock=scene.add.image(234,-29,'pewter-brock-game').setDisplaySize(194,194);
-    const names=[
-      scene.add.text(-233,88,'RED',{
-        fontSize:'30px',fontStyle:'bold',color:'#c5f9ff',
-        stroke:'#10232f',strokeThickness:5
-      }).setOrigin(0.5),
-      scene.add.text(233,88,'BROCK',{
-        fontSize:'30px',fontStyle:'bold',color:'#ffe0a3',
-        stroke:'#2d2120',strokeThickness:5
-      }).setOrigin(0.5),
-      scene.add.text(0,-15,'VS',{
-        fontSize:'46px',fontStyle:'bold',color:'#fff1c5',
-        stroke:'#1a2833',strokeThickness:8
-      }).setOrigin(0.5),
-      scene.add.text(0,225,'CHARIZARD   ×   GEODUDE  /  ONIX',{
-        fontSize:'21px',fontStyle:'bold',color:'#fce2b1',
-        stroke:'#172a35',strokeThickness:5
-      }).setOrigin(0.5),
-      scene.add.text(0,256,'2 POKÉMON · A FORÇA DA ROCHA ESTÁ NA RESISTÊNCIA',{
-        fontSize:'13px',color:'#d4e1d8'
-      }).setOrigin(0.5)
+    const red=scene.add.image(-234,-111,'pewter-red-game')
+      .setDisplaySize(142,142);
+    const brock=scene.add.image(234,-111,'pewter-brock-game')
+      .setDisplaySize(157,157);
+    const portrait=(id:Fighter,x:number,y:number,size:number)=>{
+      const texture=scene.textures.exists(id)?id:
+        scene.textures.exists(id+'-Idle')?id+'-Idle':null;
+      if(texture)return scene.add.image(x,y,texture,0)
+        .setDisplaySize(size,size).setOrigin(0.5);
+      return scene.add.text(x,y,pokemonCatalog[id].name.toUpperCase(),{
+        fontSize:'18px',fontStyle:'bold',color:'#ffe0a5'
+      }).setOrigin(0.5);
+    };
+    const fighters:Phaser.GameObjects.GameObject[]=[
+      portrait(challenger.id,-233,89,122)
     ];
-    overlay.add([darkness,left,right,line,red,brock,title,...names]);
+    if(defenders.length===1){
+      fighters.push(portrait(defenders[0].id,233,88,130));
+    }else{
+      const spread=Math.min(116,220/Math.max(1,defenders.length-1));
+      defenders.forEach((pokemon,i)=>{
+        const x=233+(i-(defenders.length-1)/2)*spread;
+        fighters.push(portrait(pokemon.id,x,88,
+          pokemon.id==='onix'?122:105));
+      });
+    }
+    const text=(x:number,y:number,label:string,size:number,color:string)=>
+      scene.add.text(x,y,label,{
+        fontSize:size+'px',fontStyle:'bold',color,
+        stroke:'#182630',strokeThickness:4
+      }).setOrigin(0.5);
+    const labels=[
+      text(-233,-23,'RED',27,'#c5f9ff'),
+      text(233,-23,this.stage.leader.toUpperCase(),27,'#ffe0a3'),
+      text(0,-16,'VS',45,'#fff1c5'),
+      text(-233,178,challenger.name.toUpperCase(),21,'#c4f8f4'),
+      text(233,178,defenders.map(p=>p.name.toUpperCase()).join(' / '),18,'#f5dbb0'),
+      text(0,225,
+        challenger.name.toUpperCase()+'  ×  '+
+        (defenders.map(p=>p.name.toUpperCase()).join(' / ')||'???'),
+        19,'#fce2b1'),
+      text(0,256,
+        defenders.length+' POKÉMON · A FORÇA DA ROCHA ESTÁ NA RESISTÊNCIA',
+        13,'#d4e1d8')
+    ];
+    overlay.add([darkness,left,right,line,red,brock,title,...fighters,...labels]);
     scene.tweens.add({targets:overlay,alpha:1,duration:220});
     scene.time.delayedCall(2540,()=>{
       if(!overlay.active)return;

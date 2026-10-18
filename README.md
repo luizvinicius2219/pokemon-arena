@@ -229,3 +229,8 @@ Geodude agora é recolhido com feixe vermelho, brilho de captura e movimento da 
 ### Cadência de batalha e correções de animação
 
 O tempo do ranking agora desconta os segundos em que o jogo bloqueia combate para mostrar a introdução VS ou trocar Pokémon. A primeira imagem da animação PMD é selecionada explicitamente, evitando mostrar a spritesheet inteira durante a luz vermelha de saída da Pokébola. Magnitude pode atingir nível 10; a segunda onda do Terremoto de Onix alcança uma área maior, permitindo desviar pelo dash cronometrado. Nenhum dano ocorre enquanto a troca ou a abertura estão em andamento.
+
+
+### Onix gigante, Dig e batalha apresentada com a equipe real
+
+Onix foi ampliado para uma escala de chefe e entra mais ao centro do ginásio, mantendo Brock visível no palco. Seu segundo golpe agora é **Escavar (Dig)**: desaparece sob o piso, fica temporariamente inalvejável, assinala a zona de reaparição e emerge com impacto. Os danos de Terremoto e Magnitude permanecem definidos por alcance, mas o desenho das rachaduras agora usa linhas finas e área contida; projéteis de rocha ganharam tons claros de arenito. A introdução VS usa os nomes e as imagens das espécies do mesmo catálogo/roster consumido pela batalha; na futura seleção de Pokémon não será necessário desenhar outra apresentação.
