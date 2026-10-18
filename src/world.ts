@@ -63,7 +63,7 @@ export class WorldScene extends Phaser.Scene{
       {frameWidth:16,frameHeight:32});
     this.species=getActivePokemon(loadCollection()).species;
     const texture=PARTNER[this.species]??PARTNER.charmander;
-    this.load.spritesheet('safari-partner',
+    this.load.spritesheet('safari-partner-'+this.species,
       'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/'+
       texture.number+'/Idle-Anim.png',
       {frameWidth:texture.width,frameHeight:texture.height});
@@ -90,9 +90,9 @@ export class WorldScene extends Phaser.Scene{
       'safari-red',0).setDisplaySize(48,95).setDepth(6);
     this.partnerShadow=this.add.ellipse(this.following.x,
       this.following.y+11,30,8,0x1c4132,0.43).setDepth(3);
-    if(this.textures.exists('safari-partner')){
+    if(this.textures.exists('safari-partner-'+this.species)){
       this.partner=this.add.image(this.following.x,
-        this.following.y-23,'safari-partner',0)
+        this.following.y-23,'safari-partner-'+this.species,0)
         .setDisplaySize(72,83).setDepth(5);
     }else{
       this.partner=this.add.circle(

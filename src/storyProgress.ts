@@ -61,6 +61,15 @@ export function registerTrainingVictory():StoryProgress{
 }
 export function nextStoryObjective(p:StoryProgress):string{
   if(!p.visitedRoute)return 'Entre no mato alto e escolha TREINAR.';
-  if(!p.defeatedTrainer)return 'Lute com Rattata, Jigglypuff ou Pikachu.';
-  return 'Suba de nível, evolua e desafie Brock quando quiser.';
+  if(!p.defeatedTrainer)return 'Ganhe XP no mato alto e desafie Brock quando quiser.';
+  return 'Treine, evolua ou visite o ginásio de Brock.';
+}
+
+export function resetStoryProgress():StoryProgress{
+  const reset:StoryProgress={
+    version:1,metProfessor:false,visitedRoute:false,defeatedTrainer:false,
+    enteredGym:false,trainingsWon:0,lastX:190,lastY:425
+  };
+  saveStoryProgress(reset);
+  return reset;
 }
