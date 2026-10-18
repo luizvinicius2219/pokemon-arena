@@ -10,6 +10,7 @@ import type { MobileControls } from './mobileControls';
 import { StoryEnvironment, pewterGym, preloadPewter, type GameMode } from './story';
 import { pokemonCatalog, gymTeams, type PokemonEncounter } from './pokemonCatalog';
 import { RockFx, RockMoves, type RockStatus } from './rockMoves';
+import { PokemonSwitchFx } from './pokemonSwitchFx';
 import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
 
@@ -58,6 +59,8 @@ export class ArenaScene extends Phaser.Scene {
   private fx!: CombatFx;
   private rockFx?:RockFx;
   private rockMoves?:RockMoves;
+  private switchFx?:PokemonSwitchFx;
+  private storyIntroUntil=0;
   private playerSlowUntil=0;
   private playerBindUntil=0;
   private enemySlowUntil=0;
@@ -162,6 +165,8 @@ export class ArenaScene extends Phaser.Scene {
     this.rolloutUntil=0;
     this.rockFx=this.mode==='story'?new RockFx(this):undefined;
     this.rockMoves=this.rockFx?new RockMoves(this,this.rockFx):undefined;
+    this.switchFx=this.mode==='story'?new PokemonSwitchFx(this):undefined;
+    this.storyIntroUntil=0;
     this.fx = new CombatFx(this);
     this.cinematic = new CinematicFx(this);
     this.stats = new BattleStats(this.time.now);
@@ -189,8 +194,14 @@ export class ArenaScene extends Phaser.Scene {
     this.mobile.setFinished(false);
 
     this.cameras.main.setBackgroundColor('#142e31');
-    if(this.mode==='story')this.environment=new StoryEnvironment(this,pewterGym);
-    else this.drawArena();
+    if(this.mode==='story'){
+      this.environment=new StoryEnvironment(this,pewterGym);
+      // The VS presentation is a genuine introduction, not a background
+      // overlay during which either Pokémon can attack unnoticed.
+      this.storyIntroUntil=this.time.now+3150;
+      this.enemyActiveAt=this.storyIntroUntil+1050;
+      this.nextEnemyDecision=this.enemyActiveAt;
+    }else this.drawArena();
     const playerSpawn=this.mode==='story'?pewterGym.spawnPlayer:{x:210,y:288};
     const enemySpawn=this.mode==='story'?pewterGym.spawnRival:{x:750,y:288};
     this.player = this.add.circle(playerSpawn.x,playerSpawn.y,19,0x60d1ff).setStrokeStyle(4,0xffffff).setVisible(false);
@@ -283,56 +294,81 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private nextStoryPokemon(){
-    if(this.storySwitching || this.mode!=='story' || this.storyWave+1>=this.storyEncounters.length){
+    if(this.storySwitching || this.mode!=='story'){
+      if(this.mode!=='story')this.endBattle();
+      return;
+    }
+    if(this.storyWave+1>=this.storyEncounters.length){
       this.endBattle();
       return;
     }
     this.storySwitching=true;
     this.enemyActiveAt=Infinity;
     this.reactions.enemy=null;
-    this.enemyArt?.setVisible(false);
-    this.enemyShadow?.setVisible(false);
-    this.enemyLabel.setVisible(false);
-    this.enemy.setVisible(false);
-    const finishedName=pokemonCatalog[this.enemySpecies].name.toUpperCase();
-    this.skillCallout(this.enemy.x,this.enemy.y-59,finishedName+' DERROTADO!',0xf8d3a1);
-    this.time.delayedCall(750,()=>{
-      if(this.finished||this.mode!=='story')return;
-      for(const shot of this.projectiles)shot.body.destroy();
-      this.projectiles=[];
-      this.enemyArt?.destroy();
-      this.enemyMotion=undefined;
-      this.storyWave++;
-      this.enemySpecies=this.storyEncounters[this.storyWave].species;
-      const profile=pokemonCatalog[this.enemySpecies];
-      this.enemyMaxHp=profile.maxHp;
-      this.enemyHp=profile.maxHp;
-      this.shownHp.enemy=profile.maxHp;
-      this.enemy.radius=profile.radius;
-      this.enemy.setPosition(pewterGym.spawnRival.x,pewterGym.spawnRival.y);
-      this.enemyFacing.set(-1,1).normalize();
-      this.reactions.enemy=null;
-      this.lastHitAt.enemy=-1000;
-      this.enemyCastAt=this.enemyReadyAt(this.time.now);
-      this.enemyCastLockUntil=0;
-      this.enemySlowUntil=0;
-      this.enemyBindUntil=0;
-      this.rolloutUntil=0;
-      this.enemyAttackAt=-1000;
-      this.enemyHurtAt=-1000;
-      this.enemyShadow?.setVisible(true).setDisplaySize(
-        this.enemySpecies==='onix'?79:45,17).setPosition(this.enemy.x,this.enemy.y+15);
-      this.createEnemyArt(this.enemy.x,this.enemy.y);
-      this.enemyLabel.setText(profile.name.toUpperCase()).setVisible(true);
-      this.storySwitching=false;
-      this.enemyActiveAt=this.time.now+850;
-      this.nextEnemyDecision=this.enemyActiveAt;
-      this.updateWaveText();
-      this.updateHp();
-      this.drawHealthBars(0);
-      this.skillCallout(this.enemy.x,this.enemy.y-100,
-        'BROCK ENVIOU '+profile.name.toUpperCase()+'!',0xffd5a2);
-      this.rockFx?.burst(this.enemy.x,this.enemy.y+8,64,this.time.now,'slam');
+    const defeated=pokemonCatalog[this.enemySpecies].name.toUpperCase();
+    this.skillCallout(this.enemy.x,this.enemy.y-79,
+      defeated+' FOI DERROTADO!',0xf8d3a1);
+    const from={x:this.enemy.x,y:this.enemy.y};
+    const trainer=pewterGym.npc.find(n=>n.role==='leader')??{
+      x:480,y:94
+    };
+    const next=this.storyEncounters[this.storyWave+1];
+    this.switchFx?.run({
+      outgoing:this.enemyArt,
+      from,
+      trainer:{x:trainer.x,y:trainer.y},
+      to:{x:pewterGym.spawnRival.x,y:pewterGym.spawnRival.y},
+      nextName:next.displayName,
+      onReturned:()=>{
+        for(const shot of this.projectiles)shot.body.destroy();
+        this.projectiles=[];
+        this.flameStreams=[];
+        this.fx.drawShots([],this.time.now);
+        this.enemyArt?.destroy();
+        this.enemyArt=undefined;
+        this.enemyMotion=undefined;
+        this.enemyShadow?.setVisible(false);
+        this.enemyLabel.setVisible(false);
+        this.enemy.setVisible(false);
+      },
+      onSummoned:()=>{
+        this.storyWave++;
+        this.enemySpecies=next.species;
+        const info=pokemonCatalog[this.enemySpecies];
+        this.enemyMaxHp=info.maxHp;
+        this.enemyHp=info.maxHp;
+        this.shownHp.enemy=info.maxHp;
+        this.enemy.radius=info.radius;
+        this.enemy.setPosition(pewterGym.spawnRival.x,pewterGym.spawnRival.y);
+        this.enemyFacing.set(-1,1).normalize();
+        this.reactions.enemy=null;
+        this.lastHitAt.enemy=-1000;
+        this.enemyCastAt=this.enemyReadyAt(this.time.now);
+        this.enemyCastLockUntil=0;
+        this.enemySlowUntil=0;
+        this.enemyBindUntil=0;
+        this.rolloutUntil=0;
+        this.enemyAttackAt=-1000;
+        this.enemyHurtAt=-1000;
+        this.enemyActionIndex=0;
+        this.enemyShadow?.setVisible(true).setDisplaySize(
+          this.enemySpecies==='onix'?79:45,17)
+          .setPosition(this.enemy.x,this.enemy.y+15);
+        this.createEnemyArt(this.enemy.x,this.enemy.y);
+        this.enemyLabel.setText(info.name.toUpperCase()).setVisible(false);
+        this.updateWaveText();
+        this.updateHp();
+        this.drawHealthBars(0);
+        this.rockFx?.burst(this.enemy.x,this.enemy.y+10,49,this.time.now,'slam');
+        return this.enemyArt;
+      },
+      onReady:()=>{
+        this.enemyLabel.setVisible(true);
+        this.storySwitching=false;
+        this.enemyActiveAt=this.time.now+1350;
+        this.nextEnemyDecision=this.enemyActiveAt;
+        this.updateHp();
+      }
     });
   }
 
@@ -599,10 +635,10 @@ export class ArenaScene extends Phaser.Scene {
     this.enemyCastAt[skill]=time;
     this.enemyAttackAt=time;
     // Prevent AI strafing or casting a second attack during longer telegraphs.
-    const lock=skill==='r'?1200:skill==='e'?740:
-      skill==='w'&&species==='geodude'?1190:skill==='w'?480:210;
+    const lock=skill==='r'?1640:skill==='e'?990:
+      skill==='w'&&species==='geodude'?1540:skill==='w'?930:310;
     this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+lock);
-    if(skill==='w'&&species==='geodude')this.rolloutUntil=time+1110;
+    if(skill==='w'&&species==='geodude')this.rolloutUntil=time+1450;
     const dir=this.directionTo(this.enemy,this.player.x,this.player.y,this.enemyFacing);
     this.faceDirection('enemy',dir);
     const motion=skill==='q'?'Shoot':skill==='w'?'Attack':'Charge';
@@ -1005,13 +1041,24 @@ export class ArenaScene extends Phaser.Scene {
     if(time<this.nextEnemyDecision || time<this.enemyActiveAt
       || time<this.enemyCastLockUntil || this.storySwitching
       || this.finished || this.enemyHp<=0)return;
-    this.nextEnemyDecision=time+Phaser.Math.Between(1120,1570);
+    // A slower decision beat makes attacks legible while longer telegraphs
+    // and a tougher two-Pokémon team maintain the challenge.
+    this.nextEnemyDecision=time+Phaser.Math.Between(
+      this.mode==='story'?1540:1120,this.mode==='story'?2130:1570);
     const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,this.enemy.x,this.enemy.y);
-    const preferred=this.enemyPattern[this.enemyActionIndex++ % this.enemyPattern.length];
+    const storyPattern:readonly Skill[]=this.enemySpecies==='onix'
+      ?['e','q','w','q','r','e','q','w','r','q']
+      :['q','e','w','q','r','e','q','w','q','r'];
+    const sequence=this.mode==='story'?storyPattern:this.enemyPattern;
+    const preferred=sequence[this.enemyActionIndex++ % sequence.length];
     let selection:Skill=preferred;
+    const critical=this.enemyHp/this.enemyMaxHp<0.46;
+    if(this.mode==='story'&&critical&&this.enemyActionIndex%4===0
+      &&this.canCast('enemy','r',time))selection='r';
     const meleeReach=this.enemySpecies==='geodude'?265:
       this.enemySpecies==='onix'?145:140;
-    if(selection==='w' && distance>meleeReach)selection='q';
+    if(selection==='w' && distance>meleeReach)
+      selection=this.mode==='story'&&this.canCast('enemy','e',time)?'e':'q';
     if(!this.canCast('enemy',selection,time))selection='q';
     if(this.canCast('enemy',selection,time)){
       if(this.enemySpecies==='pikachu')this.castPikachu(selection,time);
@@ -1058,6 +1105,13 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     if(this.settingsOpen()||this.finished)return;
+    if((this.mode==='story'&&time<this.storyIntroUntil)||this.storySwitching){
+      // The VS card and Poké Ball switch are deliberate non-combat moments.
+      // Effects and Phaser tweens can finish, but no unseen projectiles land.
+      this.rockFx?.update(time);
+      this.updateHud(time);
+      return;
+    }
     if(time<this.hitStopUntil){this.updateHud(time);return;}
     const dt=Math.min(delta/1000,0.05);
     const oldPlayer=vector(this.player.x,this.player.y);

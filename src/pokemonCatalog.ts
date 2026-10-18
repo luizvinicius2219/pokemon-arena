@@ -41,13 +41,13 @@ export const pokemonCatalog: Record<Fighter,PokemonProfile> = {
   }),
   geodude:profile({
     id:'geodude',number:74,name:'Geodude',elements:['rock','ground'],
-    maxHp:84,radius:21,moveSpeed:102,attackStyle:'rock',
+    maxHp:99,radius:21,moveSpeed:108,attackStyle:'rock',
     portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/74.png',
     playable:true
   }),
   onix:profile({
     id:'onix',number:95,name:'Onix',elements:['rock','ground'],
-    maxHp:125,radius:28,moveSpeed:82,attackStyle:'rock',
+    maxHp:145,radius:28,moveSpeed:91,attackStyle:'rock',
     portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/95.png',
     playable:true
   })

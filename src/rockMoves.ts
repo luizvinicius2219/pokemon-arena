@@ -235,14 +235,14 @@ export class RockMoves {
       hooks.signal('ROLAGEM');
       hooks.charge(1.1,250);
       for(let step=0;step<3;step++){
-        later(step*340,()=>{
+        later(step*470,()=>{
           const from=hooks.sourcePosition(),toward=hooks.targetPosition();
           const d=new Phaser.Math.Vector2(toward.x-from.x,toward.y-from.y);
           if(d.lengthSq()<0.001)d.copy(direction);else d.normalize();
           const tx=Phaser.Math.Clamp(from.x+d.x*52,66,894);
           const ty=Phaser.Math.Clamp(from.y+d.y*52,82,495);
-          this.fx.warn(tx,ty,45,now(),190,'roll');
-          later(190,()=>{
+          this.fx.warn(tx,ty,45,now(),240,'roll');
+          later(240,()=>{
             const moved=hooks.moveSource(tx,ty);
             impact(moved.x,moved.y,43,
               attack.damage+step*4,'roll');
@@ -297,7 +297,7 @@ export class RockMoves {
       const level=4+Phaser.Math.Between(0,5);
       const radius=125+(level-4)*12;
       const damage=attack.damage+(level-4)*3;
-      const delay=670;
+      const delay=920;
       hooks.signal('MAGNITUDE '+level+'!');
       hooks.charge(2.2,delay);
       this.fx.warn(source.x,source.y,radius,time,delay,'quake');
@@ -312,9 +312,9 @@ export class RockMoves {
     if(skill==='r'&&species==='onix'){
       // Earthquake: two expanding seismic waves, each with a readable windup.
       hooks.signal('TERREMOTO');
-      hooks.charge(2.7,580);
-      const ranges=[{radius:112,delay:650,damage:9},
-        {radius:195,delay:950,damage:attack.damage}];
+      hooks.charge(2.7,860);
+      const ranges=[{radius:128,delay:890,damage:10},
+        {radius:204,delay:1330,damage:attack.damage}];
       for(const range of ranges){
         this.fx.warn(source.x,source.y,range.radius,time,
           range.delay,'quake');
