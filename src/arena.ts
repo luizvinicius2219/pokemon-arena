@@ -68,6 +68,8 @@ export class ArenaScene extends Phaser.Scene {
   private enemyBindUntil=0;
   private enemyCastLockUntil=0;
   private enemyBurrowed=false;
+  private readonly enemyBurrowVisual={depth:0};
+  private enemyBurrowTween?:Phaser.Tweens.Tween;
   private rolloutUntil=0;
   private statusText?:Phaser.GameObjects.Text;
   private enemySpecies:Fighter='pikachu';
@@ -166,6 +168,8 @@ export class ArenaScene extends Phaser.Scene {
     this.enemyBindUntil=0;
     this.enemyCastLockUntil=0;
     this.enemyBurrowed=false;
+    this.enemyBurrowVisual.depth=0;
+    this.enemyBurrowTween=undefined;
     this.rolloutUntil=0;
     this.rockFx=this.mode==='story'?new RockFx(this):undefined;
     this.rockMoves=this.rockFx?new RockMoves(this,this.rockFx):undefined;
@@ -275,6 +279,40 @@ export class ArenaScene extends Phaser.Scene {
     };
   }
 
+  private animateOnixBurrow(burrowed:boolean){
+    this.enemyBurrowed=burrowed;
+    this.enemyBurrowTween?.stop();
+    if(burrowed){
+      this.enemyLabel?.setVisible(false);
+    }else{
+      this.enemyArt?.setVisible(true);
+    }
+    this.enemyBurrowTween=this.tweens.add({
+      targets:this.enemyBurrowVisual,
+      depth:burrowed?1:0,
+      duration:burrowed?480:560,
+      ease:burrowed?'Cubic.easeIn':'Cubic.easeOut',
+      onUpdate:()=>{
+        const depth=this.enemyBurrowVisual.depth;
+        if(this.enemyMotion)this.enemyMotion.setBurrowDepth(depth);
+        else if(this.enemyArt){
+          this.enemyArt.setAlpha(1-depth*0.94);
+          this.enemyArt.setScale(1-depth*0.64,1-depth*0.92);
+        }
+        this.enemyShadow?.setAlpha((1-depth)*0.5);
+      },
+      onComplete:()=>{
+        if(burrowed)this.enemyArt?.setVisible(false);
+        else{
+          this.enemyBurrowVisual.depth=0;
+          this.enemyMotion?.setBurrowDepth(0);
+          this.enemyArt?.setAlpha(1);
+          this.enemyLabel?.setVisible(true);
+        }
+      }
+    });
+  }
+
   private createEnemyArt(x:number,y:number){
     const id=this.enemySpecies;
     this.enemy.setVisible(false);
@@ -356,7 +394,9 @@ export class ArenaScene extends Phaser.Scene {
         this.enemyCastLockUntil=0;
         this.enemySlowUntil=0;
         this.enemyBindUntil=0;
+        this.enemyBurrowTween?.stop();
         this.enemyBurrowed=false;
+        this.enemyBurrowVisual.depth=0;
         this.rolloutUntil=0;
         this.enemyAttackAt=-1000;
         this.enemyHurtAt=-1000;
@@ -649,7 +689,7 @@ export class ArenaScene extends Phaser.Scene {
     // Prevent AI strafing or casting a second attack during longer telegraphs.
     const lock=skill==='r'?1640:skill==='e'?990:
       skill==='w'&&species==='geodude'?1540:
-      skill==='w'&&species==='onix'?1650:310;
+      skill==='w'&&species==='onix'?2550:310;
     this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+lock);
     if(skill==='w'&&species==='geodude')this.rolloutUntil=time+1450;
     const dir=this.directionTo(this.enemy,this.player.x,this.player.y,this.enemyFacing);
@@ -689,12 +729,7 @@ export class ArenaScene extends Phaser.Scene {
         this.enemyShadow?.setPosition(safe.x,safe.y+15);
         return safe;
       },
-      setBurrowed:(burrowed)=>{
-        this.enemyBurrowed=burrowed;
-        this.enemyArt?.setVisible(!burrowed);
-        this.enemyShadow?.setVisible(!burrowed);
-        this.enemyLabel?.setVisible(!burrowed);
-      },
+      setBurrowed:(burrowed)=>this.animateOnixBurrow(burrowed),
       stillActive:()=>!this.finished&&!this.storySwitching&&this.enemySpecies===species,
       charge:(power,duration)=>this.cinematic.charge('enemy','rock',power,
         this.time.now,duration),
@@ -959,7 +994,7 @@ export class ArenaScene extends Phaser.Scene {
       }
       const target=shot.side==='player'?this.enemy:this.player;
       const hit=Phaser.Math.Distance.Between(x,y,target.x,target.y)<shot.body.radius+target.radius
-        && !(shot.side==='player' && this.storySwitching);
+        && !(shot.side==='player' && (this.storySwitching||this.enemyBurrowed));
       const rockHit=this.environment?.intercept(x,y,shot.body.radius,shot.damage)??false;
       const expired=time>=shot.expiry||x<30||x>W-30||y<30||y>H-30;
       if(!hit&&!expired&&!rockHit)continue;
@@ -1009,7 +1044,8 @@ export class ArenaScene extends Phaser.Scene {
         const vx=this.enemy.x-x,vy=this.enemy.y-y;
         const along=vx*dir.x+vy*dir.y;
         const lateral=Math.abs(vx*dir.y-vy*dir.x);
-        if(along>=0&&along<=blocked+this.enemy.radius&&lateral<=27+this.enemy.radius){
+        if(!this.enemyBurrowed && along>=0
+          && along<=blocked+this.enemy.radius&&lateral<=27+this.enemy.radius){
           this.damage('enemy',4,this.enemy.x,this.enemy.y,0xff9f41);
         }
         if(Math.random()<0.65){
