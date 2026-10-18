@@ -13,7 +13,7 @@ export type ObstacleKind = 'rock' | 'pillar';
 export interface StageNpc {
   id: string;
   name: string;
-  role: 'leader' | 'trainer' | 'spectator';
+  role: 'leader' | 'trainer' | 'spectator' | 'player';
   x: number;
   y: number;
   palette: number;
@@ -35,6 +35,7 @@ export interface StoryStage {
   leader: string;
   theme: 'rock';
   npc: readonly StageNpc[];
+  hero?: StageNpc;
   obstacles: readonly BreakableObstacle[];
   spawnPlayer: {x:number;y:number};
   spawnRival: {x:number;y:number};
@@ -50,6 +51,7 @@ export const pewterGym: StoryStage = {
   preview: true,
   spawnPlayer: {x:480,y:455},
   spawnRival: {x:480,y:185},
+  hero: {id:'red',name:'RED',role:'player',x:480,y:534,palette:0xb32f32},
   npc: [
     {id:'brock',name:'BROCK',role:'leader',x:480,y:94,palette:0x796455,
       dialogue:'A força da rocha está na resistência!'},
@@ -80,9 +82,14 @@ export const kantoGymOrder = [
 export function preloadPewter(scene:Phaser.Scene) {
   const root='/assets/story/pewter/';
   scene.load.svg('pewter-floor',root+'gym.svg',{width:960,height:576});
-  for(const name of ['brock','trainer-a','trainer-b','rock','rock-cracked','pillar','pillar-cracked']){
+  for(const name of ['brock','red','trainer-a','trainer-b','rock','rock-cracked','pillar','pillar-cracked']){
     scene.load.svg('pewter-'+name,root+name+'.svg',{width:64,height:64});
   }
+  // Genuine retro trainer portraits (unaltered), with local original pixel-art
+  // fallbacks if the external host is unavailable or CORS blocks the image.
+  const portraits='https://play.pokemonshowdown.com/sprites/trainers/';
+  scene.load.image('pewter-brock-classic',portraits+'brock-gen3.png');
+  scene.load.image('pewter-red-classic',portraits+'red-gen3.png');
 }
 
 interface RockState extends BreakableObstacle {
@@ -97,19 +104,74 @@ export class StoryEnvironment {
   constructor(private readonly scene:Phaser.Scene,readonly stage:StoryStage){
     scene.add.image(480,288,'pewter-floor').setDepth(-20).setOrigin(0.5);
     for(const npc of stage.npc){
-      const texture=npc.role==='leader'?'pewter-brock':
-        npc.id==='guide-west'||npc.id==='spectator-west'?'pewter-trainer-a':'pewter-trainer-b';
       const leader=npc.role==='leader';
-      const width=leader?52:43,height=leader?69:57;
-      scene.add.image(npc.x,npc.y-13,texture).setDisplaySize(width,height)
-        .setDepth(2).setOrigin(0.5);
+      const fallback=leader?'pewter-brock':
+        npc.id==='guide-west'||npc.id==='spectator-west'?'pewter-trainer-a':'pewter-trainer-b';
+      const texture=leader&&scene.textures.exists('pewter-brock-classic')
+        ?'pewter-brock-classic':fallback;
+      const width=leader?96:43,height=leader?96:57;
+      const image=scene.add.image(npc.x,npc.y-(leader?10:13),texture)
+        .setDisplaySize(width,height).setDepth(2).setOrigin(0.5);
+      // Retro portraits are supplied on a square transparent canvas; fallback
+      // overworld art is taller, so their dimensions differ by design.
+      if(leader && texture===fallback)image.setDisplaySize(56,70);
     }
+    const leader=stage.npc.find(npc=>npc.role==='leader');
+    if(leader){
+      scene.add.text(leader.x,leader.y-55,leader.name,{
+        fontSize:'13px',fontStyle:'bold',color:'#ffe2a6',
+        stroke:'#20303a',strokeThickness:4
+      }).setOrigin(0.5).setDepth(10);
+    }
+
+    if(stage.hero){
+      const hero=stage.hero;
+      const texture=scene.textures.exists('pewter-red-classic')
+        ?'pewter-red-classic':'pewter-red';
+      scene.add.ellipse(hero.x,hero.y+18,37,11,0x182d35,0.5).setDepth(1);
+      const player=scene.add.image(hero.x,hero.y-8,texture)
+        .setDisplaySize(88,88).setOrigin(0.5).setDepth(2);
+      if(texture==='pewter-red')player.setDisplaySize(52,72);
+      scene.add.text(hero.x,hero.y+32,hero.name,{
+        fontSize:'12px',fontStyle:'bold',color:'#fff0d2',
+        stroke:'#21343c',strokeThickness:3
+      }).setOrigin(0.5).setDepth(10);
+    }
+    this.showStageIntroduction();
+
     for(const data of stage.obstacles){
       const texture=data.kind==='pillar'?'pewter-pillar':'pewter-rock';
       const image=scene.add.image(data.x,data.y,texture)
         .setDisplaySize(data.radius*2.1,data.radius*2.1).setDepth(3).setOrigin(0.5);
       this.rocks.push({...data,currentHp:data.hp,destroyed:false,image,lastDamage:-1000});
     }
+  }
+
+  private showStageIntroduction(){
+    // One inexpensive introductory panel, then the scene remains entirely
+    // static. The battle continues underneath; no mandatory cutscene or pause.
+    const panel=this.scene.add.container(480,491).setDepth(16).setAlpha(0);
+    const plate=this.scene.add.rectangle(0,0,540,59,0x102632,0.91)
+      .setStrokeStyle(2,0xbda274);
+    const title=this.scene.add.text(-251,-23,
+      'GINÁSIO DE PEWTER  ·  BROCK',{
+        fontSize:'14px',fontStyle:'bold',color:'#ffe4ae'
+      });
+    const quote=this.scene.add.text(-251,-3,
+      'A força de uma rocha está na resistência. Mostre o que sabe!',{
+        fontSize:'13px',color:'#f1f5e9'
+      });
+    const hint=this.scene.add.text(-251,15,
+      'PRÉVIA  ·  PIKACHU AINDA É O RIVAL DE TESTE',{
+        fontSize:'11px',color:'#a9c4c8'
+      });
+    panel.add([plate,title,quote,hint]);
+    this.scene.tweens.add({targets:panel,alpha:1,duration:230,ease:'Quad.easeOut'});
+    this.scene.time.delayedCall(2550,()=>{
+      if(!panel.active)return;
+      this.scene.tweens.add({targets:panel,alpha:0,duration:370,
+        onComplete:()=>panel.destroy()});
+    });
   }
 
   resolve(x:number,y:number,radius:number):{x:number;y:number}{

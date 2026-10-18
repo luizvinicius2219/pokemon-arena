@@ -192,12 +192,8 @@ export class ArenaScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ENTER',() => {
       if (this.finished) this.scene.restart();
     });
-    if(this.mode==='story'){
-      this.add.text(W/2,551,'PRÉVIA: o adversário ainda é Pikachu. Brock e Pokémon de pedra virão nas próximas etapas.',{
-        color:'#eadcbb',fontSize:'12px',fontStyle:'bold',
-        stroke:'#30251c',strokeThickness:3
-      }).setOrigin(0.5).setDepth(12);
-    }
+    // Pewter's short stage introduction conveys preview status and is
+    // rendered by StoryEnvironment. It leaves the Red trainer unobstructed.
     this.updateHp();
     this.updateHud(0,true);
   }

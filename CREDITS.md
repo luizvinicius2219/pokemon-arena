@@ -31,3 +31,14 @@ O projeto mantém as animações de batalha da PokéAPI como alternativa caso os
 https://github.com/PokeAPI/sprites
 
 Esses recursos também podem estar sujeitos a direitos de terceiros.
+
+
+## Treinadores clássicos — Pokémon Showdown
+
+Na prévia do Ginásio de Pewter, o Brock e o treinador Red são exibidos a partir de sprites da **Geração 3** disponibilizados pelo índice público do Pokémon Showdown, sem alterações às imagens:
+
+- Brock: https://play.pokemonshowdown.com/sprites/trainers/brock-gen3.png
+- Red: https://play.pokemonshowdown.com/sprites/trainers/red-gen3.png
+- Fonte e créditos adicionais: https://play.pokemonshowdown.com/sprites/trainers/
+
+Os sprites clássicos pertencem aos respectivos titulares de Pokémon. O índice do Showdown alerta que sprites da comunidade requerem atribuição e que não devem ser editados sem permissão. Como alternativa em caso de indisponibilidade de rede, o projeto mantém artes pixelizadas originais em `public/assets/story/pewter/brock.svg` e `red.svg`. Nenhuma dessas artes substitutas é apresentada como sprite oficial. O jogo continua experimental e sem finalidade comercial.

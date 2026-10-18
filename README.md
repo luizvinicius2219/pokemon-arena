@@ -175,3 +175,8 @@ O Ginásio de Pewter usa fundo estático desenhado em pixel art, cinco treinador
 - Quatro rochas destrutíveis reposicionadas nas bordas do círculo: texturas em dois estados (intacta/rachada), desaparecimento ao quebrar, colisão e bloqueio de ataques preservados. Os dois pilares colidíveis do centro foram retirados para deixar a luta aberta; pilares arquitetônicos permanecem como decoração estática.
 - Sprites de Brock, treinadores e rochas redesenhados com pixels definidos, iluminação em camadas e contorno escuro, sem animação contínua; assets originais construídos para este protótipo.
 - A Arena Livre, os controles e o combate da versão anterior foram preservados. Não há efeitos de cenário rodando a cada quadro. O Brock ainda é visual; o oponente continua sendo Pikachu na prévia.
+
+
+## Pewter — identificação dos treinadores e introdução
+
+O Ginásio de Pewter agora exibe o líder Brock com sprite clássico mais fiel à franquia e o jogador representado por Red no limite inferior da arena. São personagens estáticos de ambientação, distintos dos Pokémon combatentes e sem IA própria. Sprites originais locais mantêm o visual íntegro quando o repositório de retratos externos não está disponível. A entrada do ginásio apresenta por poucos segundos uma fala de Brock e o aviso de que Pikachu ainda é adversário de teste, sem pausar a jogabilidade. A Arena Livre permanece inalterada. Veja atribuições em `CREDITS.md`.
