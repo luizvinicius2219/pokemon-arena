@@ -1,4 +1,4 @@
-# Monster Arena — protótipo Pokémon 1.1
+# Monster Arena — protótipo Pokémon 1.2
 
 Arena 2D de combate em tempo real desenvolvida com **Phaser 3 + TypeScript + Vite**, com Charizard controlado pelo jogador e Pikachu controlado pelo computador.
 
@@ -128,3 +128,14 @@ A atualização continua usando as folhas PMD de animação `Hurt` e mantém as 
 - Controle universal de habilidades, joystick, cooldowns, dash animado e balanceamento de danos anteriores preservados.
 
 Estas melhorias são visuais; a mecânica das habilidades e a estrutura de controles não foram substituídas.
+
+## Versão 1.2 — combos e resultados de batalha
+
+- **Contador de combos:** acertos consecutivos em Pikachu acumulam combos por 3,3 segundos. O contador e a barra de expiração aparecem dentro da arena a partir do segundo golpe. Sofrer dano interrompe o combo.
+- **Feedback de esquiva:** quando um golpe efetivamente seria recebido durante os quadros invulneráveis do dash, surge **ESQUIVA!** e o evento é registrado no resumo, sem alterar a invulnerabilidade anterior.
+- **Resumo de partida:** painel com vitória/derrota, tempo, classificação, dano causado/recebido, acertos, maior combo, esquivas realizadas e ataques evitados. Serve tanto no PC quanto no celular.
+- **Recordes locais opcionais:** maior combo e melhor tempo de vitória ficam salvos somente em `localStorage` no navegador. O jogo funciona normalmente se o navegador bloquear armazenamento.
+- A implementação isolada em `src/battleStats.ts` não altera os valores de dano, o comportamento da IA, cooldowns ou o joystick.
+- Botão de reinício por toque e Enter seguem disponíveis.
+
+*Classificação S/A/B/C é uma métrica ilustrativa de desempenho baseada em vida restante, combos, esquivas efetivas e tempo. Não altera recompensas nem progressão de personagens.*

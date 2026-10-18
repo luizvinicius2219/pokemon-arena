@@ -7,6 +7,7 @@ import { CombatFx, beamReach, type VfxKind } from './combatFx';
 import { CinematicFx } from './cinematicFx';
 import { OverworldActor, preloadOverworld, releaseFrameMs } from './overworld';
 import type { MobileControls } from './mobileControls';
+import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
 
 type Side = 'player' | 'enemy';
 type ProjectileKind = VfxKind;
@@ -50,6 +51,9 @@ interface HitReaction {
 export class ArenaScene extends Phaser.Scene {
   private fx!: CombatFx;
   private cinematic!: CinematicFx;
+  private stats!: BattleStats;
+  private comboText!: Phaser.GameObjects.Text;
+  private comboMeter!: Phaser.GameObjects.Graphics;
   private hitStopUntil = -1000;
   private player!: Phaser.GameObjects.Arc;
   private enemy!: Phaser.GameObjects.Arc;
@@ -114,6 +118,7 @@ export class ArenaScene extends Phaser.Scene {
 
     this.fx = new CombatFx(this);
     this.cinematic = new CinematicFx(this);
+    this.stats = new BattleStats(this.time.now);
     this.playerMotion = undefined;
     this.enemyMotion = undefined;
     this.hitStopUntil = -1000;
@@ -159,6 +164,11 @@ export class ArenaScene extends Phaser.Scene {
     this.enemyLabel = this.add.text(750,253,'PIKACHU',{color:'#ffe9b2',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
     this.hpText = this.add.text(32,24,'Charizard: 100 HP',{fontSize:'20px',color:'#a5eeff'}).setDepth(10);
     this.enemyHpText = this.add.text(740,24,'Pikachu: 100 HP',{fontSize:'20px',color:'#ffcd9e'}).setDepth(10);
+    this.comboText=this.add.text(W/2,75,'',{
+      color:'#ffe6a6',fontSize:'22px',fontStyle:'bold',
+      stroke:'#182c36',strokeThickness:4
+    }).setOrigin(0.5).setDepth(12).setVisible(false);
+    this.comboMeter=this.add.graphics().setDepth(11);
     this.healthBars=this.add.graphics().setDepth(9);
     this.drawHealthBars(0);
     this.destination.set(this.player.x,this.player.y);
@@ -216,6 +226,34 @@ export class ArenaScene extends Phaser.Scene {
     }
   }
 
+  private updateCombo(time:number) {
+    const combo=this.stats.comboAt(time);
+    const active=combo>=2;
+    this.comboText.setVisible(active);
+    this.comboMeter.clear();
+    if(!active)return;
+    const strong=combo>=10;
+    const remaining=this.stats.comboRemaining(time);
+    this.comboText.setText(combo+' ACERTOS  ·  COMBO!');
+    this.comboText.setColor(strong?'#fff6cb':'#ffe6a6');
+    const width=148;
+    const x=W/2-width/2;
+    this.comboMeter.fillStyle(0x122932,0.82).fillRoundedRect(x,97,width,7,3);
+    this.comboMeter.fillStyle(strong?0xffca57:0x74e2d9,0.98)
+      .fillRoundedRect(x,97,Math.max(1,width*remaining),7,3);
+  }
+
+  private showEvade(time:number) {
+    const text=this.add.text(this.player.x,this.player.y-54,'ESQUIVA!',{
+      fontSize:'17px',fontStyle:'bold',color:'#b1f5fa',
+      stroke:'#173340',strokeThickness:3
+    }).setOrigin(0.5).setDepth(14);
+    this.tweens.add({targets:text,y:text.y-23,alpha:0,duration:470,
+      onComplete:()=>text.destroy()});
+    this.fx.dashDust(this.player.x,this.player.y,this.playerFacing,0.3);
+    this.lastHudUpdate=Math.min(this.lastHudUpdate,time-60);
+  }
+
   private updateHud(time:number, force=false) {
     if(!force && time-this.lastHudUpdate<60)return;
     this.lastHudUpdate=time;
@@ -266,6 +304,7 @@ export class ArenaScene extends Phaser.Scene {
       const end=vector(clampX(start.x+dir.x*120),clampY(start.y+dir.y*120));
       if(start.distance(end)<5)return;
       this.playerCastAt.dodge=time;
+      this.stats.registerDodge();
       this.playerFacing.copy(dir);
       this.dash={from:start,to:end,direction:dir,startAt:time,duration:230,lastGhostAt:-1000};
       this.playerMotion?.trigger('Hop',time,dir,230);
@@ -484,7 +523,10 @@ export class ArenaScene extends Phaser.Scene {
     if(this.finished)return;
     const now=this.time.now;
     // Real dodge invulnerability is tied to the visible Hop, not a teleport.
-    if(target==='player' && this.dash && now-this.dash.startAt<this.dash.duration*0.70)return;
+    if(target==='player' && this.dash && now-this.dash.startAt<this.dash.duration*0.70){
+      if(this.stats.registerEvade(now))this.showEvade(now);
+      return;
+    }
     // Prevent overlapping impact events in the same couple of frames; long
     // streams can still tick as the Pokémon remains exposed to them.
     if(now-this.lastHitAt[target]<75)return;
@@ -500,11 +542,18 @@ export class ArenaScene extends Phaser.Scene {
       lastDistance:0,direction
     };
     if(target==='player') {
+      const actual=Math.min(this.playerHp,amount);
       this.playerHp=Math.max(0,this.playerHp-amount);
+      this.stats.registerDamage(actual);
       this.playerHurtAt=now;
       this.playerMotion?.hurt(now);
     } else {
+      const actual=Math.min(this.enemyHp,amount);
       this.enemyHp=Math.max(0,this.enemyHp-amount);
+      const combo=this.stats.registerHit(actual,now);
+      if(combo===5||combo===10||combo===20)
+        this.skillCallout(this.enemy.x,this.enemy.y-75,
+          combo+' ACERTOS!',0xffe69c);
       this.enemyHurtAt=now;
       this.enemyMotion?.hurt(now);
     }
@@ -530,11 +579,60 @@ export class ArenaScene extends Phaser.Scene {
     if(this.finished)return;
     this.finished=true;
     this.mobile.setFinished(true);
-    this.add.rectangle(W/2,H/2,590,135,0x09181d,0.94).setDepth(20);
-    this.add.text(W/2,H/2,
-      (this.playerHp<=0?'DERROTA':'VITÓRIA')+(this.mobile.active?'\nToque em Jogar novamente':'\nENTER para reiniciar'),
-      {fontSize:'30px',align:'center',color:'#ffffff'}
-    ).setOrigin(0.5).setDepth(21);
+    this.comboText.setVisible(false);
+    this.comboMeter.clear();
+    const result=this.stats.finish(this.time.now,this.playerHp>0,this.playerHp);
+    this.showResults(result);
+  }
+
+  private showResults(result:BattleSummary) {
+    const center=W/2;
+    const tint=result.victory?0x79e4ba:0xffbb85;
+    this.add.rectangle(center,H/2,650,346,0x071820,0.96)
+      .setStrokeStyle(3,0x4e8383,0.92).setDepth(23);
+    const headline=result.victory?'VITÓRIA!':'DERROTA';
+    this.add.text(center,147,headline,{
+      fontSize:'35px',fontStyle:'bold',color:result.victory?'#a4f1d3':'#ffb7aa',
+      stroke:'#14313b',strokeThickness:3
+    }).setOrigin(0.5).setDepth(25);
+    this.add.text(center,182,
+      'TEMPO  '+formatBattleTime(result.durationSeconds)+'   ·   RANK  '+result.rank,
+      {fontSize:'18px',fontStyle:'bold',color:'#d6e9e7'}
+    ).setOrigin(0.5).setDepth(25);
+    this.add.rectangle(center,206,530,1,0x47747b).setDepth(25);
+    const left=238,right=494;
+    const addRow=(x:number,y:number,label:string,value:string,highlight=false)=>{
+      this.add.text(x,y,label,{
+        fontSize:'15px',color:'#a8c7cb'
+      }).setDepth(25);
+      this.add.text(x+228,y,value,{
+        fontSize:'16px',fontStyle:'bold',color:highlight?'#ffe4a7':'#f0faf6'
+      }).setOrigin(1,0).setDepth(25);
+    };
+    addRow(left,230,'Dano causado',String(result.damageDealt));
+    addRow(left,265,'Dano recebido',String(result.damageTaken));
+    addRow(left,300,'Acertos',String(result.hitsLanded));
+    addRow(right,230,'Maior combo',String(result.bestCombo),result.bestCombo>=5);
+    addRow(right,265,'Esquivas usadas',String(result.dodgesUsed));
+    addRow(right,300,'Golpes evitados',String(result.attacksDodged),result.attacksDodged>0);
+    const recordNotes:string[]=[];
+    if(result.newComboRecord)recordNotes.push('NOVO RECORDE DE COMBO');
+    if(result.newTimeRecord)recordNotes.push('MELHOR TEMPO');
+    const record=recordNotes.length?recordNotes.join('  ·  ')
+      : 'RECORDE DE COMBO: '+result.bestComboRecord+
+        (result.fastestVictorySeconds===null?'':'   ·   MELHOR VITÓRIA: '+formatBattleTime(result.fastestVictorySeconds));
+    this.add.text(center,351,record,{
+      fontSize:'14px',fontStyle:'bold',color:recordNotes.length?'#ffe2a1':'#8fb8c1',
+      align:'center'
+    }).setOrigin(0.5).setDepth(25);
+    this.add.text(center,385,
+      this.mobile.active?'TOQUE EM JOGAR NOVAMENTE':'ENTER PARA JOGAR NOVAMENTE',{
+        fontSize:'16px',fontStyle:'bold',color:'#dbf5f2'
+      }).setOrigin(0.5).setDepth(25);
+    this.cameras.main.shake(result.victory?120:80,0.0015);
+    if(result.victory)this.cinematic.burst(center,149,'fire',1.15,this.time.now);
+    // Keeps mobile restart button exactly where it already was.
+    void tint;
   }
 
   private updateProjectiles(time:number,dt:number) {
@@ -785,6 +883,7 @@ export class ArenaScene extends Phaser.Scene {
     this.playerLabel.setPosition(this.player.x,this.player.y-55);
     this.enemyLabel.setPosition(this.enemy.x,this.enemy.y-43);
     this.drawHealthBars(delta);
+    this.updateCombo(time);
     this.cinematic.update(time,
       {x:this.player.x,y:this.player.y},{x:this.enemy.x,y:this.enemy.y});
     this.updateHud(time);
