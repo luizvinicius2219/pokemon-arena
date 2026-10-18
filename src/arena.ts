@@ -1147,11 +1147,16 @@ export class ArenaScene extends Phaser.Scene {
     this.comboText.setVisible(false);
     this.comboMeter.clear();
     const result=this.stats.finish(this.time.now,this.playerHp>0,this.playerHp);
-    if(this.mode==='practice'){
+    if(this.mode==='practice'||this.mode==='wild'){
+      const wild=this.mode==='wild'?activeWildEncounter():null;
       window.dispatchEvent(new CustomEvent('monster-arena:practice-result',{
-        detail:{victory:result.victory,experience:result.victory?220:0}
+        detail:{victory:result.victory,
+          experience:result.victory?(wild?.experience??220):0,
+          species:this.enemySpecies,level:this.wildLevel}
       }));
     }
+    if(this.mode==='story'&&result.victory)
+      window.dispatchEvent(new Event('monster-arena:gym-victory'));
     this.showResults(result);
   }
 
@@ -1199,9 +1204,10 @@ export class ArenaScene extends Phaser.Scene {
       this.mobile.active?'TOQUE EM JOGAR NOVAMENTE':'ENTER PARA JOGAR NOVAMENTE',{
         fontSize:'16px',fontStyle:'bold',color:'#dbf5f2'
       }).setOrigin(0.5).setDepth(25);
-    if(this.mode==='practice'){
+    if(this.mode==='practice'||this.mode==='wild'){
+      const reward=this.mode==='wild'?activeWildEncounter().experience:220;
       this.add.text(center,414,
-        result.victory?'TREINO CONCLUÍDO · +220 XP':
+        result.victory?'TREINO CONCLUÍDO · +'+reward+' XP':
           'TREINE SEUS MOVIMENTOS E TENTE NOVAMENTE',{
           fontSize:'14px',fontStyle:'bold',color:'#f6d9a0'
         }).setOrigin(0.5).setDepth(25);
@@ -1366,6 +1372,49 @@ export class ArenaScene extends Phaser.Scene {
     return true;
   }
 
+  private castSafariMove(skill:Skill,time:number){
+    if(!this.canCast('enemy',skill,time))return;
+    const species=this.enemySpecies;
+    const move=skills[species][skill];
+    this.enemyCastAt[skill]=time;
+    this.enemyAttackAt=time;
+    const dir=this.directionTo(this.enemy,this.player.x,this.player.y,
+      this.enemyFacing);
+    this.faceDirection('enemy',dir);
+    this.enemyMotion?.trigger(species==='rattata'?'Attack':'Shoot',time,dir);
+    this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+530);
+    if(species==='rattata'){
+      this.starterFx.scratch(
+        {x:this.enemy.x,y:this.enemy.y-18},
+        {x:this.enemy.x+dir.x*65,y:this.enemy.y+dir.y*65},dir
+      );
+      this.time.delayedCall(280,()=>{
+        if(this.finished)return;
+        const distance=Phaser.Math.Distance.Between(this.enemy.x,this.enemy.y,
+          this.player.x,this.player.y);
+        if(distance<124)this.damage('player',move.damage,
+          this.player.x,this.player.y,0xe6cda6,'normal');
+      });
+    }else{
+      this.starterFx.notes({x:this.player.x,y:this.player.y});
+      if(skill==='w'){
+        this.playerSlowUntil=Math.max(this.playerSlowUntil,time+1900);
+        this.skillCallout(this.player.x,this.player.y-66,
+          'CANTAR ♫',0xf0d3fe);
+      }else{
+        this.fx.telegraph(this.player.x,this.player.y,58,'electric',520);
+        this.time.delayedCall(520,()=>{
+          if(this.finished)return;
+          const distance=Phaser.Math.Distance.Between(this.enemy.x,
+            this.enemy.y,this.player.x,this.player.y);
+          if(distance<380)this.damage('player',move.damage,
+            this.player.x,this.player.y,0xeac5fd,
+            skill==='e'?'fairy':'normal');
+        });
+      }
+    }
+  }
+
   private enemyDecision(time:number) {
     if(time<this.nextEnemyDecision || time<this.enemyActiveAt
       || time<this.enemyCastLockUntil || this.storySwitching
@@ -1378,7 +1427,9 @@ export class ArenaScene extends Phaser.Scene {
     const storyPattern:readonly Skill[]=this.enemySpecies==='onix'
       ?['e','q','w','q','r','e','q','w','r','q']
       :['q','e','w','q','r','e','q','w','q','r'];
-    const sequence=this.mode==='story'?storyPattern:this.enemyPattern;
+    const sequence=this.mode==='story'?storyPattern:
+      this.mode==='wild'?(['q','q','w','q','e','q','w','q'] as const):
+      this.enemyPattern;
     const preferred=sequence[this.enemyActionIndex++ % sequence.length];
     let selection:Skill=preferred;
     const critical=this.enemyHp/this.enemyMaxHp<0.46;
@@ -1391,7 +1442,9 @@ export class ArenaScene extends Phaser.Scene {
     if(!this.canCast('enemy',selection,time))selection='q';
     if(this.canCast('enemy',selection,time)){
       if(this.enemySpecies==='pikachu')this.castPikachu(selection,time);
-      else this.castRockPokemon(selection,time);
+      else if(this.enemySpecies==='geodude'||this.enemySpecies==='onix')
+        this.castRockPokemon(selection,time);
+      else this.castSafariMove(selection,time);
     }
   }
 
