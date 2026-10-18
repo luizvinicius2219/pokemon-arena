@@ -258,3 +258,8 @@ Referências: https://pokemondb.net/pokedex/charmander/moves/9 , https://pokemon
 ### Primeira batalha antes do ginásio
 
 O modo `practice` usa Charmander contra um Pikachu de treino com HP e dano reduzidos em uma arena separada, **sem alterar a Arena Livre nem as duas etapas do Brock**. Vencer concede **220 XP** à criatura ativa, elevando nível e HP para as próximas lutas; o resultado oferece retorno à vila. O nível e as habilidades são dados persistentes da coleção. Esta é a primeira etapa de encontros anteriores ao ginásio, não o sistema definitivo de encontros selvagens.
+
+
+### Capítulo 1: Vila Aurora (área explorável)
+
+A tela inicial agora é **Vila Aurora**, um mapa 2D pixelizado leve (uma única textura estática). Há controle pelo teclado e joystick, o treinador Red acompanhado por Charmander, uma pesquisadora com diálogo, grama alta para explorar, uma batalha opcional/necessária de treino contra Pikachu, ganho de **220 XP** por vitória e acesso ao protótipo do ginásio após o treino. A progressão e a posição no mapa são salvas localmente. A troca de cenas não reinicia a aplicação; a Arena Livre e o atalho **Testar Brock** continuam disponíveis. Captura, outras áreas e a escolha de outros iniciais permanecem no roteiro de próximas entregas.

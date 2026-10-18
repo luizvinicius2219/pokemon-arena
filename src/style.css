@@ -188,3 +188,13 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
 #switch-mode{background:#65513a;border:1px solid #a89470;color:#f6e5c7;border-radius:10px;padding:10px 12px;font-weight:800}
 #switch-mode:hover{background:#7a6044}
 @media(max-width:500px){.header-actions{gap:5px}.header-actions button{font-size:12px;padding:7px 8px}.touch-enabled header h1{font-size:17px}}
+
+/* Story mode replaces skill cards with the explorable overworld.
+   Keep the canvas and mobile joystick full-size; hide only combat panels. */
+#gym-preview{background:#2c5050;border:1px solid #94bbb3;color:#f5f0d7;border-radius:10px;padding:10px 12px;font-weight:800}
+#gym-preview:hover{background:#3a6662}
+#hud[hidden],aside[hidden],#gym-preview[hidden]{display:none!important}
+[data-return-story]{margin-top:8px;background:#3d5548;border-color:#9dc7aa}
+@media(max-width:500px){
+  #gym-preview{padding:7px 8px;font-size:12px}
+}

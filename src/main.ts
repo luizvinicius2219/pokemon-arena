@@ -2,6 +2,9 @@ import Phaser from 'phaser';
 import { Action, Bindings, defaults, loadBindings, saveBindings, assignBinding, keyLabel } from './controls';
 import { allActions, dodge, skills } from './abilities';
 import { ArenaScene } from './arena';
+import { WorldScene } from './world';
+import { awardActiveExperience,loadCollection } from './playerCollection';
+import { registerTrainingVictory } from './storyProgress';
 import { MobileControls } from './mobileControls';
 import type { GameMode } from './story';
 import './style.css';
@@ -10,14 +13,15 @@ const app = document.querySelector<HTMLDivElement>('#app')!;
 let bindings: Bindings = loadBindings();
 let capturing: Action | null = null;
 let menuOpen = false;
-let gameMode:GameMode='training';
+let gameMode:GameMode='world';
 const heldKeys = new Set<string>();
 
 const labels: Record<Action, string> = {
   q: 'Habilidade 1', w: 'Habilidade 2', e: 'Habilidade 3', r: 'Especial', dodge: 'Esquiva'
 };
 
-const selectedSpecies = () => gameMode==='story'?'charmander':'charizard';
+const selectedSpecies = () =>
+  gameMode==='training'?'charizard':'charmander';
 const cardHTML = (action: Action): string => {
   const skill = action === 'dodge' ? dodge : skills[selectedSpecies()][action];
   return `<div class="skill-card ${action === 'r' ? 'ultimate' : ''}" data-action="${action}" title="${skill.description}">
@@ -30,7 +34,7 @@ const cardHTML = (action: Action): string => {
 };
 
 app.innerHTML = `
-<header><div><h1>MONSTER <span>ARENA</span></h1><p>Arena 2D · Batalha em tempo real</p></div><div class="header-actions"><button id="switch-mode" type="button">🪨 Testar ginásio (inicial)</button><button id="settings" type="button">⚙ Controles</button></div></header>
+<header><div><h1>MONSTER <span>ARENA</span></h1><p>Capítulo 1 · Exploração e batalha em tempo real</p></div><div class="header-actions"><button id="switch-mode" type="button">⚔ Arena Livre</button><button id="gym-preview" type="button" title="Atalho de teste — ignora progresso da história">🪨 Testar Brock</button><button id="settings" type="button">⚙ Controles</button></div></header>
 <main>
   <div class="arena-column">
     <div id="game-shell">
@@ -52,6 +56,7 @@ app.innerHTML = `
           </div>
           <p class="battle-summary-record" data-battle-record></p>
           <button type="button" class="battle-summary-rematch" data-battle-rematch>↻ Jogar novamente</button>
+          <button type="button" class="battle-summary-rematch" data-return-story hidden>↩ Voltar à Vila Aurora</button>
         </section>
       </div>
       <div id="mobile-controls" aria-label="Controle virtual para celular">
@@ -80,7 +85,7 @@ app.innerHTML = `
     <div id="hud" class="hud" aria-label="Habilidades e tempos de recarga">
       ${allActions.map(cardHTML).join('')}
     </div>
-    <div class="arena-hint"><span class="desktop-hint">Clique direito para se mover · Aponte o cursor para atacar · Pressione Enter para reiniciar</span><span class="mobile-hint">Joystick: andar · 1–4: habilidades · ↗: esquiva · Mira automática</span></div>
+    <div class="arena-hint"><span class="desktop-hint">WASD ou setas para andar · E para conversar · Treinadores iniciam batalhas</span><span class="mobile-hint">Joystick: andar · botão INTERAGIR: conversar ou batalhar</span></div>
   </div>
   <aside>
     <h2>Como jogar</h2>
@@ -121,6 +126,25 @@ function refreshActivePokemonInfo(){
       (move.cooldown/1000).toFixed(1)+'s</small></p>';
   }).join('');
   mobile.setAbilityNames(species);
+  const world=gameMode==='world';
+  document.querySelector<HTMLElement>('#hud')!.hidden=world;
+  const touches=document.querySelector<HTMLElement>('.touch-actions');
+  if(touches)touches.style.display=world?'none':'';
+  const aside=document.querySelector<HTMLElement>('aside');
+  if(aside)aside.hidden=world;
+  const gym=document.querySelector<HTMLButtonElement>('#gym-preview');
+  if(gym)gym.hidden=gameMode==='story';
+  const hint=document.querySelector<HTMLElement>('.arena-hint');
+  if(hint){
+    const desktop=hint.querySelector<HTMLElement>('.desktop-hint');
+    const touch=hint.querySelector<HTMLElement>('.mobile-hint');
+    if(desktop)desktop.textContent=world
+      ?'WASD ou setas: explorar · E: interagir · Aproximar-se dos NPCs'
+      :'Clique direito: mover · Teclas Q W E R: habilidades · Enter: reiniciar';
+    if(touch)touch.textContent=world
+      ?'Joystick: explorar · INTERAGIR: conversar e abrir portais'
+      :'Joystick: andar · 1–4: habilidades · ↗: esquiva';
+  }
 }
 
 function updateBindingLabels() {
@@ -178,25 +202,55 @@ window.addEventListener('keydown', event => {
 window.addEventListener('keyup', event => heldKeys.delete(event.code));
 window.addEventListener('blur', () => heldKeys.clear());
 
-const game=new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: 'game',
-  width: 960, height: 576,
-  backgroundColor: '#142e31',
-  render: { pixelArt: true, antialias: false, roundPixels: true },
-  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [new ArenaScene(() => bindings, () => heldKeys, () => menuOpen, mobile,()=>gameMode)]
-});
-
-const switchMode=document.querySelector<HTMLButtonElement>('#switch-mode')!;
-switchMode.addEventListener('click',()=>{
-  gameMode=gameMode==='training'?'story':'training';
-  switchMode.textContent=gameMode==='story'?'⚔ Arena Livre':
-    '🪨 Testar ginásio (inicial)';
+function startGameMode(nextMode:GameMode){
+  gameMode=nextMode;
   heldKeys.clear();
   mobile.clear();
   if(menuOpen)toggleSettings(false);
-  refreshActivePokemonInfo();
   document.querySelector<HTMLElement>('#battle-summary')!.hidden=true;
-  game.scene.getScene('Arena').scene.restart();
+  const returnButton=document.querySelector<HTMLButtonElement>('[data-return-story]');
+  if(returnButton)returnButton.hidden=true;
+  const switchMode=document.querySelector<HTMLButtonElement>('#switch-mode')!;
+  switchMode.textContent=nextMode==='world'?'⚔ Arena Livre':
+    '🌿 Voltar à História';
+  refreshActivePokemonInfo();
+  game.scene.stop('World');
+  game.scene.stop('Arena');
+  game.scene.start(nextMode==='world'?'World':'Arena');
+}
+
+const game=new Phaser.Game({
+  type: Phaser.AUTO,
+  parent: 'game',
+  width: 960,height:576,
+  backgroundColor:'#142e31',
+  render:{pixelArt:true,antialias:false,roundPixels:true},
+  scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},
+  scene:[
+    new WorldScene(mobile,mode=>startGameMode(mode)),
+    new ArenaScene(
+      ()=>bindings,()=>heldKeys,()=>menuOpen,mobile,()=>gameMode
+    )
+  ]
+});
+refreshActivePokemonInfo();
+
+document.querySelector<HTMLButtonElement>('#switch-mode')!
+  .addEventListener('click',()=>startGameMode(
+    gameMode==='world'?'training':'world'
+  ));
+document.querySelector<HTMLButtonElement>('#gym-preview')!
+  .addEventListener('click',()=>startGameMode('story'));
+document.querySelector<HTMLButtonElement>('[data-return-story]')!
+  .addEventListener('click',()=>startGameMode('world'));
+window.addEventListener('monster-arena:return-world',
+  ()=>startGameMode('world'));
+
+window.addEventListener('monster-arena:practice-result',event=>{
+  const detail=(event as CustomEvent<{victory:boolean;experience:number}>).detail;
+  if(!detail?.victory)return;
+  awardActiveExperience(loadCollection(),detail.experience);
+  registerTrainingVictory();
+  const returnButton=document.querySelector<HTMLButtonElement>('[data-return-story]');
+  if(returnButton)returnButton.hidden=false;
 });
