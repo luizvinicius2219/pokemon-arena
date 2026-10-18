@@ -17,8 +17,9 @@ const labels: Record<Action, string> = {
   q: 'Habilidade 1', w: 'Habilidade 2', e: 'Habilidade 3', r: 'Especial', dodge: 'Esquiva'
 };
 
+const selectedSpecies = () => gameMode==='story'?'charmander':'charizard';
 const cardHTML = (action: Action): string => {
-  const skill = action === 'dodge' ? dodge : skills.charizard[action];
+  const skill = action === 'dodge' ? dodge : skills[selectedSpecies()][action];
   return `<div class="skill-card ${action === 'r' ? 'ultimate' : ''}" data-action="${action}" title="${skill.description}">
     <span class="skill-key" data-key>${keyLabel(bindings[action])}</span>
     <span class="skill-icon">${skill.icon}</span>
@@ -29,7 +30,7 @@ const cardHTML = (action: Action): string => {
 };
 
 app.innerHTML = `
-<header><div><h1>MONSTER <span>ARENA</span></h1><p>Arena 2D · Batalha em tempo real</p></div><div class="header-actions"><button id="switch-mode" type="button">🪨 História: Pewter</button><button id="settings" type="button">⚙ Controles</button></div></header>
+<header><div><h1>MONSTER <span>ARENA</span></h1><p>Arena 2D · Batalha em tempo real</p></div><div class="header-actions"><button id="switch-mode" type="button">🪨 Testar ginásio (inicial)</button><button id="settings" type="button">⚙ Controles</button></div></header>
 <main>
   <div class="arena-column">
     <div id="game-shell">
@@ -84,9 +85,9 @@ app.innerHTML = `
   <aside>
     <h2>Como jogar</h2>
     <p>🖱️ Clique direito: mover</p><p>🎯 Mire com o cursor</p>
-    <p>🔥 Q W E R: habilidades de Charizard</p><p>💨 Espaço: esquiva</p>
+    <p id="player-character-help">🔥 Q W E R: habilidades de Charizard</p><p>💨 Espaço: esquiva</p>
     <h3>Habilidades</h3>
-    ${(['q','w','e','r'] as const).map(a=>`<p class="skill-help"><b>${a.toUpperCase()}</b> — ${skills.charizard[a].name} <small>${(skills.charizard[a].cooldown/1000).toFixed(1)}s</small></p>`).join('')}
+    <div id="player-skill-help">${(['q','w','e','r'] as const).map(a=>`<p class="skill-help"><b>${a.toUpperCase()}</b> — ${skills.charizard[a].name} <small>${(skills.charizard[a].cooldown/1000).toFixed(1)}s</small></p>`).join('')}</div>
     <p class="help-footnote">Pikachu usa técnicas elétricas próprias e é controlado pelo computador.</p>
     <p class="help-footnote">Animações em 8 direções: <a href="https://sprites.pmdcollab.org/" target="_blank" rel="noopener noreferrer">PMD Sprite Repository</a>. Créditos e direitos no <a href="https://github.com/luizvinicius2219/pokemon-arena/blob/main/CREDITS.md" target="_blank" rel="noopener noreferrer">projeto</a>.</p>
   </aside>
@@ -104,6 +105,23 @@ const bindingList = document.querySelector<HTMLDivElement>('#bindings')!;
 const error = document.querySelector<HTMLParagraphElement>('#error')!;
 const mobile = new MobileControls(document.querySelector<HTMLElement>('#mobile-controls')!);
 mobile.setAbilityNames('charizard');
+
+function refreshActivePokemonInfo(){
+  const species=selectedSpecies();
+  document.querySelector<HTMLElement>('#hud')!.innerHTML=
+    allActions.map(cardHTML).join('');
+  const heading=document.querySelector<HTMLElement>('#player-character-help');
+  if(heading)heading.textContent='🔥 Q W E R: habilidades de '+
+    (species==='charmander'?'Charmander':'Charizard');
+  const help=document.querySelector<HTMLElement>('#player-skill-help');
+  if(help)help.innerHTML=(['q','w','e','r'] as const).map(action=>{
+    const move=skills[species][action];
+    return '<p class="skill-help"><b>'+action.toUpperCase()+
+      '</b> — '+move.name+' <small>'+
+      (move.cooldown/1000).toFixed(1)+'s</small></p>';
+  }).join('');
+  mobile.setAbilityNames(species);
+}
 
 function updateBindingLabels() {
   for (const action of allActions) {
@@ -173,10 +191,12 @@ const game=new Phaser.Game({
 const switchMode=document.querySelector<HTMLButtonElement>('#switch-mode')!;
 switchMode.addEventListener('click',()=>{
   gameMode=gameMode==='training'?'story':'training';
-  switchMode.textContent=gameMode==='story'?'⚔ Arena Livre':'🪨 História: Pewter';
+  switchMode.textContent=gameMode==='story'?'⚔ Arena Livre':
+    '🪨 Testar ginásio (inicial)';
   heldKeys.clear();
   mobile.clear();
   if(menuOpen)toggleSettings(false);
+  refreshActivePokemonInfo();
   document.querySelector<HTMLElement>('#battle-summary')!.hidden=true;
   game.scene.getScene('Arena').scene.restart();
 });

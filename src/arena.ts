@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Action, Bindings } from './controls';
-import { allActions, cooldownFor, dodge, skillKeys, skills, type Skill } from './abilities';
+import { allActions, dodge, skillKeys, skills, type Skill } from './abilities';
 import { currentGifFrame, hasGifClip, registerGifClip } from './gifAnimation';
 import { keyLabel } from './controls';
 import { CombatFx, beamReach, type VfxKind } from './combatFx';
