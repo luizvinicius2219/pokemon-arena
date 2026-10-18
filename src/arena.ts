@@ -14,6 +14,7 @@ import { RockFx, RockMoves, type RockStatus } from './rockMoves';
 import { PokemonSwitchFx } from './pokemonSwitchFx';
 import { StarterFx } from './starterFx';
 import { getActivePokemon, loadCollection } from './playerCollection';
+import { activeWildEncounter } from './encounters';
 import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
 
@@ -63,6 +64,9 @@ export class ArenaScene extends Phaser.Scene {
   private fx!: CombatFx;
   private starterFx!:StarterFx;
   private enemyWeakenedUntil=0;
+  private enemyVulnerableUntil=0;
+  private playerGuardUntil=0;
+  private wildLevel=4;
   private lastMoveLockedCue=-3000;
   private rockFx?:RockFx;
   private rockMoves?:RockMoves;
@@ -141,46 +145,40 @@ export class ArenaScene extends Phaser.Scene {
     // Story begins with a first-stage Pokémon. Prior Charizard test saves
     // never silently turn the story protagonist into its final evolution.
     const chosen=getActivePokemon(loadCollection()).species;
-    return chosen==='charmander'?chosen:'charmander';
+    return ['charmander','charmeleon','bulbasaur','ivysaur',
+      'squirtle','wartortle'].includes(chosen)?chosen:'charmander';
   }
 
   preload() {
     const mode=this.getMode();
-    const encounter=mode==='story'?(['charmander','geodude','onix'] as const)
-      :mode==='practice'?(['charmander','pikachu'] as const)
-      :(['charizard','pikachu'] as const);
-    preloadOverworld(this,encounter);
+    const player=mode==='training'?'charizard':this.currentStarter();
+    const rival=mode==='story'?'geodude':mode==='wild'
+      ?activeWildEncounter().species:'pikachu';
+    const roster=[player,rival,...(mode==='story'?['onix']:[])] as Fighter[];
+    preloadOverworld(this,roster);
     if(mode==='story')preloadPewter(this);
-    // Gen-V fallback sprites for any species without complete PMD sheets.
-    const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
-    for (const name of encounter) {
-      const id=String(pokemonCatalog[name].number);
-      this.load.image(name, base + id + '.png');
-      this.load.image(name + '-back', base + 'back/' + id + '.png');
-      this.load.binary(name + '-gif', base + 'animated/' + id + '.gif');
-      this.load.binary(name + '-back-gif', base + 'animated/back/' + id + '.gif');
+    const base='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
+    for(const species of roster){
+      const number=String(pokemonCatalog[species].number);
+      this.load.image(species,base+number+'.png');
+      this.load.image(species+'-back',base+'back/'+number+'.png');
+      // Optional GIFs have no effect on PMD and aren't required for gameplay.
     }
   }
 
   create() {
-    const mode=this.getMode();
-    const clips=mode==='story'
-      ?['charmander','charmander-back','geodude','onix']
-      :mode==='practice'
-        ?['charmander','charmander-back','pikachu','pikachu-back']
-        :['charizard','charizard-back','pikachu','pikachu-back'];
-    for (const name of clips) {
-      const data = this.cache.binary.get(name + '-gif') as ArrayBuffer | undefined;
-      if (data && !this.textures.exists(name + '-anim')) registerGifClip(this, name + '-anim', data);
-    }
-
     this.mode=this.getMode();
-    this.playerSpecies=this.mode==='story'||this.mode==='practice'
-      ?this.currentStarter():'charizard';
+
+    this.playerSpecies=this.mode==='training'
+      ?'charizard':this.currentStarter();
     this.environment=undefined;
-    this.enemySpecies=this.mode==='story'?'geodude':'pikachu';
+    this.enemySpecies=this.mode==='story'?'geodude':
+      this.mode==='wild'?activeWildEncounter().species:'pikachu';
+    this.wildLevel=this.mode==='wild'?activeWildEncounter().level:4;
     this.enemyMaxHp=this.mode==='practice'?68:
-      pokemonCatalog[this.enemySpecies].maxHp;
+      this.mode==='wild'?Math.round(
+        pokemonCatalog[this.enemySpecies].maxHp*(0.66+this.wildLevel*0.055))
+      :pokemonCatalog[this.enemySpecies].maxHp;
     this.storyEncounters=this.mode==='story'?gymTeams[pewterGym.id]:[];
     this.storyWave=0;
     this.storySwitching=false;
@@ -203,17 +201,25 @@ export class ArenaScene extends Phaser.Scene {
     this.fx = new CombatFx(this);
     this.starterFx = new StarterFx(this);
     this.enemyWeakenedUntil=0;
+    this.enemyVulnerableUntil=0;
+    this.playerGuardUntil=0;
     this.lastMoveLockedCue=-3000;
     this.cinematic = new CinematicFx(this);
     this.stats = new BattleStats(this.time.now);
     this.playerMotion = undefined;
     this.enemyMotion = undefined;
     this.hitStopUntil = -1000;
-    this.starterLevel=this.playerSpecies==='charmander'
-      ?getActivePokemon(loadCollection()).level:36;
+    this.starterLevel=this.mode==='training'?36:
+      getActivePokemon(loadCollection()).level;
     this.playerMaxHp=pokemonCatalog[this.playerSpecies].maxHp+
-      (this.playerSpecies==='charmander'
-        ?Math.min(44,Math.max(0,this.starterLevel-5)*4):0);
+      (this.mode==='training'?0:
+        Math.min(55,Math.max(0,this.starterLevel-5)*3));
+    if(this.mode==='story'){
+      // Brock is the same major encounter but his HP has an intentional
+      // handicap against a very low-level starter. Training still matters.
+      this.enemyMaxHp=Math.round(this.enemyMaxHp*
+        Math.min(1.12,0.77+Math.max(0,this.starterLevel-5)*0.036));
+    }
     this.playerHp=this.playerMaxHp;
     this.enemyHp=this.enemyMaxHp;
     this.finished = false;
@@ -484,7 +490,7 @@ export class ArenaScene extends Phaser.Scene {
 
   private updateHp() {
     this.hpText.setText(pokemonCatalog[this.playerSpecies].name+
-      (this.playerSpecies==='charmander'?' Nv. '+this.starterLevel:'')+
+      (this.mode!=='training'?' Nv. '+this.starterLevel:'')+
       ': '+this.playerHp+' / '+this.playerMaxHp+' HP');
     this.enemyHpText.setText(pokemonCatalog[this.enemySpecies].name+': '
       +this.enemyHp+' / '+this.enemyMaxHp+' HP');
@@ -552,15 +558,17 @@ export class ArenaScene extends Phaser.Scene {
       if(!element)continue;
       const duration=action==='dodge'
         ?dodge.cooldown:skills[this.playerSpecies][action].cooldown;
-      const unlocked=action!=='r'||this.playerSpecies!=='charmander'
-        ||this.starterLevel>=8;
+      const levelNeeded=this.playerSpecies==='charmander'?8:
+        this.playerSpecies==='bulbasaur'?7:
+        this.playerSpecies==='squirtle'?9:0;
+      const unlocked=action!=='r'||this.starterLevel>=levelNeeded;
       const remaining=Math.max(0,duration-(time-this.playerCastAt[action]));
       const text=element.querySelector<HTMLElement>('[data-timer]');
       const fill=element.querySelector<HTMLElement>('[data-shade]');
       const key=element.querySelector<HTMLElement>('[data-key]');
       element.classList.toggle('cooling',remaining>0&&unlocked);
       element.classList.toggle('move-locked',!unlocked);
-      if(text)text.textContent=!unlocked?'LIBERA NV 8':
+      if(text)text.textContent=!unlocked?'LIBERA NV '+levelNeeded:
         remaining>0?(remaining/1000).toFixed(1)+'s':'PRONTO';
       if(fill)fill.style.height=unlocked?(remaining/duration*100).toFixed(2)+'%':'0%';
       if(key)key.textContent=keyLabel(bindings[action]);
@@ -568,7 +576,7 @@ export class ArenaScene extends Phaser.Scene {
       if(!unlocked){
         const label=document.querySelector<HTMLElement>(
           '[data-touch-action="r"] [data-touch-timer]');
-        if(label)label.textContent='NV 8';
+        if(label)label.textContent='NV '+levelNeeded;
       }
     }
   }
@@ -616,10 +624,13 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     // Four slots become available as Charmander learns new moves.
-    if(this.playerSpecies==='charmander'&&action==='r'&&this.starterLevel<8){
+    const needed=this.playerSpecies==='charmander'?8:
+      this.playerSpecies==='bulbasaur'?7:
+      this.playerSpecies==='squirtle'?9:0;
+    if(action==='r'&&this.starterLevel<needed){
       if(time-this.lastMoveLockedCue>1250){
         this.skillCallout(this.player.x,this.player.y-80,
-          'FUMAÇA: DESBLOQUEIA NO NÍVEL 8',0xf3d49b);
+          'HABILIDADE NO NÍVEL '+needed,0xf3d49b);
         this.lastMoveLockedCue=time;
       }
       return;
@@ -635,7 +646,8 @@ export class ArenaScene extends Phaser.Scene {
       ? this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing)
       : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
     this.faceDirection('player',dir);
-    const motion=this.playerSpecies==='charmander'
+    const isBase=this.playerSpecies!=='charizard';
+    const motion=isBase
       ?action==='q'?'Attack':action==='w'?'Charge':
         action==='e'?'Shoot':'Charge'
       :action==='r'?'Attack':action==='e'?'Charge':'Shoot';
@@ -646,7 +658,9 @@ export class ArenaScene extends Phaser.Scene {
       : ({q:60,w:115,e:180,r:270} as Record<Skill,number>)[action];
     const charge=action==='r'?1.8:action==='e'?1.4:1;
     const advanced=this.playerSpecies==='charizard';
-    if(advanced||action==='e')this.fx.charge(
+    const flame=this.playerSpecies==='charmander'
+      ||this.playerSpecies==='charmeleon';
+    if(advanced||action==='e'&&flame)this.fx.charge(
       this.player.x+dir.x*23,this.player.y+dir.y*23,
       'fire',advanced?charge:0.72
     );
@@ -659,14 +673,17 @@ export class ArenaScene extends Phaser.Scene {
     // Intentional short wind-up: the body anticipates before the projectile releases.
     this.time.delayedCall(windupMs,()=>{
       if(this.finished)return;
-      if(this.playerSpecies==='charmander')
+      if(this.playerSpecies==='charizard')
+        this.castCharizard(action,dir,this.time.now);
+      else if(this.playerSpecies==='charmander'||this.playerSpecies==='charmeleon')
         this.castCharmander(action,dir,this.time.now);
-      else this.castCharizard(action,dir,this.time.now);
+      else
+        this.castOtherStarter(action,dir,this.time.now);
     });
   }
 
   private castCharmander(skill:Skill,dir:Phaser.Math.Vector2,time:number){
-    const move=skills.charmander[skill];
+    const move=skills[this.playerSpecies][skill];
     const mx=this.player.x+dir.x*28,my=this.player.y-22+dir.y*24;
     const target={x:this.enemy.x,y:this.enemy.y};
     const source={x:mx,y:my};
@@ -961,11 +978,14 @@ export class ArenaScene extends Phaser.Scene {
     const defender=target==='player'?this.playerSpecies:this.enemySpecies;
     const multiplier=effectiveness(elemental,pokemonCatalog[defender].elements);
     const growlFactor=target==='player'&&now<this.enemyWeakenedUntil?0.68:1;
-    const trainingFactor=target==='player'&&this.mode==='practice'?0.52:1;
-    const levelFactor=target==='enemy'&&this.playerSpecies==='charmander'
-      ?1+Math.min(0.7,Math.max(0,this.starterLevel-5)*0.065):1;
+    const defense=target==='player'&&now<this.playerGuardUntil?0.52:1;
+    const trainer=target==='player'&&this.mode==='practice'?0.52:
+      target==='player'&&this.mode==='wild'?0.74:1;
+    const weakness=target==='enemy'&&now<this.enemyVulnerableUntil?1.38:1;
+    const levelBoost=target==='enemy'&&this.mode!=='training'
+      ?1+Math.min(0.72,Math.max(0,this.starterLevel-5)*0.064):1;
     const received=scaledDamage(
-      Math.max(1,Math.round(amount*growlFactor*trainingFactor*levelFactor)),
+      Math.max(1,Math.round(amount*growlFactor*trainer*defense*weakness*levelBoost)),
       elemental,pokemonCatalog[defender].elements);
     if(multiplier.category!=='neutral'&&now-this.lastTypeCueAt[target]>1280){
       const label=multiplier.category==='immune'?'NÃO AFETA!':
