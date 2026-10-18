@@ -271,7 +271,6 @@ export class ArenaScene extends Phaser.Scene {
       this.fx.charge(x,y,'fire',1.25);
       this.fx.breath(x,y,angle,0.75);
       this.pulse(x,y,0xff7932,23,0.4);
-    }
     } else if(skill==='e') {
       this.fx.charge(x,y,'fire',1.35);
       this.projectile(x,y,dir,310,18,'fireball','player',ability.damage,990,time,78);
