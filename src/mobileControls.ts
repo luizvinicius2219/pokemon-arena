@@ -51,10 +51,10 @@ export class MobileControls {
       this.stick.addEventListener(type, stopStick);
     }
 
-    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-touch-action]')) {
+    for (const button of Array.from(root.querySelectorAll<HTMLButtonElement>('[data-touch-action]'))) {
       const action = button.dataset.touchAction as Action;
       this.buttons.set(action, button);
-      button.addEventListener('pointerdown', event => {
+      button.addEventListener('pointerdown', (event: PointerEvent) => {
         if (!this.active || event.pointerType === 'mouse') return;
         event.preventDefault();
         if (this.buttonPointers.has(action)) return;
@@ -74,7 +74,7 @@ export class MobileControls {
         button.addEventListener(type, stopPress);
       }
       // Also works with accessibility switch/keyboard activation of the button.
-      button.addEventListener('click', event => {
+      button.addEventListener('click', (event: MouseEvent) => {
         if (!this.active || event.detail !== 0) return;
         this.taps.add(action);
       });
