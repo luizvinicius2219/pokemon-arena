@@ -234,3 +234,10 @@ O tempo do ranking agora desconta os segundos em que o jogo bloqueia combate par
 ### Onix gigante, Dig e batalha apresentada com a equipe real
 
 Onix foi ampliado para uma escala de chefe e entra mais ao centro do ginásio, mantendo Brock visível no palco. Seu segundo golpe agora é **Escavar (Dig)**: desaparece sob o piso, fica temporariamente inalvejável, assinala a zona de reaparição e emerge com impacto. Os danos de Terremoto e Magnitude permanecem definidos por alcance, mas o desenho das rachaduras agora usa linhas finas e área contida; projéteis de rocha ganharam tons claros de arenito. A introdução VS usa os nomes e as imagens das espécies do mesmo catálogo/roster consumido pela batalha; na futura seleção de Pokémon não será necessário desenhar outra apresentação.
+
+
+## Próxima fase — equipe, captura e progressão próprias
+
+A base de dados agora comporta Pokémon individuais do jogador (não apenas espécies), com **equipe de até três, reserva, Pokémon ativo, níveis, experiência e insígnias**. `src/playerCollection.ts` implementa a persistência local de forma independente da batalha. `src/captureSystem.ts` fornece chances de captura em encontros **selvagens**, com bônus por timing/atordoamento, enfraquecimento e equipamento; proíbe capturar Pokémon de treinador e chefes. São **módulos preparatórios**: ainda não existe botão de captura, tela de coleção nem encontro selvagem jogável.
+
+Direção: um **jogo de ação e exploração com batalhas em tempo real**, captura sob pressão, formação de equipes e chefes com padrões próprios, mantendo um ritmo diferente da fórmula tradicional de turnos. Próxima implementação: primeiro encontro selvagem controlado, minijogo de captura e tela de equipe conectados a esses dois módulos.
