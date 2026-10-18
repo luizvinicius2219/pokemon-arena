@@ -34,11 +34,64 @@ const cardHTML = (action: Action): string => {
 };
 
 app.innerHTML = `
-<header><div><h1>MONSTER <span>ARENA</span></h1><p>Capítulo 1 · Exploração e batalha em tempo real</p></div><div class="header-actions"><button id="switch-mode" type="button">⚔ Arena Livre</button><button id="gym-preview" type="button" title="Atalho de teste — ignora progresso da história">🪨 Testar Brock</button><button id="settings" type="button">⚙ Controles</button></div></header>
+<header><div><h1>MONSTER <span>ARENA</span></h1><p>Capítulo 1 · Exploração e batalha em tempo real</p></div><div class="header-actions"><button id="switch-mode" type="button">☰ Menu</button><button id="gym-preview" type="button" hidden title="Atalho para testes">🪨 Testar Brock</button><button id="settings" type="button">⚙ Controles</button></div></header>
 <main>
   <div class="arena-column">
     <div id="game-shell">
       <div id="game" aria-label="Arena de batalha"></div>
+      <div id="landing-menu" class="landing-menu" role="dialog" aria-modal="true" aria-label="Menu do jogo">
+        <section class="landing-card" data-menu-panel="home">
+          <span class="landing-eyebrow">KANTO · AVENTURA DE AÇÃO</span>
+          <h2>MONSTER <em>ARENA</em></h2>
+          <p class="landing-lead">Explore a zona selvagem, treine seu Pokémon e desafie líderes em combates em tempo real.</p>
+          <div class="landing-modes">
+            <button class="landing-mode" type="button" data-start-story>
+              <span class="mode-icon">🌿</span><strong>MODO HISTÓRIA</strong>
+              <small>Escolha um inicial · Explore · Treine · Evolua · Brock</small>
+            </button>
+            <button class="landing-mode" type="button" data-start-training>
+              <span class="mode-icon">⚔</span><strong>MODO TREINAMENTO</strong>
+              <small>Arena livre, Charizard × Pikachu · Teste seus golpes</small>
+            </button>
+          </div>
+          <button class="menu-debug" type="button" data-start-brock>🪨 Testar ginásio diretamente</button>
+          <p class="landing-note">Salvamento automático no navegador. As cenas de batalha e o progresso são independentes.</p>
+        </section>
+        <section class="landing-card" data-menu-panel="choose" hidden>
+          <span class="landing-eyebrow">MODO HISTÓRIA · NOVA JORNADA</span>
+          <h2>ESCOLHA SEU <em>INICIAL</em></h2>
+          <p class="landing-lead">Três estilos de combate. Cada Pokémon começa no nível 5 e pode evoluir com treinamento.</p>
+          <div class="starter-grid" role="group" aria-label="Escolha seu Pokémon inicial">
+            <button type="button" class="starter-option selected" data-starter="charmander">
+              <img alt="Charmander" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png"/>
+              <strong>CHARMANDER</strong><small>🔥 FOGO</small><span>Ataques ágeis · Ginásio mais difícil</span>
+            </button>
+            <button type="button" class="starter-option" data-starter="squirtle">
+              <img alt="Squirtle" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/7.png"/>
+              <strong>SQUIRTLE</strong><small>💧 ÁGUA</small><span>Jato d’Água · Casco resistente</span>
+            </button>
+            <button type="button" class="starter-option" data-starter="bulbasaur">
+              <img alt="Bulbasaur" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png"/>
+              <strong>BULBASAUR</strong><small>🌿 PLANTA</small><span>Chicote de Vinha · Drena HP</span>
+            </button>
+          </div>
+          <p class="starter-warning">Começar uma nova jornada troca o inicial e reinicia o progresso atual.</p>
+          <div class="landing-buttons">
+            <button type="button" class="landing-secondary" data-menu-back>← VOLTAR</button>
+            <button type="button" class="landing-primary" data-confirm-starter>INICIAR AVENTURA →</button>
+          </div>
+        </section>
+        <section class="landing-card" data-menu-panel="resume" hidden>
+          <span class="landing-eyebrow">MODO HISTÓRIA · PROGRESSO SALVO</span>
+          <h2>SUA <em>JORNADA</em></h2>
+          <div class="save-preview" data-save-preview>Seu Pokémon está esperando.</div>
+          <div class="landing-buttons landing-buttons-column">
+            <button type="button" class="landing-primary" data-continue-story>▶ CONTINUAR HISTÓRIA</button>
+            <button type="button" class="landing-secondary" data-new-story>ESCOLHER OUTRO INICIAL / NOVO JOGO</button>
+            <button type="button" class="landing-secondary" data-menu-back>← MENU PRINCIPAL</button>
+          </div>
+        </section>
+      </div>
       <div id="battle-summary" class="battle-summary" hidden role="dialog" aria-modal="true" aria-labelledby="battle-summary-title">
         <section class="battle-summary-card">
           <div class="battle-summary-header">

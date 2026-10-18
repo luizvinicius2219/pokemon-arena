@@ -203,3 +203,87 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
    broken button; the status is shown both on keyboard and touch HUD. */
 .skill-card.move-locked{opacity:0.68;filter:saturate(0.5)}
 .skill-card.move-locked .skill-timer{color:#e3cda7;font-size:10px}
+
+/* The real game menu overlays the pixel-art viewport, not a separate page.
+   All buttons stay reachable on landscape phones. */
+.landing-menu{
+  position:absolute;inset:0;z-index:90;display:grid;place-items:center;
+  padding:12px;background:
+    radial-gradient(ellipse at 20% 15%,#416e6cb5,transparent 48%),
+    radial-gradient(ellipse at 80% 80%,#715d43bb,transparent 48%),
+    #0b1b20f7;overflow:auto;overscroll-behavior:contain;
+}
+.landing-menu[hidden],.landing-card[hidden]{display:none!important}
+.landing-card{
+  width:min(850px,98%);max-height:100%;overflow-y:auto;
+  padding:clamp(13px,2.3vw,27px);border:2px solid #9fa78a;
+  border-radius:16px;background:#142b31ed;box-shadow:0 20px 60px #0612169e;
+  text-align:center;color:#eef3df;
+}
+.landing-eyebrow{display:block;color:#d6bd86;font-size:12px;
+  font-weight:900;letter-spacing:2px;margin-bottom:6px}
+.landing-card h2{font-size:clamp(25px,4vw,42px);line-height:1.08;
+  letter-spacing:1px;margin:4px 0 10px;color:#f2f5ea}
+.landing-card h2 em{font-style:normal;color:#efc581}
+.landing-lead{color:#c1d6cc;max-width:620px;margin:0 auto 16px;
+  font-size:clamp(12px,1.6vw,15px);line-height:1.4}
+.landing-modes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.landing-mode{padding:15px 10px;background:#28534c;color:#f3f6e8;
+  border:2px solid #72ac97;border-radius:12px;display:flex;
+  flex-direction:column;align-items:center;gap:6px;cursor:pointer}
+.landing-mode:nth-child(2){background:#344b58;border-color:#789ba9}
+.landing-mode:hover,.landing-mode:focus-visible{transform:translateY(-2px);
+  border-color:#ffe3ad;filter:brightness(1.12)}
+.landing-mode .mode-icon{font-size:30px;line-height:1}
+.landing-mode strong{font-size:clamp(14px,2vw,20px);letter-spacing:.5px}
+.landing-mode small{font-size:12px;color:#c9ddd3;line-height:1.4}
+.menu-debug{background:none;color:#e3ca9b;border:0;
+  text-decoration:underline;cursor:pointer;font-size:13px;margin:6px}
+.landing-note{font-size:11px;color:#9fb7ad;margin:9px 0 0}
+.starter-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.starter-option{border:2px solid #587976;border-radius:12px;
+  background:#203d40;color:#f4eedd;display:flex;flex-direction:column;
+  align-items:center;gap:3px;padding:9px 4px;cursor:pointer;min-width:0}
+.starter-option img{width:clamp(66px,11vw,110px);
+  height:clamp(65px,11vw,104px);object-fit:contain;image-rendering:pixelated}
+.starter-option strong{font-size:clamp(11px,1.55vw,17px)}
+.starter-option small{font-weight:bold;color:#f5d298;font-size:12px}
+.starter-option span{font-size:11px;color:#c9ddd4;line-height:1.3}
+.starter-option.selected{border-color:#f1d495;
+  background:#345a50;box-shadow:inset 0 0 0 2px #d2b07d55}
+.starter-option:hover{border-color:#dbd9ae}
+.starter-warning{font-size:12px;color:#e4c4a1;margin:12px 0 9px}
+.landing-buttons{display:flex;justify-content:center;gap:12px}
+.landing-buttons-column{flex-direction:column;max-width:560px;margin:auto}
+.landing-buttons button{border:2px solid #a7c6b3;
+  border-radius:11px;padding:11px 18px;font-size:14px;
+  font-weight:900;cursor:pointer}
+.landing-primary{background:#267c68;color:#fff9e7}
+.landing-secondary{background:#2d4550;color:#f0f5e8}
+.landing-buttons button:hover{filter:brightness(1.18)}
+.save-preview{padding:24px;background:#244640;
+  border:1px solid #658f7f;border-radius:12px;
+  font-size:18px;font-weight:bold;margin:16px auto;max-width:590px}
+@media(max-height:550px){
+  .landing-card{padding:10px 17px}
+  .landing-card h2{font-size:26px;margin:2px 0 5px}
+  .landing-lead{margin:0 auto 9px}
+  .landing-mode{padding:9px 10px}
+  .landing-mode .mode-icon{font-size:23px}
+  .starter-option{padding:3px}
+  .starter-option img{width:67px;height:65px}
+  .landing-note{display:none}
+}
+@media(max-width:510px){
+  .landing-menu{padding:5px}
+  .landing-card{padding:13px 9px}
+  .landing-modes{gap:7px}
+  .landing-mode{padding:12px 5px}
+  .landing-mode strong{font-size:13px}
+  .landing-mode small{font-size:10px}
+  .starter-grid{gap:5px}
+  .starter-option img{width:59px;height:60px}
+  .starter-option strong{font-size:10px}
+  .starter-option span{font-size:10px}
+  .landing-buttons button{padding:10px;font-size:11px}
+}
