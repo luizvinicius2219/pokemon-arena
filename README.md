@@ -166,3 +166,12 @@ As representações temporárias dos treinadores são figuras geométricas origi
 ## Atualização Pewter Lite — pixel art estática
 
 O Ginásio de Pewter usa fundo estático desenhado em pixel art, cinco treinadores em sprites pixelizados originais e seis rochas/pilares com duas texturas de dano e remoção na destruição. A antiga renderização procedural de ladrilhos, os NPCs com tweens infinitos e os efeitos de fragmentação foram retirados para reduzir carga no celular. A Arena Livre e o combate permanecem iguais. Os assets originais (SVG com formas em grade, rasterizados uma única vez pelo Phaser) ficam em `public/assets/story/pewter`. Brock ainda é um NPC visual, e Pikachu permanece como adversário de teste.
+
+
+## Pewter Arena — visual retrabalhado (inspirado nas arenas top-down de batalha)
+
+- Novo piso estático em pixel art fria: mosaico de pedras azul-acinzentadas, arena circular com frisos dourados, medalhão rochoso central, escadaria de acesso, arquibancadas e pilares decorativos na estrutura.
+- Identidade de ginásio reforçada com **Brock no topo, treinadores nas quatro laterais e adversários alinhados verticalmente**, como nas referências de arenas de batalha fornecidas.
+- Quatro rochas destrutíveis reposicionadas nas bordas do círculo: texturas em dois estados (intacta/rachada), desaparecimento ao quebrar, colisão e bloqueio de ataques preservados. Os dois pilares colidíveis do centro foram retirados para deixar a luta aberta; pilares arquitetônicos permanecem como decoração estática.
+- Sprites de Brock, treinadores e rochas redesenhados com pixels definidos, iluminação em camadas e contorno escuro, sem animação contínua; assets originais construídos para este protótipo.
+- A Arena Livre, os controles e o combate da versão anterior foram preservados. Não há efeitos de cenário rodando a cada quadro. O Brock ainda é visual; o oponente continua sendo Pikachu na prévia.

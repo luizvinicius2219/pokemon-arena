@@ -48,23 +48,21 @@ export const pewterGym: StoryStage = {
   leader: 'Brock',
   theme: 'rock',
   preview: true,
-  spawnPlayer: {x:215,y:322},
-  spawnRival: {x:742,y:310},
+  spawnPlayer: {x:480,y:455},
+  spawnRival: {x:480,y:185},
   npc: [
-    {id:'brock',name:'BROCK',role:'leader',x:480,y:92,palette:0x796455,
+    {id:'brock',name:'BROCK',role:'leader',x:480,y:94,palette:0x796455,
       dialogue:'A força da rocha está na resistência!'},
-    {id:'guide-west',name:'GUIA',role:'trainer',x:86,y:105,palette:0x65878a},
-    {id:'guide-east',name:'TREINADOR',role:'trainer',x:874,y:105,palette:0x7d8c70},
-    {id:'spectator-west',name:'TREINADOR',role:'spectator',x:85,y:478,palette:0x9d7d56},
-    {id:'spectator-east',name:'TREINADOR',role:'spectator',x:877,y:478,palette:0x877391}
+    {id:'guide-west',name:'GUIA',role:'trainer',x:86,y:150,palette:0x65878a},
+    {id:'guide-east',name:'TREINADOR',role:'trainer',x:874,y:150,palette:0x7d8c70},
+    {id:'spectator-west',name:'TREINADOR',role:'spectator',x:86,y:452,palette:0x9d7d56},
+    {id:'spectator-east',name:'TREINADOR',role:'spectator',x:874,y:452,palette:0x877391}
   ],
   obstacles: [
-    {id:'pebble-1',kind:'rock',x:312,y:174,radius:25,hp:42},
-    {id:'pebble-2',kind:'rock',x:653,y:187,radius:29,hp:42},
-    {id:'pebble-3',kind:'rock',x:334,y:426,radius:27,hp:42},
-    {id:'pebble-4',kind:'rock',x:645,y:422,radius:26,hp:42},
-    {id:'column-left',kind:'pillar',x:480,y:196,radius:24,hp:64},
-    {id:'column-right',kind:'pillar',x:480,y:396,radius:24,hp:64}
+    {id:'pebble-1',kind:'rock',x:300,y:248,radius:23,hp:42},
+    {id:'pebble-2',kind:'rock',x:660,y:248,radius:23,hp:42},
+    {id:'pebble-3',kind:'rock',x:300,y:408,radius:23,hp:42},
+    {id:'pebble-4',kind:'rock',x:660,y:408,radius:23,hp:42}
   ]
 };
 export const kantoGymOrder = [
@@ -101,8 +99,9 @@ export class StoryEnvironment {
     for(const npc of stage.npc){
       const texture=npc.role==='leader'?'pewter-brock':
         npc.id==='guide-west'||npc.id==='spectator-west'?'pewter-trainer-a':'pewter-trainer-b';
-      const scale=npc.role==='leader'?1.13:0.9;
-      scene.add.image(npc.x,npc.y-13,texture).setDisplaySize(48*scale,58*scale)
+      const leader=npc.role==='leader';
+      const width=leader?52:43,height=leader?69:57;
+      scene.add.image(npc.x,npc.y-13,texture).setDisplaySize(width,height)
         .setDepth(2).setOrigin(0.5);
     }
     for(const data of stage.obstacles){
