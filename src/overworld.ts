@@ -151,6 +151,16 @@ export class OverworldActor {
   private hurtExpiresAt = -1000;
   private lastFrame = -1;
   private lastTexture = '';
+  private burrowDepth=0;
+
+  /**
+   * 0 = above ground, 1 = underground. The actor remains animated while
+   * the upper body sinks/rises; no external sprite-size tween can fight the
+   * frame-by-frame animation controller.
+   */
+  setBurrowDepth(depth:number){
+    this.burrowDepth=Phaser.Math.Clamp(depth,0,1);
+  }
 
   static available(scene: Phaser.Scene, creature: Creature): boolean {
     return scene.textures.exists(key(creature, 'Walk')) && scene.textures.exists(key(creature, 'Idle'));
@@ -247,9 +257,16 @@ export class OverworldActor {
     const hopProgress=hop && this.actionDuration>0
       ? Phaser.Math.Clamp((time-this.actionStartedAt)/this.actionDuration,0,1) : 0;
     const lift=hop?Math.sin(Math.PI*hopProgress)*8:0;
+    const sinking=this.burrowDepth;
     this.image.setPosition(x-this.facing.x*3*hurtPulse,
-      y-spriteLift(this.creature)-walkingBob-lift-3*hurtPulse);
+      y-spriteLift(this.creature)*(1-sinking*0.82)
+      -walkingBob*(1-sinking)-lift*(1-sinking)-3*hurtPulse);
     const size=spriteSize(this.creature);
-    this.image.setScale(size*(1+hurtPulse*0.075),size*(1-hurtPulse*0.055));
+    const width= this.creature==='onix'?1.17:1;
+    this.image.setScale(
+      size*width*(1+hurtPulse*0.075)*(1-sinking*0.42),
+      size*(1-hurtPulse*0.055)*Math.max(0.06,1-sinking*0.94)
+    );
+    this.image.setAlpha(Math.max(0.04,1-sinking*0.96));
   }
 }

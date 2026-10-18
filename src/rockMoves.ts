@@ -39,6 +39,46 @@ export class RockFx {
       this.scene.cameras.main.shake(115,0.0015);
     }
   }
+
+  /**
+   * DIG: a shaded, elliptical opening with lifted stone rim and fragments.
+   * Drawn once on one Graphics object, scaled in at the exact tunnel spot.
+   * It stays open during the burrow and closes after the Pokémon emerges.
+   */
+  openHole(x:number,y:number,radius:number,openForMs:number){
+    const g=this.scene.add.graphics().setPosition(x,y).setDepth(2);
+    const w=radius,h=radius*0.42;
+    // Ground depression: cast shadow, thin exposed sandstone, deep core.
+    g.fillStyle(0x26343a,0.43).fillEllipse(2,9,w*2.33,h*2.10);
+    g.fillStyle(0xc8ad82,0.86).fillEllipse(0,3,w*2.16,h*2.12);
+    g.fillStyle(0x857b69,0.96).fillEllipse(0,2,w*1.98,h*1.84);
+    g.fillStyle(0x3a3732,0.98).fillEllipse(0,5,w*1.75,h*1.62);
+    g.fillStyle(0x101b21,0.98).fillEllipse(0,7,w*1.62,h*1.34);
+    g.fillStyle(0x202c30,0.88).fillEllipse(0,11,w*1.33,h*0.91);
+    g.lineStyle(2,0xe2c89c,0.77)
+      .strokeEllipse(0,0,w*2.04,h*1.87);
+    // Jagged stones on the elevated rim, no particles or full-map render.
+    for(let i=0;i<11;i++){
+      const theta=i*Math.PI*2/11+0.34;
+      const bx=Math.cos(theta)*w*0.95,by=Math.sin(theta)*h*0.90+3;
+      const size=3+(i%3)*2;
+      g.fillStyle(i%2?0xb6a58b:0x81857d,0.92).fillTriangle(
+        bx-size,by+size/2,bx,by-size*1.6,bx+size,by+size/2
+      );
+      g.lineStyle(1,0xe1d2b2,0.66)
+        .lineBetween(bx-size,by+size/2,bx,by-size*1.6);
+    }
+    g.setScale(0.12,0.13).setAlpha(0.94);
+    this.scene.tweens.add({
+      targets:g,scaleX:1,scaleY:1,duration:350,ease:'Cubic.easeOut'
+    });
+    this.scene.tweens.add({
+      targets:g,scaleX:0.05,scaleY:0.10,alpha:0,
+      delay:openForMs,duration:540,ease:'Cubic.easeIn',
+      onComplete:()=>g.destroy()
+    });
+  }
+
   update(now:number) {
     const g=this.ink;
     g.clear();
@@ -264,33 +304,37 @@ export class RockMoves {
     }
 
     if(skill==='w'&&species==='onix'){
-      // DIG / Escavar: burrow -> target tracking -> marked breach -> emergence.
-      // Onix is untargetable underground, but the player gets an honest
-      // warning before it surfaces, including the final landing position.
+      // Dig in three visible phases: force open a pit and physically sink,
+      // travel beneath the floor, then open another pit and rise from it.
       hooks.signal('ESCAVAR!');
-      hooks.charge(1.2,240);
-      this.fx.burst(source.x,source.y,37,time,'dig');
-      later(180,()=>{
-        hooks.setBurrowed(true);
-        const under=hooks.sourcePosition();
-        this.fx.burst(under.x,under.y,25,now(),'dig');
+      hooks.charge(1.2,330);
+      this.fx.openHole(source.x,source.y,67,1290);
+      this.fx.burst(source.x,source.y,34,time,'dig');
+      later(120,()=>{
+        hooks.setBurrowed(true); // animates the full body shrinking downward
       });
-      later(560,()=>{
+      later(680,()=>{
         const current=hooks.targetPosition();
         const origin=hooks.sourcePosition();
-        const track=new Phaser.Math.Vector2(current.x-origin.x,current.y-origin.y);
-        if(track.lengthSq()<0.01)track.copy(direction);else track.normalize();
-        const landingX=Phaser.Math.Clamp(current.x-track.x*58,68,892);
-        const landingY=Phaser.Math.Clamp(current.y-track.y*58,92,494);
-        const delay=720;
-        this.fx.warn(landingX,landingY,72,now(),delay,'dig');
-        later(delay,()=>{
-          // Return to the battlefield before dealing impact damage.
-          const landing=hooks.moveSource(landingX,landingY);
-          hooks.setBurrowed(false);
-          this.fx.burst(landing.x,landing.y,76,now(),'dig');
-          this.fx.burst(landing.x,landing.y,37,now(),'slam');
-          hooks.hitArea(landing.x,landing.y,76,attack.damage,side);
+        const toward=new Phaser.Math.Vector2(
+          current.x-origin.x,current.y-origin.y
+        );
+        if(toward.lengthSq()<0.01)toward.copy(direction);
+        else toward.normalize();
+        // Arrive close, not on top of the player; a visible final pit
+        // remains so the target can dodge the eruption.
+        const exitX=Phaser.Math.Clamp(current.x-toward.x*62,75,885);
+        const exitY=Phaser.Math.Clamp(current.y-toward.y*62,90,490);
+        this.fx.openHole(exitX,exitY,79,1360);
+        this.fx.warn(exitX,exitY,87,now(),860,'dig');
+        later(860,()=>{
+          const landing=hooks.moveSource(exitX,exitY);
+          hooks.setBurrowed(false); // long visible rise, not instant teleport
+          this.fx.burst(landing.x,landing.y,73,now(),'dig');
+          later(360,()=>{
+            this.fx.burst(landing.x,landing.y,48,now(),'slam');
+            hooks.hitArea(landing.x,landing.y,81,attack.damage,side);
+          });
         });
       });
       return;
