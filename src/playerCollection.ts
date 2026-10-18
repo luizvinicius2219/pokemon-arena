@@ -1,3 +1,4 @@
+import { levelFromExperience } from './starterProgression';
 import { pokemonCatalog } from './pokemonCatalog';
 import type { Fighter } from './abilities';
 
@@ -24,7 +25,7 @@ export interface PlayerCollection {
 export const PARTY_LIMIT=3;
 const STORAGE_KEY='pokemon-arena-team-v1';
 const starter:OwnedPokemon={
-  id:'starter-charmander',species:'charmander',nickname:'Charmander',level:10,
+  id:'starter-charmander',species:'charmander',nickname:'Charmander',level:5,
   experience:0,capturedAt:0,origin:'starter'
 };
 const initial=():PlayerCollection=>({
@@ -135,4 +136,29 @@ export function moveBetweenPartyAndStorage(
 export function getActivePokemon(collection:PlayerCollection):OwnedPokemon{
   return collection.party.find(p=>p.id===collection.activePokemonId)
     ??collection.party[0];
+}
+
+/** Gain real progression by winning training/wild encounters. */
+export interface ExperienceAward {
+  collection:PlayerCollection;
+  previousLevel:number;
+  currentLevel:number;
+  earned:number;
+}
+export function awardActiveExperience(
+  collection:PlayerCollection,points:number
+):ExperienceAward{
+  const amount=Math.max(0,Math.round(points));
+  const active=getActivePokemon(collection);
+  const gainedXp=active.experience+amount;
+  const updatedLevel=Math.max(active.level,levelFromExperience(gainedXp));
+  const party=collection.party.map(member=>member.id===active.id?{
+    ...member,experience:gainedXp,level:updatedLevel
+  }:member);
+  const next:PlayerCollection={...collection,party};
+  saveCollection(next);
+  return {
+    collection:next,previousLevel:active.level,
+    currentLevel:updatedLevel,earned:amount
+  };
 }
