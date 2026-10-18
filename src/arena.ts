@@ -66,6 +66,7 @@ export class ArenaScene extends Phaser.Scene {
   private enemySlowUntil=0;
   private enemyBindUntil=0;
   private enemyCastLockUntil=0;
+  private enemyBurrowed=false;
   private rolloutUntil=0;
   private statusText?:Phaser.GameObjects.Text;
   private enemySpecies:Fighter='pikachu';
@@ -162,6 +163,7 @@ export class ArenaScene extends Phaser.Scene {
     this.enemySlowUntil=0;
     this.enemyBindUntil=0;
     this.enemyCastLockUntil=0;
+    this.enemyBurrowed=false;
     this.rolloutUntil=0;
     this.rockFx=this.mode==='story'?new RockFx(this):undefined;
     this.rockMoves=this.rockFx?new RockMoves(this,this.rockFx):undefined;
@@ -279,10 +281,10 @@ export class ArenaScene extends Phaser.Scene {
       this.enemyMotion=new OverworldActor(this,id,x,y);
       this.enemyArt=this.enemyMotion.image;
     }else if(this.textures.exists(id)){
-      const width=id==='onix'?112:id==='geodude'?68:56;
-      const height=id==='onix'?132:id==='geodude'?63:56;
+      const width=id==='onix'?196:id==='geodude'?68:56;
+      const height=id==='onix'?212:id==='geodude'?63:56;
       const baseTexture=hasGifClip(id+'-anim')?id+'-anim':id;
-      this.enemyArt=this.add.image(x,y-(id==='onix'?37:9),baseTexture)
+      this.enemyArt=this.add.image(x,y-(id==='onix'?52:9),baseTexture)
         .setDisplaySize(width,height).setDepth(3);
     }else this.enemy.setVisible(true);
   }
@@ -315,11 +317,13 @@ export class ArenaScene extends Phaser.Scene {
       x:480,y:94
     };
     const next=this.storyEncounters[this.storyWave+1];
+    const nextSpawn=next.species==='onix'
+      ?{x:480,y:286}:pewterGym.spawnRival;
     this.switchFx?.run({
       outgoing:this.enemyArt,
       from,
       trainer:{x:trainer.x,y:trainer.y},
-      to:{x:pewterGym.spawnRival.x,y:pewterGym.spawnRival.y},
+      to:nextSpawn,
       nextName:next.displayName,
       onReturned:()=>{
         for(const shot of this.projectiles)shot.body.destroy();
@@ -341,7 +345,7 @@ export class ArenaScene extends Phaser.Scene {
         this.enemyHp=info.maxHp;
         this.shownHp.enemy=info.maxHp;
         this.enemy.radius=info.radius;
-        this.enemy.setPosition(pewterGym.spawnRival.x,pewterGym.spawnRival.y);
+        this.enemy.setPosition(nextSpawn.x,nextSpawn.y);
         this.enemyFacing.set(-1,1).normalize();
         this.reactions.enemy=null;
         this.lastHitAt.enemy=-1000;
@@ -349,12 +353,14 @@ export class ArenaScene extends Phaser.Scene {
         this.enemyCastLockUntil=0;
         this.enemySlowUntil=0;
         this.enemyBindUntil=0;
+        this.enemyBurrowed=false;
         this.rolloutUntil=0;
         this.enemyAttackAt=-1000;
         this.enemyHurtAt=-1000;
         this.enemyActionIndex=0;
         this.enemyShadow?.setVisible(true).setDisplaySize(
-          this.enemySpecies==='onix'?79:45,17)
+          this.enemySpecies==='onix'?142:45,
+          this.enemySpecies==='onix'?26:17)
           .setPosition(this.enemy.x,this.enemy.y+15);
         this.createEnemyArt(this.enemy.x,this.enemy.y);
         this.enemyLabel.setText(info.name.toUpperCase()).setVisible(false);
@@ -639,7 +645,8 @@ export class ArenaScene extends Phaser.Scene {
     this.enemyAttackAt=time;
     // Prevent AI strafing or casting a second attack during longer telegraphs.
     const lock=skill==='r'?1640:skill==='e'?990:
-      skill==='w'&&species==='geodude'?1540:skill==='w'?930:310;
+      skill==='w'&&species==='geodude'?1540:
+      skill==='w'&&species==='onix'?1650:310;
     this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+lock);
     if(skill==='w'&&species==='geodude')this.rolloutUntil=time+1450;
     const dir=this.directionTo(this.enemy,this.player.x,this.player.y,this.enemyFacing);
@@ -677,6 +684,12 @@ export class ArenaScene extends Phaser.Scene {
         this.enemy.setPosition(safe.x,safe.y);
         this.enemyShadow?.setPosition(safe.x,safe.y+15);
         return safe;
+      },
+      setBurrowed:(burrowed)=>{
+        this.enemyBurrowed=burrowed;
+        this.enemyArt?.setVisible(!burrowed);
+        this.enemyShadow?.setVisible(!burrowed);
+        this.enemyLabel?.setVisible(!burrowed);
       },
       stillActive:()=>!this.finished&&!this.storySwitching&&this.enemySpecies===species,
       charge:(power,duration)=>this.cinematic.charge('enemy','rock',power,
@@ -772,7 +785,8 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private damage(target:Side,amount:number,x:number,y:number,color:number) {
-    if(this.finished || this.storySwitching ||
+    if(this.finished || this.storySwitching || 
+      (target==='enemy'&&this.enemyBurrowed) ||
       (this.mode==='story'&&this.time.now<this.storyIntroUntil))return;
     const now=this.time.now;
     // Real dodge invulnerability is tied to the visible Hop, not a teleport.
@@ -1061,7 +1075,7 @@ export class ArenaScene extends Phaser.Scene {
       &&this.canCast('enemy','r',time))selection='r';
     const meleeReach=this.enemySpecies==='geodude'?265:
       this.enemySpecies==='onix'?145:140;
-    if(selection==='w' && distance>meleeReach)
+    if(selection==='w' && distance>meleeReach && this.enemySpecies!=='onix')
       selection=this.mode==='story'&&this.canCast('enemy','e',time)?'e':'q';
     if(!this.canCast('enemy',selection,time))selection='q';
     if(this.canCast('enemy',selection,time)){
@@ -1215,7 +1229,7 @@ export class ArenaScene extends Phaser.Scene {
     }
     this.playerLabel.setPosition(this.player.x,this.player.y-55);
     this.enemyLabel.setPosition(this.enemy.x,
-      this.enemy.y-(this.enemySpecies==='onix'?83:43));
+      this.enemy.y-(this.enemySpecies==='onix'?160:43));
     this.drawHealthBars(delta);
     this.updateCombo(time);
     this.cinematic.update(time,
