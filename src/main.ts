@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import {Action,Bindings,defaults,loadBindings,saveBindings,assignBinding,keyLabel} from './controls';
 import './style.css';
+import { registerGifClip, currentGifFrame, hasGifClip } from './gifAnimation';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML='<header><h1>MONSTER <span>ARENA</span></h1><p>Arena 2D • Batalha em tempo real</p><button id="settings">⚙ Controles</button></header><main><div id="game"></div><aside><h2>Como jogar</h2><p>🖱 Clique direito: mover</p><p>🎯 Mire com o cursor</p><p>⚡ Q W E R: habilidades</p><p>💨 Espaço: esquiva</p><p>Derrote o adversário para vencer. Pressione ENTER para reiniciar.</p><div id="status"></div></aside></main><div id="modal" class="hidden"><section><h2>Configurar controles</h2><p>Clique em uma ação e pressione a nova tecla.</p><div id="bindings"></div><p id="error"></p><button id="restore">Restaurar padrões</button><button id="close">Fechar</button></section></div>';
 let bindings=loadBindings(); let capturing:Action|null=null;let menuOpen=false;
@@ -39,18 +40,37 @@ class Battle extends Phaser.Scene{
     this.load.image('charizard-back',base+'back/6.png');
     this.load.image('pikachu',base+'25.png');
     this.load.image('pikachu-back',base+'back/25.png');
+
+    // Os GIFs originais possuem múltiplos quadros e tempos próprios.
+    // O Phaser não reproduz GIFs automaticamente, então usamos blobs binários.
+    this.load.binary('charizard-gif',base+'animated/6.gif');
+    this.load.binary('charizard-back-gif',base+'animated/back/6.gif');
+    this.load.binary('pikachu-gif',base+'animated/25.gif');
+    this.load.binary('pikachu-back-gif',base+'animated/back/25.gif');
   }
-  create(){this.hp=100;this.enemyHp=100;this.ended=false;this.projectiles=[];this.lastCast={q:-350,w:-1000,e:-1700,r:-4500,dodge:-1900};this.enemyLast=0;this.playerFacing.set(1,0);this.enemyFacing.set(-1,0);this.playerAttackAt=-1000;this.enemyAttackAt=-1000;this.playerHurtAt=-1000;this.enemyHurtAt=-1000;this.cameras.main.setBackgroundColor('#142e31');const g=this.add.graphics();g.lineStyle(2,0x315b59);for(let x=0;x<960;x+=48)g.lineBetween(x,0,x,576);for(let y=0;y<576;y+=48)g.lineBetween(0,y,960,y);g.lineStyle(5,0x6fa296);g.strokeRoundedRect(20,20,920,536,18);
+  create(){
+    for(const [file,texture] of [
+      ['charizard-gif','charizard-anim'],
+      ['charizard-back-gif','charizard-back-anim'],
+      ['pikachu-gif','pikachu-anim'],
+      ['pikachu-back-gif','pikachu-back-anim']
+    ]){
+      const buffer=this.cache.binary.get(file) as ArrayBuffer|undefined;
+      if(buffer && !this.textures.exists(texture)) registerGifClip(this,texture,buffer);
+    }
+    this.hp=100;this.enemyHp=100;this.ended=false;this.projectiles=[];this.lastCast={q:-350,w:-1000,e:-1700,r:-4500,dodge:-1900};this.enemyLast=0;this.playerFacing.set(1,0);this.enemyFacing.set(-1,0);this.playerAttackAt=-1000;this.enemyAttackAt=-1000;this.playerHurtAt=-1000;this.enemyHurtAt=-1000;this.cameras.main.setBackgroundColor('#142e31');const g=this.add.graphics();g.lineStyle(2,0x315b59);for(let x=0;x<960;x+=48)g.lineBetween(x,0,x,576);for(let y=0;y<576;y+=48)g.lineBetween(0,y,960,y);g.lineStyle(5,0x6fa296);g.strokeRoundedRect(20,20,920,536,18);
     this.player=this.add.circle(210,288,19,0x60d1ff).setStrokeStyle(4,0xffffff);
     this.enemy=this.add.circle(750,288,19,0xff8b69).setStrokeStyle(4,0xffffff);
     this.playerShadow=this.add.ellipse(210,303,48,14,0x06181c,0.55).setDepth(1);
     this.enemyShadow=this.add.ellipse(750,303,42,13,0x06181c,0.55).setDepth(1);
     if(this.textures.exists('charizard')){
-      this.playerArt=this.add.image(210,280,'charizard').setDisplaySize(88,88).setDepth(2);
+      const initial=hasGifClip('charizard-anim')?'charizard-anim':'charizard';
+      this.playerArt=this.add.image(210,280,initial).setDisplaySize(88,88).setDepth(2);
       this.player.setVisible(false);
     }
     if(this.textures.exists('pikachu')){
-      this.enemyArt=this.add.image(750,280,'pikachu').setDisplaySize(74,74).setDepth(2);
+      const initial=hasGifClip('pikachu-anim')?'pikachu-anim':'pikachu';
+      this.enemyArt=this.add.image(750,280,initial).setDisplaySize(74,74).setDepth(2);
       this.enemy.setVisible(false);
     }
     this.playerLabel=this.add.text(210,233,'CHARIZARD',{color:'#d5f8ff',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5);
@@ -83,15 +103,23 @@ class Battle extends Phaser.Scene{
     const walking=velocity.lengthSq()>0.05;
     if(walking)facing.copy(velocity).normalize();
     const lookingUp=facing.y< -0.3 && Math.abs(facing.y)>Math.abs(facing.x)*0.75;
-    const nextTexture=lookingUp && this.textures.exists(back)?back:front;
-    if(image.texture.key!==nextTexture)image.setTexture(nextTexture);
+    const selectedPose=lookingUp && this.textures.exists(back)?back:front;
+    const animatedKey=selectedPose+'-anim';
+    const animated=hasGifClip(animatedKey);
+    const nextTexture=animated?animatedKey:selectedPose;
+    const frameIndex=animated?currentGifFrame(animatedKey,time+(front==='pikachu'?230:0)):0;
+    if(image.texture.key!==nextTexture)image.setTexture(nextTexture,frameIndex);
+    else if(animated && image.frame.name!==frameIndex)image.setFrame(frameIndex);
+
+    // A animação verdadeira vem dos quadros do jogo original.
+    // Mantemos apenas efeitos complementares de combate e deslocamento.
     image.setFlipX(facing.x < -0.25);
-    const footstep=walking?Math.abs(Math.sin(time*0.017))*5:0;
-    const breathing=Math.sin(time*0.003)*0.018;
-    const sway=walking?Math.sin(time*0.014)*0.065:Math.sin(time*0.002)*0.012;
+    const footstep=walking?Math.abs(Math.sin(time*0.017))*2.4:0;
+    const breathing=animated?0:Math.sin(time*0.003)*0.018;
+    const sway=animated?0:walking?Math.sin(time*0.014)*0.045:Math.sin(time*0.002)*0.012;
     const attack=Math.max(0,1-(time-attackAt)/190);
-    image.setDisplaySize(size*(1+breathing+attack*0.14),size*(1-breathing*0.5-attack*0.09));
-    image.setPosition(entity.x,entity.y-8-footstep-attack*7);
+    image.setDisplaySize(size*(1+breathing+attack*0.12),size*(1-breathing*0.5-attack*0.07));
+    image.setPosition(entity.x,entity.y-8-footstep-attack*6);
     image.setRotation(sway);
     if(time-hurtAt<220 && Math.floor(time/55)%2===0)image.setTint(0xff7575);
     else image.clearTint();
