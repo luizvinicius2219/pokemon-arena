@@ -1,4 +1,4 @@
-import { levelFromExperience } from './starterProgression';
+import { levelFromExperience,evolutionFor } from './starterProgression';
 import { pokemonCatalog } from './pokemonCatalog';
 import type { Fighter } from './abilities';
 
@@ -153,7 +153,7 @@ export function awardActiveExperience(
   const gainedXp=active.experience+amount;
   const updatedLevel=Math.max(active.level,levelFromExperience(gainedXp));
   const gained={...active,experience:gainedXp,level:updatedLevel};
-  const evolution=nextEvolution(gained);
+  const evolution=evolutionFor(gained.species,gained.level);
   const party=collection.party.map(member=>member.id===active.id?{
     ...gained,species:evolution??gained.species,
     nickname:evolution?pokemonCatalog[evolution].name:gained.nickname
@@ -186,10 +186,4 @@ export function chooseStarter(species:import('./abilities').Starter):PlayerColle
   try{window.localStorage.setItem('monster-arena-starter-v1',species);}catch{}
   return state;
 }
-const nextEvolution=(pokemon:OwnedPokemon):import('./abilities').Fighter|null=>{
-  if(pokemon.level<16)return null;
-  if(pokemon.species==='charmander')return 'charmeleon';
-  if(pokemon.species==='bulbasaur')return 'ivysaur';
-  if(pokemon.species==='squirtle')return 'wartortle';
-  return null;
-};
+

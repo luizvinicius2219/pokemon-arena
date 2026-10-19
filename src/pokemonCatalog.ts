@@ -5,9 +5,9 @@ import { skills, type Fighter, type Skill } from './abilities';
  * playable selection, encounter teams, progression and elemental combat.
  * No sprite or move data is hard-coded to Pewter Gym here.
  */
-export type PokemonType = 'normal'|'fire'|'water'|'grass'|'poison'|'fairy'|
+export type PokemonType = 'normal'|'fire'|'water'|'grass'|'bug'|'poison'|'fairy'|
   'flying'|'electric'|'rock'|'ground';
-export type PokemonAttackStyle = 'flame'|'water'|'grass'|'normal'|'fairy'|'electric'|'rock';
+export type PokemonAttackStyle = 'flame'|'water'|'grass'|'normal'|'bird'|'bug'|'fairy'|'electric'|'rock';
 
 export interface PokemonProfile {
   id: Fighter;
@@ -74,6 +74,60 @@ export const pokemonCatalog: Record<Fighter,PokemonProfile> = {
     id:'jigglypuff',number:39,name:'Jigglypuff',elements:['normal','fairy'],
     maxHp:83,radius:20,moveSpeed:102,attackStyle:'fairy',
     portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/39.png',
+    playable:false
+  }),
+  pidgey:profile({
+    id:'pidgey',number:16,name:'Pidgey',elements:['normal','flying'],
+    maxHp:70,radius:17,moveSpeed:150,attackStyle:'bird',
+    portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/16.png',
+    playable:false
+  }),
+  pidgeotto:profile({
+    id:'pidgeotto',number:17,name:'Pidgeotto',elements:['normal','flying'],
+    maxHp:97,radius:20,moveSpeed:174,attackStyle:'bird',
+    portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/17.png',
+    playable:false
+  }),
+  spearow:profile({
+    id:'spearow',number:21,name:'Spearow',elements:['normal','flying'],
+    maxHp:74,radius:18,moveSpeed:170,attackStyle:'bird',
+    portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/21.png',
+    playable:false
+  }),
+  fearow:profile({
+    id:'fearow',number:22,name:'Fearow',elements:['normal','flying'],
+    maxHp:108,radius:22,moveSpeed:187,attackStyle:'bird',
+    portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/22.png',
+    playable:false
+  }),
+  caterpie:profile({
+    id:'caterpie',number:10,name:'Caterpie',elements:['bug'],
+    maxHp:59,radius:17,moveSpeed:105,attackStyle:'bug',
+    portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10.png',
+    playable:false
+  }),
+  metapod:profile({
+    id:'metapod',number:11,name:'Metapod',elements:['bug'],
+    maxHp:81,radius:20,moveSpeed:75,attackStyle:'bug',
+    portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/11.png',
+    playable:false
+  }),
+  weedle:profile({
+    id:'weedle',number:13,name:'Weedle',elements:['bug','poison'],
+    maxHp:57,radius:16,moveSpeed:117,attackStyle:'bug',
+    portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/13.png',
+    playable:false
+  }),
+  kakuna:profile({
+    id:'kakuna',number:14,name:'Kakuna',elements:['bug','poison'],
+    maxHp:85,radius:19,moveSpeed:76,attackStyle:'bug',
+    portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/14.png',
+    playable:false
+  }),
+  raticate:profile({
+    id:'raticate',number:20,name:'Raticate',elements:['normal'],
+    maxHp:100,radius:19,moveSpeed:189,attackStyle:'normal',
+    portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/20.png',
     playable:false
   }),
   charizard:profile({

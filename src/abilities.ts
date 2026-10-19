@@ -3,7 +3,9 @@ import type { Action } from './controls';
 export type Skill = Exclude<Action, 'dodge'>;
 export type Fighter = 'charmander' | 'charmeleon' | 'charizard' |
   'bulbasaur' | 'ivysaur' | 'squirtle' | 'wartortle' |
-  'pikachu' | 'rattata' | 'jigglypuff' | 'geodude' | 'onix';
+  'pikachu' | 'rattata' | 'raticate' | 'jigglypuff' |
+  'pidgey' | 'pidgeotto' | 'spearow' | 'fearow' |
+  'caterpie' | 'metapod' | 'weedle' | 'kakuna' | 'geodude' | 'onix';
 export type Starter = 'charmander' | 'bulbasaur' | 'squirtle';
 export const skillKeys: Skill[] = ['q', 'w', 'e', 'r'];
 export const allActions: Action[] = ['q', 'w', 'e', 'r', 'dodge'];
@@ -66,6 +68,61 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
     w:{name:'Cantar',description:'Notas musicais lentificam o rival.',icon:'🎶',cooldown:4300,damage:0,element:'normal'},
     e:{name:'Voz Encantadora',description:'Onda sonora de fada.',icon:'✨',cooldown:4600,damage:13,element:'fairy'},
     r:{name:'Rolagem',description:'Ataque circular.',icon:'🌀',cooldown:8000,damage:15,element:'normal'}
+  },
+
+  pidgey: {
+    q:{name:'Investida',description:'Ataque de contato.',icon:'🐦',cooldown:1220,damage:7,element:'normal'},
+    w:{name:'Ataque de Areia',description:'Atrasa o inimigo.',icon:'🌫️',cooldown:3600,damage:0,element:'ground'},
+    e:{name:'Rajada de Vento',description:'Lâmina de vento frontal.',icon:'🌪️',cooldown:3750,damage:11,element:'flying'},
+    r:{name:'Ataque Rápido',description:'Bicada veloz.',icon:'💨',cooldown:5900,damage:13,element:'normal'}
+  },
+  pidgeotto: {
+    q:{name:'Investida',description:'Ataque de contato.',icon:'🐦',cooldown:1030,damage:12,element:'normal'},
+    w:{name:'Ataque de Areia',description:'Atrapalha o rival.',icon:'🌫️',cooldown:3400,damage:0,element:'ground'},
+    e:{name:'Rajada de Vento',description:'Vento forte.',icon:'🌪️',cooldown:2700,damage:18,element:'flying'},
+    r:{name:'Ataque Rápido',description:'Investida rápida.',icon:'💨',cooldown:4700,damage:19,element:'normal'}
+  },
+  spearow: {
+    q:{name:'Bicada',description:'Golpe rápido de bico.',icon:'🐤',cooldown:950,damage:9,element:'flying'},
+    w:{name:'Rosnar',description:'Reduz o dano.',icon:'🔉',cooldown:4100,damage:0,element:'normal'},
+    e:{name:'Ataque Furioso',description:'Série de bicadas.',icon:'🪶',cooldown:3500,damage:12,element:'normal'},
+    r:{name:'Ataque Rápido',description:'Voo rasante.',icon:'💨',cooldown:5800,damage:13,element:'normal'}
+  },
+  fearow: {
+    q:{name:'Bicada',description:'Bicada de longo alcance.',icon:'🐤',cooldown:770,damage:16,element:'flying'},
+    w:{name:'Rosnar',description:'Desorienta o rival.',icon:'🔉',cooldown:3100,damage:0,element:'normal'},
+    e:{name:'Ataque Furioso',description:'Série de ataques.',icon:'🪶',cooldown:2850,damage:21,element:'normal'},
+    r:{name:'Perfurador',description:'Investida pesada.',icon:'🎯',cooldown:5700,damage:26,element:'flying'}
+  },
+  caterpie: {
+    q:{name:'Investida',description:'Golpe de corpo.',icon:'🐛',cooldown:1320,damage:7,element:'normal'},
+    w:{name:'Tiro de Seda',description:'Fios grudam e deixam o rival lento.',icon:'🕸️',cooldown:3750,damage:0,element:'bug'},
+    e:{name:'Mordida de Inseto',description:'Dano físico de inseto.',icon:'🍃',cooldown:3200,damage:10,element:'bug'},
+    r:{name:'Investida',description:'Empurrão vigoroso.',icon:'🐛',cooldown:5500,damage:15,element:'normal'}
+  },
+  metapod: {
+    q:{name:'Investida',description:'Empurrão.',icon:'🐛',cooldown:1550,damage:5,element:'normal'},
+    w:{name:'Endurecer',description:'Protege o corpo.',icon:'🛡️',cooldown:5000,damage:0,element:'normal'},
+    e:{name:'Tiro de Seda',description:'Fios te prendem.',icon:'🕸️',cooldown:4400,damage:0,element:'bug'},
+    r:{name:'Investida',description:'Golpe defensivo.',icon:'🐛',cooldown:7300,damage:13,element:'normal'}
+  },
+  weedle: {
+    q:{name:'Ferrão Venenoso',description:'Espinho de veneno.',icon:'☠️',cooldown:1400,damage:7,element:'poison'},
+    w:{name:'Tiro de Seda',description:'Fios reduzem velocidade.',icon:'🕸️',cooldown:4000,damage:0,element:'bug'},
+    e:{name:'Mordida de Inseto',description:'Ataque de inseto.',icon:'🐛',cooldown:3350,damage:11,element:'bug'},
+    r:{name:'Ferrão Duplo',description:'Dois golpes venenosos.',icon:'☠️',cooldown:5600,damage:15,element:'poison'}
+  },
+  kakuna: {
+    q:{name:'Ferrão Venenoso',description:'Espinho tóxico.',icon:'☠️',cooldown:1710,damage:9,element:'poison'},
+    w:{name:'Endurecer',description:'Reduz dano.',icon:'🛡️',cooldown:4500,damage:0,element:'normal'},
+    e:{name:'Tiro de Seda',description:'Fios pegajosos.',icon:'🕸️',cooldown:3700,damage:0,element:'bug'},
+    r:{name:'Ferrão Duplo',description:'Ataque venenoso.',icon:'☠️',cooldown:5900,damage:17,element:'poison'}
+  },
+  raticate: {
+    q:{name:'Investida',description:'Ataque físico.',icon:'🐭',cooldown:960,damage:13,element:'normal'},
+    w:{name:'Ataque Rápido',description:'Avanço rápido.',icon:'💨',cooldown:3000,damage:15,element:'normal'},
+    e:{name:'Rosnar',description:'Reduz ataque.',icon:'🔊',cooldown:5000,damage:0,element:'normal'},
+    r:{name:'Hiperpresa',description:'Mordida forte.',icon:'🦷',cooldown:6000,damage:24,element:'normal'}
   },
   charizard: {
     q: { name: 'Brasas', description: 'Projétil veloz de fogo.', icon: '🔥', cooldown: 450, damage: 8, element: 'fire' },
