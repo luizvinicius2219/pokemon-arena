@@ -329,7 +329,7 @@ export class ArenaScene extends Phaser.Scene {
       if(p.rightButtonDown() && !this.settingsOpen() && !this.finished) this.destination.set(clampX(p.x),clampY(p.y));
     });
     this.input.keyboard?.on('keydown-ENTER',() => {
-      if (this.finished) this.scene.restart();
+      if(this.finished)this.restartOrReturn();
     });
     // Pewter's short stage introduction conveys preview status and is
     // rendered by StoryEnvironment. It leaves the Red trainer unobstructed.
@@ -1173,6 +1173,11 @@ export class ArenaScene extends Phaser.Scene {
     this.comboText.setVisible(false);
     this.comboMeter.clear();
     const result=this.stats.finish(this.time.now,this.playerHp>0,this.playerHp);
+    const returnOnly=this.mode==='wild'||this.mode==='practice';
+    const rematch=document.querySelector<HTMLButtonElement>('[data-battle-rematch]');
+    if(rematch)rematch.textContent=returnOnly?'↩ Voltar à Safari':'↻ Jogar novamente';
+    const touchRestart=document.querySelector<HTMLButtonElement>('[data-touch-restart]');
+    if(touchRestart)touchRestart.textContent=returnOnly?'↩ Voltar à Safari':'↻ Jogar novamente';
     if(this.mode==='story'){
       const back=document.querySelector<HTMLButtonElement>('[data-return-story]');
       if(back)back.hidden=false;
@@ -1230,8 +1235,11 @@ export class ArenaScene extends Phaser.Scene {
       fontSize:'14px',fontStyle:'bold',color:recordNotes.length?'#ffe2a1':'#8fb8c1',
       align:'center'
     }).setOrigin(0.5).setDepth(25);
+    const mustReturn=this.mode==='wild'||this.mode==='practice';
     this.add.text(center,385,
-      this.mobile.active?'TOQUE EM JOGAR NOVAMENTE':'ENTER PARA JOGAR NOVAMENTE',{
+      mustReturn?
+        (this.mobile.active?'TOQUE EM VOLTAR À SAFARI':'ENTER PARA VOLTAR À SAFARI'):
+        (this.mobile.active?'TOQUE EM JOGAR NOVAMENTE':'ENTER PARA JOGAR NOVAMENTE'),{
         fontSize:'16px',fontStyle:'bold',color:'#dbf5f2'
       }).setOrigin(0.5).setDepth(25);
     if(this.mode==='practice'||this.mode==='wild'){
@@ -1244,7 +1252,7 @@ export class ArenaScene extends Phaser.Scene {
           'TREINE SEUS MOVIMENTOS E TENTE NOVAMENTE',{
           fontSize:'14px',fontStyle:'bold',color:'#f6d9a0'
         }).setOrigin(0.5).setDepth(25);
-      const back=this.add.text(center,445,'↩ VOLTAR À VILA',{
+      const back=this.add.text(center,445,'↩ VOLTAR À SAFARI',{
         fontSize:'16px',fontStyle:'bold',color:'#d4f9e9',
         backgroundColor:'#22585a',padding:{x:18,y:9}
       }).setOrigin(0.5).setDepth(27).setInteractive({useHandCursor:true});
@@ -1586,10 +1594,18 @@ export class ArenaScene extends Phaser.Scene {
     }
   }
 
+  private restartOrReturn():void{
+    if(this.mode==='wild'||this.mode==='practice'){
+      window.dispatchEvent(new Event('monster-arena:return-world'));
+    }else{
+      this.scene.restart();
+    }
+  }
+
   update(time:number,delta:number) {
     if(this.mobile.consumeRestart() && this.finished) {
       this.mobile.clear();
-      this.scene.restart();
+      this.restartOrReturn();
       return;
     }
     if(this.settingsOpen()||this.finished)return;

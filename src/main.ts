@@ -11,7 +11,7 @@ import {
   chooseStarter,chosenStarter,getActivePokemon
 } from './playerCollection';
 import {
-  registerTrainingVictory,resetStoryProgress
+  registerTrainingVictory,resetStoryProgress,trainerCooldownRemaining
 } from './storyProgress';
 import { MobileControls } from './mobileControls';
 import type { GameMode } from './story';
@@ -457,6 +457,9 @@ window.addEventListener('monster-arena:practice-result',event=>{
   const back=document.querySelector<HTMLButtonElement>('[data-return-story]');
   if(back)back.hidden=false;
   if(!detail.victory)return;
+  // Restarting a battle or returning from a stale result never bypasses
+  // the 20-minute trainer rest enforced on the overworld.
+  if(detail.mode==='practice'&&trainerCooldownRemaining()>0)return;
   const before=getActivePokemon(loadCollection());
   const award=awardActiveExperience(loadCollection(),detail.experience);
   const after=getActivePokemon(award.collection);
