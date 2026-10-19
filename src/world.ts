@@ -5,12 +5,15 @@ import {
 } from './playerCollection';
 import {
   loadStoryProgress,nextStoryObjective,updateStoryProgress,
+  trainerCooldownRemaining,trainerCooldownText,
   type StoryProgress
 } from './storyProgress';
 import {
   rollSafariEncounter,setWildEncounter,type WildEncounter
 } from './encounters';
 import { pokemonCatalog } from './pokemonCatalog';
+import { experienceForLevel,experienceToNext } from './starterProgression';
+import { difficultyRules } from './gameBalance';
 import type { Fighter } from './abilities';
 
 const PARTNER:Record<string,{number:string;width:number;height:number}>={
@@ -37,6 +40,8 @@ export class WorldScene extends Phaser.Scene{
   private keys?:Record<string,Phaser.Input.Keyboard.Key>;
   private objective?:Phaser.GameObjects.Text;
   private info?:Phaser.GameObjects.Text;
+  private trainerLabel?:Phaser.GameObjects.Text;
+  private xpFill?:Phaser.GameObjects.Rectangle;
   private message?:Phaser.GameObjects.Text;
   private actionLabel?:Phaser.GameObjects.Text;
   private modal?:Phaser.GameObjects.Container;
@@ -67,7 +72,11 @@ export class WorldScene extends Phaser.Scene{
       'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/'+
       texture.number+'/Idle-Anim.png',
       {frameWidth:texture.width,frameHeight:texture.height});
-    for(const [name,number] of [['rattata',19],['jigglypuff',39],['pikachu',25]] as const){
+    for(const [name,number] of [
+      ['rattata',19],['pidgey',16],['caterpie',10],
+      ['weedle',13],['spearow',21],['jigglypuff',39],
+      ['pikachu',25]
+    ] as const){
       this.load.image('safari-icon-'+name,
         'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/'+number+'.png');
     }
@@ -107,6 +116,14 @@ export class WorldScene extends Phaser.Scene{
       fontSize:'16px',fontStyle:'bold',color:'#dcf0cf',
       stroke:'#1d3936',strokeThickness:4
     }).setDepth(19);
+    this.add.rectangle(28,79,310,8,0x183b38,0.86)
+      .setOrigin(0,0).setDepth(19);
+    this.xpFill=this.add.rectangle(28,79,1,8,0x9ce38a,0.96)
+      .setOrigin(0,0).setDepth(20);
+    this.trainerLabel=this.add.text(351,347,'',{
+      fontSize:'12px',fontStyle:'bold',color:'#e7f2d1',
+      stroke:'#193837',strokeThickness:4
+    }).setOrigin(0.5).setDepth(17);
     this.add.rectangle(480,543,924,62,0x132b2b,0.94)
       .setStrokeStyle(2,0xc3a67e).setDepth(18);
     this.objective=this.add.text(35,515,'',{
@@ -279,15 +296,25 @@ export class WorldScene extends Phaser.Scene{
   private refresh(){
     const collection=loadCollection();
     const pokemon=getActivePokemon(collection);
-    const badge=collection.badges.includes('pedra')?'  ·  🏅 PEDRA':'';
-    const evolved=pokemon.level>=16;
-    const prompt=pokemon.level<16
-      ?' · Evolução no Nv 16':' · Forma evoluída';
+    const badge=collection.badges.includes('pedra')?' · 🏅 PEDRA':'';
+    const remaining=experienceToNext(pokemon.experience,pokemon.level);
+    const current=experienceForLevel(pokemon.level);
+    const next=experienceForLevel(pokemon.level+1);
+    const progress=next>current?Math.max(0,Math.min(1,
+      (pokemon.experience-current)/(next-current))):1;
     this.info?.setText(
-      pokemon.nickname.toUpperCase()+'  ·  Nv '+pokemon.level+
-      '  ·  '+pokemon.experience+' XP'+prompt+badge
+      pokemon.nickname.toUpperCase()+' · NV '+pokemon.level+
+      ' · '+remaining+' XP P/ PRÓXIMO · '+
+      difficultyRules().name.toUpperCase()+badge
     );
-    this.objective?.setText('OBJETIVO  ·  '+nextStoryObjective(this.progress));
+    if(this.xpFill)this.xpFill.width=Math.max(1,310*progress);
+    const trainerLeft=trainerCooldownRemaining();
+    this.trainerLabel?.setText(trainerLeft>0
+      ?'⏳ '+Math.ceil(trainerLeft/60000)+' MIN':
+      '⚔ TREINADOR');
+    this.objective?.setText('OBJETIVO  ·  '+
+      (this.inGrass()?'Batalhe no mato para ganhar XP e subir de nível.':
+        nextStoryObjective(this.progress)));
   }
 
   private say(value:string,duration=3700){
@@ -314,7 +341,12 @@ export class WorldScene extends Phaser.Scene{
     if(this.inGrass()||this.near(590,350,85)){
       this.openEncounter();
     }else if(this.near(347,404,94)){
-      this.say('Treinador da rota: vamos praticar! Vitória vale 220 XP.',1100);
+      const delay=trainerCooldownRemaining();
+      if(delay>0){
+        this.say(trainerCooldownText()+'. Treine no mato alto enquanto isso.',3300);
+        return;
+      }
+      this.say('Treinador pronto! Uma vitória rende 100 XP. Próximo duelo em 20 min.',2200);
       this.enterBattle('practice');
     }else if(this.near(864,227,117)){
       this.progress=updateStoryProgress({enteredGym:true});
@@ -330,9 +362,21 @@ export class WorldScene extends Phaser.Scene{
     if(this.modal||this.menuOpen())return;
     this.lastEncounterAt=this.time.now;
     this.wildSteps=0;
+    const burst=this.add.graphics().setDepth(12);
+    for(let i=0;i<14;i++){
+      const a=i*Math.PI*2/14;
+      burst.fillStyle(i%2?0x85c77d:0xc8df9e,0.88);
+      burst.fillEllipse(
+        this.player.x+Math.cos(a)*(22+i%4*7),
+        this.player.y+Math.sin(a)*(18+i%4*5)-11,
+        7,13);
+    }
+    this.tweens.add({targets:burst,alpha:0,duration:650,
+      onComplete:()=>burst.destroy()});
     this.progress=updateStoryProgress({visitedRoute:true});
     this.refresh();
-    const roll=rollSafariEncounter();
+    const trainerLevel=getActivePokemon(loadCollection()).level;
+    const roll=rollSafariEncounter(Math.random,trainerLevel);
     const species=pokemonCatalog[roll.species];
     const screen=this.add.container(480,279).setDepth(35);
     screen.add(this.add.rectangle(0,0,700,374,0x10272a,0.97)
@@ -341,8 +385,16 @@ export class WorldScene extends Phaser.Scene{
       fontSize:'24px',fontStyle:'bold',color:'#ffe4a7'
     }).setOrigin(0.5));
     if(this.textures.exists('safari-icon-'+roll.species)){
-      screen.add(this.add.image(0,-39,'safari-icon-'+roll.species)
-        .setDisplaySize(135,135));
+      const reveal=this.add.image(0,-39,'safari-icon-'+roll.species)
+        .setDisplaySize(145,145);
+      screen.add(reveal);
+      this.tweens.add({
+        targets:reveal,y:reveal.y-10,duration:780,
+        yoyo:true,repeat:-1,ease:'Sine.easeInOut'
+      });
+      screen.once(Phaser.GameObjects.Events.DESTROY,()=>{
+        this.tweens.killTweensOf(reveal);
+      });
     }else{
       screen.add(this.add.circle(0,-40,49,0x658767));
     }
@@ -351,7 +403,8 @@ export class WorldScene extends Phaser.Scene{
         fontSize:'27px',fontStyle:'bold',color:'#e8fbe7'
       }).setOrigin(0.5));
     screen.add(this.add.text(0,84,
-      roll.species==='pikachu'?'ENCONTRO RARO! ⚡':'Vença para receber XP.',{
+      roll.species==='pikachu'?'ENCONTRO RARO! ⚡ · 3%':
+      'Se vencer: +'+roll.experience+' XP',{
         fontSize:'15px',color:'#e7d3b4'
       }).setOrigin(0.5));
     const button=(x:number,label:string,color:number,click:()=>void)=>{
@@ -451,7 +504,9 @@ export class WorldScene extends Phaser.Scene{
     if(this.actionLabel){
       const title=this.inGrass()?'TREINAR':
         this.near(864,227,117)?'BROCK':
-        this.near(347,404,94)?'BATALHAR':'INTERAGIR';
+        this.near(347,404,94)?
+          trainerCooldownRemaining()>0?'DESCANSO':'BATALHAR':
+        'INTERAGIR';
       if(this.actionLabel.text!==title)this.actionLabel.setText(title);
     }
     if(time-this.lastSave>4000){
