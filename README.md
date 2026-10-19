@@ -1,3 +1,13 @@
+## ATUALIZAÇÃO VISUAL / PC — 19 OUT 2026
+
+A Zona Safari agora apresenta **Vila de Kanto em pixel art** desenhada em tiles, com casas, Centro de Cura, caminhos claros, lago, árvores, mato alto e ginásio. O Red usa os **oito frames existentes** sem acessar frames inválidos. O acompanhante Bulbasaur/Squirtle/Charmander e suas evoluções usam sprites PMD **Idle e Walk em oito direções**, sem esticar a imagem para dimensões incompatíveis. As texturas foram preservadas com amostragem **nearest-pixel**, evitando borrão na ampliação.
+
+**Controles para PC:** WASD e setas movem Red; **botão direito** anda até o ponto selecionado (segure para direcionar); **E ou Espaço** interagem na Zona Safari. **F** ou botão **⛶ Tela cheia** ampliam o jogo mantendo a proporção 960 × 576. No celular permanecem joystick e toque. No combate continuam as habilidades Q, W, E e R.
+
+Esta atualização altera apresentação e controles **sem redefinir níveis, insígnias nem progresso existente**. O plano de captura/equipe permanece no [roteiro](GAME_ROADMAP.md).
+
+---
+
 ## SAFARI KANTO — PRIMEIRA REGIÃO (18/10/2026)
 
 O jogo abre em um menu com **Modo História** e **Modo Treinamento**. A História começa escolhendo um dos três iniciais, explora uma área Safari não linear, encontra **Rattata, Pidgey, Caterpie, Weedle, Spearow, Jigglypuff e Pikachu raro**, luta em uma **arena de grama específica para selvagens**, ganha XP mais devagar e desenvolve seu nível até chegar a Brock. Cada espécie aparece como sprite pixelado no próprio mato e na batalha. O **treinador da rota tem cooldown de 20 minutos após vitória**, salvo no navegador. O menu oferece dificuldade Casual, Padrão ou Desafio, que afeta atributos do combate. O Modo Treinamento tem um laboratório para escolher Pokémon, adversário e nível sem afetar o save.

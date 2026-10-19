@@ -263,8 +263,8 @@ function refreshActivePokemonInfo(){
     const desktop=hint.querySelector<HTMLElement>('.desktop-hint');
     const touch=hint.querySelector<HTMLElement>('.mobile-hint');
     if(desktop)desktop.textContent=world
-      ?'WASD / setas: explorar · E: treinar no mato alto ou enfrentar Brock'
-      :'Clique direito: mover · Teclas Q W E R: habilidades · Enter: reiniciar';
+      ?'WASD / setas ou botão direito: andar · E: interagir · F: tela cheia'
+      :'Clique direito: mover · Q W E R: habilidades · Espaço: esquiva · F: tela cheia';
     if(touch)touch.textContent=world
       ?'Joystick: explorar · Botão TREINAR no mato alto · Ginásio livre'
       :'Joystick: andar · 1–4: habilidades · ↗: esquiva';

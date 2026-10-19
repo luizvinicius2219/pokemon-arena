@@ -243,8 +243,8 @@ export class WorldScene extends Phaser.Scene{
         fontSize:'12px',fontStyle:'bold',color,
         stroke:'#23463e',strokeThickness:4
       }).setOrigin(0.5).setDepth(10);
-    marker(119,294,'CENTRO');
-    marker(321,294,'CASAS');
+    marker(119,294,'CENTRO DE CURA');
+    marker(321,294,'VILA');
     marker(575,234,'MATO ALTO');
     marker(845,231,'GINÁSIO');
     marker(349,369,'TREINADOR');
@@ -312,8 +312,15 @@ export class WorldScene extends Phaser.Scene{
     }else if(this.near(864,227,117)){
       this.progress=updateStoryProgress({enteredGym:true});
       this.enterBattle('story');
-    }else if(this.near(146,406,90)){
-      this.say('Você está pronto. Treine no mato alto ou explore livremente.');
+    }else if(this.near(134,286,76)){
+      const sparkle=this.add.text(this.player.x,this.player.y-78,
+        '✚ EQUIPE RECUPERADA!',{
+          fontSize:'16px',fontStyle:'bold',color:'#dcffde',
+          stroke:'#315946',strokeThickness:5
+        }).setOrigin(0.5).setDepth(24);
+      this.tweens.add({targets:sparkle,y:sparkle.y-33,alpha:0,
+        duration:1200,onComplete:()=>sparkle.destroy()});
+      this.say('Centro de Cura: descanse antes de outra batalha.');
     }else{
       this.say('Entre no mato alto para TREINAR ou siga para o ginásio.');
     }
@@ -440,7 +447,8 @@ export class WorldScene extends Phaser.Scene{
     // north–south lane around x=190 stays clear even when W is held.
     return (x>51&&x<178&&y>124&&y<278)||
       (x>251&&x<395&&y>119&&y<279)||
-      (x>779&&x<944&&y>60&&y<208);
+      (x>779&&x<944&&y>60&&y<208)||
+      (x>39&&x<180&&y>299&&y<393); // pond water collision
   }
 
   update(time:number,delta:number){

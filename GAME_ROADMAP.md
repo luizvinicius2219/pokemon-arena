@@ -52,3 +52,12 @@
 - `src/trainingSetup.ts` — escolhas temporárias do modo laboratório
 
 **Nota:** as linhas evolutivas de espécies selvagens estão modeladas, mas captura ainda não é jogável; o sistema não deve anunciar que o usuário possui espécies selvagens por simplesmente enfrentá-las.
+
+
+### Visual e experiência de PC — 19/10/2026
+
+- Cenário da vila reformulado com tiles pixelados, casas, estrada, Centro de Cura, lago, árvores e mato; mantém ginásio acessível.
+- Red percorre os frames disponíveis na ordem válida; acompanhantes usam animações reais Idle/Walk, proporcionais e ancoradas ao chão.
+- Proporção 5:3 fixa do Phaser em todos os tamanhos, sem zoom acumulativo; fullscreen por botão ou F.
+- WASD/setas, botão direito para caminhar, E para interagir no mundo. As habilidades de combate continuam preservadas.
+- Progresso local e XP mantidos. Próximos focos: aperfeiçoamento artístico com referências e sistema de captura/equipe.
