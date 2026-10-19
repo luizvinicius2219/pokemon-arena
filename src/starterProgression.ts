@@ -48,7 +48,7 @@ export const unlockedMoves=(level:number,form:'charmander'|'charmeleon')=>
     .filter(move=>move.level<=level);
 export const levelFromExperience=(xp:number,minimum=5)=>
   Math.min(100,Math.max(minimum,minimum+Math.floor(
-    Math.sqrt(Math.max(0,xp)/22)
+    Math.sqrt(Math.max(0,xp)/26)
   )));
 
 export const bulbasaurLearnset:readonly LearnableMove[]=[
@@ -71,3 +71,30 @@ export const learnsetForStarter=(species:
   'charmander'|'bulbasaur'|'squirtle'
 ):readonly LearnableMove[]=>species==='charmander'?charmanderLearnset:
   species==='bulbasaur'?bulbasaurLearnset:squirtleLearnset;
+
+/** Tells the player how much more they must battle, no invisible XP jumps. */
+export const experienceForLevel=(level:number,minimum=5)=>
+  26*Math.max(0,level-minimum)**2;
+export const experienceToNext=(xp:number,level:number)=>
+  Math.max(0,experienceForLevel(level+1)-xp);
+export interface SpeciesEvolution{
+  from:import('./abilities').Fighter;
+  to:import('./abilities').Fighter;
+  atLevel:number;
+  method:'level'|'stone';
+}
+/** Wild species also have real evolution metadata for upcoming capture/team. */
+export const speciesEvolutions:readonly SpeciesEvolution[]=[
+  {from:'charmander',to:'charmeleon',atLevel:16,method:'level'},
+  {from:'charmeleon',to:'charizard',atLevel:36,method:'level'},
+  {from:'squirtle',to:'wartortle',atLevel:16,method:'level'},
+  {from:'bulbasaur',to:'ivysaur',atLevel:16,method:'level'},
+  {from:'rattata',to:'raticate',atLevel:20,method:'level'},
+  {from:'pidgey',to:'pidgeotto',atLevel:18,method:'level'},
+  {from:'spearow',to:'fearow',atLevel:20,method:'level'},
+  {from:'caterpie',to:'metapod',atLevel:7,method:'level'},
+  {from:'weedle',to:'kakuna',atLevel:7,method:'level'},
+];
+export const evolutionFor=(species:import('./abilities').Fighter,level:number)=>
+  speciesEvolutions.find(e=>e.from===species&&
+    e.method==='level'&&level>=e.atLevel)?.to??null;

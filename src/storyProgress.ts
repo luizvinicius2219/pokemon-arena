@@ -10,6 +10,7 @@ export interface StoryProgress {
   defeatedTrainer:boolean;
   enteredGym:boolean;
   trainingsWon:number;
+  trainerReadyAt:number;
   lastX:number;
   lastY:number;
 }
@@ -17,6 +18,7 @@ const KEY='monster-arena-chapter-one';
 const DEFAULT:StoryProgress={
   version:1,metProfessor:false,visitedRoute:false,
   defeatedTrainer:false,enteredGym:false,trainingsWon:0,
+  trainerReadyAt:0,
   lastX:190,lastY:425
 };
 export function loadStoryProgress():StoryProgress{
@@ -33,6 +35,9 @@ export function loadStoryProgress():StoryProgress{
       enteredGym:parsed.enteredGym===true,
       trainingsWon:Number.isFinite(parsed.trainingsWon)
         ?Math.max(0,Math.min(999,Number(parsed.trainingsWon))):0,
+      trainerReadyAt:typeof parsed.trainerReadyAt==='number'&&
+        Number.isFinite(parsed.trainerReadyAt)
+          ?Math.max(0,parsed.trainerReadyAt):0,
       lastX:typeof parsed.lastX==='number'
         ?Math.max(48,Math.min(910,parsed.lastX)):190,
       lastY:typeof parsed.lastY==='number'
@@ -52,11 +57,23 @@ export function updateStoryProgress(
   saveStoryProgress(state);
   return state;
 }
+/** The same Route 1 trainer cannot be farmed every 20 seconds. */
+export const TRAINER_COOLDOWN_MS=20*60*1000;
+export function trainerCooldownRemaining(now=Date.now()):number{
+  return Math.max(0,loadStoryProgress().trainerReadyAt-now);
+}
+export function trainerCooldownText(now=Date.now()):string{
+  const ms=trainerCooldownRemaining(now);
+  const minutes=Math.ceil(ms/60000);
+  return ms<=0?'Treinador pronto para lutar':
+    'Treinador descansando · '+minutes+' min';
+}
 export function registerTrainingVictory():StoryProgress{
   const state=loadStoryProgress();
   return updateStoryProgress({
     defeatedTrainer:true,
-    trainingsWon:state.trainingsWon+1
+    trainingsWon:state.trainingsWon+1,
+    trainerReadyAt:Date.now()+TRAINER_COOLDOWN_MS
   });
 }
 export function nextStoryObjective(p:StoryProgress):string{
@@ -68,7 +85,8 @@ export function nextStoryObjective(p:StoryProgress):string{
 export function resetStoryProgress():StoryProgress{
   const reset:StoryProgress={
     version:1,metProfessor:false,visitedRoute:false,defeatedTrainer:false,
-    enteredGym:false,trainingsWon:0,lastX:190,lastY:425
+    enteredGym:false,trainingsWon:0,trainerReadyAt:0,
+    lastX:190,lastY:425
   };
   saveStoryProgress(reset);
   return reset;
