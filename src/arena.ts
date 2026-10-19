@@ -1081,7 +1081,7 @@ export class ArenaScene extends Phaser.Scene {
         (this.wildLevel-this.starterLevel)*0.07)):1;
     const defense=target==='player'&&now<this.playerGuardUntil?0.52:1;
     const trainer=target==='player'&&this.mode==='practice'?0.52:
-      target==='player'&&this.mode==='wild'?0.74:1;
+      target==='player'&&this.mode==='wild'?0.96:1;
     const weakness=target==='enemy'&&now<this.enemyVulnerableUntil?1.38:1;
     const levelBoost=target==='enemy'&&this.mode==='training'
       ?Math.max(0.7,Math.min(1.58,

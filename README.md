@@ -1,8 +1,14 @@
-## ATUAL: SAFARI KANTO (outubro de 2026)
+## SAFARI KANTO — PRIMEIRA REGIÃO (18/10/2026)
 
-O jogo abre em um **menu** com Treinamento ou História. O modo História oferece os três iniciais, zona Safari aberta com grama alta, encontros selvagens Rattata (58%), Jigglypuff (34%), Pikachu raro (8%), XP, evolução no nível 16 e acesso livre ao ginásio com handicap por nível. A captura jogável ainda não está disponível. Consulte [GAME_ROADMAP.md](GAME_ROADMAP.md) para a direção atual.
+O jogo abre em um menu com **Modo História** e **Modo Treinamento**. A História começa escolhendo um dos três iniciais, explora uma área Safari não linear, encontra **Rattata, Pidgey, Caterpie, Weedle, Spearow, Jigglypuff e Pikachu raro**, luta em uma **arena de grama específica para selvagens**, ganha XP mais devagar e desenvolve seu nível até chegar a Brock. Cada espécie aparece como sprite pixelado no próprio mato e na batalha. O **treinador da rota tem cooldown de 20 minutos após vitória**, salvo no navegador. O menu oferece dificuldade Casual, Padrão ou Desafio, que afeta atributos do combate. O Modo Treinamento tem um laboratório para escolher Pokémon, adversário e nível sem afetar o save.
+
+**Ainda falta:** captura com Pokébola e gerenciamento de equipe. As evoluções de espécies selvagens já estão no catálogo de progressão, mas ainda não podem ser adquiridas pela captura.
+
+Para o plano vigente de conclusão da região, consulte [GAME_ROADMAP.md](GAME_ROADMAP.md).
 
 ---
+
+
 
 # Monster Arena — protótipo Pokémon 1.2
 

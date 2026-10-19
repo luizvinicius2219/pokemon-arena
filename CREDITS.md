@@ -78,3 +78,7 @@ Sprite PMD original de Charmander utilizado no modo História: https://github.co
 - Bulbasaur #0001, Ivysaur #0002, Charmeleon #0005, Squirtle #0007, Wartortle #0008, Rattata #0019 e Jigglypuff #0039: animações de PMDCollab/SpriteCollab (https://github.com/PMDCollab/SpriteCollab/tree/master/sprite).
 - Retratos pixelados da seleção e encontros: PokeAPI Sprites (https://github.com/PokeAPI/sprites).
 - Pokémon e personagens pertencem aos respectivos titulares. Protótipo experimental não comercial.
+
+## Novos sprites de Pewter Safari (18/10/2026)
+
+Sprites animados em 8 direções, incluindo sprites de exploração e batalha, provenientes do [PMDCollab SpriteCollab](https://github.com/PMDCollab/SpriteCollab): Pidgey (#0016), Pidgeotto (#0017), Spearow (#0021), Fearow (#0022), Caterpie (#0010), Metapod (#0011), Weedle (#0013), Kakuna (#0014) e Raticate (#0020). As imagens ilustrativas do menu e dos encontros vêm de [PokeAPI/sprites](https://github.com/PokeAPI/sprites). Pokémon e os personagens pertencem aos respectivos titulares. Projeto experimental e não comercial; respeitar atribuições/licenças de cada arte ao reutilizar.

@@ -62,7 +62,7 @@ app.innerHTML = `
             </button>
             <button class="landing-mode" type="button" data-start-training>
               <span class="mode-icon">⚔</span><strong>MODO TREINAMENTO</strong>
-              <small>Arena livre, Charizard × Pikachu · Teste seus golpes</small>
+              <small>Escolha Pokémon, adversário e nível · Sem alterar seu save</small>
             </button>
           </div>
           <div class="safari-difficulty">
@@ -211,7 +211,7 @@ app.innerHTML = `
     <p id="player-character-help">🔥 Q W E R: habilidades de Charizard</p><p>💨 Espaço: esquiva</p>
     <h3>Habilidades</h3>
     <div id="player-skill-help">${(['q','w','e','r'] as const).map(a=>`<p class="skill-help"><b>${a.toUpperCase()}</b> — ${skills.charizard[a].name} <small>${(skills.charizard[a].cooldown/1000).toFixed(1)}s</small></p>`).join('')}</div>
-    <p class="help-footnote">Pikachu usa técnicas elétricas próprias e é controlado pelo computador.</p>
+    <p class="help-footnote" data-enemy-help>Adversários possuem golpes próprios e são controlados pelo computador.</p>
     <p class="help-footnote">Animações em 8 direções: <a href="https://sprites.pmdcollab.org/" target="_blank" rel="noopener noreferrer">PMD Sprite Repository</a>. Créditos e direitos no <a href="https://github.com/luizvinicius2219/pokemon-arena/blob/main/CREDITS.md" target="_blank" rel="noopener noreferrer">projeto</a>.</p>
   </aside>
 </main>
@@ -244,6 +244,11 @@ function refreshActivePokemonInfo(){
       (move.cooldown/1000).toFixed(1)+'s</small></p>';
   }).join('');
   mobile.setAbilityNames(species);
+  const rivalHelp=document.querySelector<HTMLElement>('[data-enemy-help]');
+  if(rivalHelp)rivalHelp.textContent=gameMode==='training'
+    ?'O adversário '+pokemonCatalog[getTrainingSetup().rival].name+
+      ' usa ataques e animações próprios.'
+    :'Golpes selvagens possuem padrões próprios; Pedra e Solo dominam o ginásio.';
   const world=gameMode==='world';
   document.querySelector<HTMLElement>('#hud')!.hidden=world;
   const touches=document.querySelector<HTMLElement>('.touch-actions');

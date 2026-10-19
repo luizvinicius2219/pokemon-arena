@@ -1,32 +1,54 @@
-# MONSTER ARENA — roteiro do projeto
+# Monster Arena — finalização da região de Pewter
 
-**Visão:** aventura curta, não linear, focada em explorar, treinar, evoluir e lutar em tempo real. Sem laboratório, pesquisador ou missões longas obrigatórias. Inspirado pela zona Safari de Pokémon, mas com ação, esquiva, habilidades visuais e progressão simplificada.
+**Direção aprovada:** Pokémon compacto e não linear. A proposta é uma Safari pequena que permite explorar, procurar encontros visíveis, treinar e desafiar Brock. Sem laboratório, diálogos longos ou passagens obrigatórias de cidade a cidade. Combates são **ação em tempo real**.
 
-## Fluxo atual jogável
+## Recursos jogáveis nesta versão
 
-1. **MENU** — Modo História ou Modo Treinamento (Charizard × Pikachu). Um botão extra permite testar Brock diretamente.
-2. **INICIAL** — Escolher Charmander (Fogo), Squirtle (Água) ou Bulbasaur (Planta/Veneno), todos nível 5. Salvar ou continuar a jornada. Novo inicial reinicia a campanha após confirmação.
-3. **SAFARI** — Exploração livre com mato alto, um treinador opcional e caminho para o ginásio. O jogador pode escolher TREINAR ou encontrar selvagens caminhando no mato.
-4. **ENCONTROS** — Rattata 58%, Jigglypuff 34% e Pikachu 8% (raro). Batalhar ou fugir; vitória dá XP. O mato não distribui XP parado.
-5. **NÍVEIS E EVOLUÇÃO** — XP e equipe salvos. Nível 16: Charmander → Charmeleon, Squirtle → Wartortle, Bulbasaur → Ivysaur. A arte e os movimentos mudam junto com a evolução.
-6. **GINÁSIO DE BROCK** — disponível livremente. Geodude e Onix ajustam HP conforme nível do inicial (handicap). Tipos Água/Planta levam vantagem; Fogo é desafiador.
-7. **INSÍGNIA DA PEDRA** — persistida após a vitória e mostrada no HUD da Safari.
+| Sistema | Situação |
+| --- | --- |
+| Menu + escolha do inicial | Charmander, Squirtle e Bulbasaur no nível 5; salvar/continuar |
+| Dificuldade | Casual (menos HP/dano rival, +20% XP), Padrão e Desafio (HP/dano rival maiores, -10% XP) |
+| Mundo Safari | Mato alto, Pokémon selvagem visível, encontro por botão ou caminhada, treinador, Brock |
+| Arena específica para selvagens | Chão verde e clareiras naturais com árvores e mato, diferente da Arena Livre e do ginásio |
+| Encontros | Rattata 29%, Pidgey 25%, Caterpie 16%, Weedle 12%, Spearow 8%, Jigglypuff 7%, Pikachu 3% |
+| Golpes selvagens | Rattata (investida), pássaros (bicada/vento), insetos (seda/veneno), Jigglypuff (som) e Pikachu (eletricidade) |
+| Progresso | XP por vitória; nível dos selvagens acompanha o jogador, ganho ajustado pelo desnível; barra e XP restante |
+| Treinador da rota | 100 XP na vitória; cooldown real de **20 min**, persistido. Não pode ser explorado por rematch |
+| Evolução dos iniciais | Charmander→Charmeleon, Squirtle→Wartortle e Bulbasaur→Ivysaur no nível 16 |
+| Evoluções preparadas | Pidgey→Pidgeotto (18), Rattata→Raticate (20), Spearow→Fearow (20), Caterpie→Metapod (7), Weedle→Kakuna (7) |
+| Ginásio de Brock | Geodude e Onix, tipos, movimento Escavar e terremoto; HP ajustado por nível e dificuldade |
+| Recompensa | Insígnia da Pedra persistida ao vencer |
+| Laboratório de treinamento | Escolha do Pokémon, oponente e nível 5–36 para comparar golpes, sem XP da campanha |
 
-## Diretrizes
+### Economia de XP
 
-- **Não linear:** explorar, lutar e treinar são opções, não etapas obrigatórias.
-- **Ação visual:** golpes possuem alcance, tipo, tempo de recarga e efeitos distintos; terreno quebrável faz parte da luta.
-- **Foco mobile:** sprite pixelado, mapa estático, controles por joystick e botões grandes.
-- **Equipe reutilizável:** ficha de espécie centralizada e coleção persistente com até três Pokémon ativos e reserva.
+- Inicial nível 5. Fórmula de XP acumulada por nível: **26 × (nível − 5)²**. Para evoluir ao nível 16: **3.146 XP acumulados**.
+- Vitórias no mato alto pagam XP pequeno, variável por espécie, nível do adversário, diferença de nível e dificuldade. Nem caminhar sozinho, nem fugir, nem perder geram XP.
+- O treinador da rota não pode ser usado para subir níveis instantaneamente: oferece **100 XP** após vencer e passa **20 minutos** descansando.
+- O Modo Treinamento permite definir nível artificial somente para **testes**, sem adulterar a campanha.
+- A intenção é manter exploração/combate significativos. Valores devem ser ajustados após sessões reais com os três iniciais.
 
-## Fases seguintes
+## O que ainda falta para Pewter estar 100% concluída
 
-**Captura jogável:** Pokébola em encontros selvagens, janelas de vulnerabilidade e mecânica própria; os módulos de regras existem, mas ainda falta conectá-los à interface.
+1. **Captura:** bolas, chance de captura com reação visual, custo/recurso limitado, limites de espécie e autenticação de posse; somente selvagens podem ser capturados.
+2. **Equipe:** painel de três Pokémon, depósito, troca em campo e durante a batalha com a animação de Pokébola já existente.
+3. **Evoluções na equipe:** depois da captura, permitir subir nível de espécies selvagens e usar Pidgeotto, Raticate, Fearow, Metapod e Kakuna com seus sprites próprios.
+4. **Equilíbrio fino:** validar por nível/desafio os quatro ataques, alcance, velocidade, IA, XP e taxa de encontros; limites para evitar grind excessivo.
+5. **Conteúdo da rota:** duas áreas menores ou atalhos, novos NPCs de batalha com cooldown próprio e pontos de recuperação.
+6. **Teste mobile:** conferir hitbox, sprites à escala correta, layout vertical, desempenho de efeitos e persistência com múltiplos Pokémon.
 
-**Equipe e troca:** tela de coleção, seleção do Pokémon ativo e retorno/reenvio da Pokébola.
+**Somente depois:** Viridian / próxima cidade, novos líderes e encontros. O jogo deve crescer por pequenas zonas reutilizáveis.
 
-**Safari expandida:** mais encontros, treinadores e pequenos atalhos; depois evoluções finais Venusaur, Blastoise, Charizard e golpes por nível.
+## Referências do código
 
-**Novos ginásios:** mais líderes, insígnias e regiões pequenas, mantendo ritmo livre e sem missões longas.
+- `src/encounters.ts` — tabela e sorteio de encontros
+- `src/gameBalance.ts` — regras de dificuldade
+- `src/starterProgression.ts` — curva e linhas de evolução
+- `src/playerCollection.ts` — coleção, XP, níveis e save
+- `src/storyProgress.ts` — cooldown do treinador e progresso de Pewter
+- `src/safariBattlefield.ts` — cenário exclusivo de mato alto
+- `src/starterFx.ts` — VFX para Pokémon e estilos de ataques
+- `src/arena.ts` — combate em tempo real, cálculo de dano e IA
+- `src/trainingSetup.ts` — escolhas temporárias do modo laboratório
 
-**Importante:** captura e trocas de equipe ainda não são jogáveis nesta versão.
+**Nota:** as linhas evolutivas de espécies selvagens estão modeladas, mas captura ainda não é jogável; o sistema não deve anunciar que o usuário possui espécies selvagens por simplesmente enfrentá-las.
