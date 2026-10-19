@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { paintKantoTown } from './kantoTownArt';
+import { findWalkingPath } from './worldNavigation';
 import type { MobileControls } from './mobileControls';
 import {
   getActivePokemon,loadCollection
@@ -50,6 +51,9 @@ export class WorldScene extends Phaser.Scene{
   private partner?:Phaser.GameObjects.Image;
   private lastPartnerTexture='';
   private pointerDestination:Phaser.Math.Vector2|null=null;
+  private pointerPath:Phaser.Math.Vector2[]=[];
+  private destinationMarker?:Phaser.GameObjects.Arc;
+  private lastPathAt=-1000;
   private walkingDirection=new Phaser.Math.Vector2(0,1);
   private heroShadow?:Phaser.GameObjects.Ellipse;
   private partnerShadow?:Phaser.GameObjects.Ellipse;
@@ -133,21 +137,49 @@ export class WorldScene extends Phaser.Scene{
     this.following.set(this.player.x-39,this.player.y+15);
     this.walkingDirection.set(0,1);
     this.pointerDestination=null;
+    this.pointerPath=[];
+    this.lastPathAt=-1000;
     this.mobile.setFinished(false);
     this.cameras.main.setBackgroundColor('#274a41');
     this.drawMap();
     this.rotateFeatured();
-    this.keys=this.input.keyboard?.addKeys(
-      'W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE'
-    ) as Record<string,Phaser.Input.Keyboard.Key>|undefined;
-    // A Phaser right-click destination uses camera-correct world coords.
-    // Holding the right mouse button updates the destination continuously.
+    // Explicit keycode map avoids browser keyboard layout / implicit
+    // Phaser string alias conflicts (W walks north, never casts a skill).
+    const keyCodes=Phaser.Input.Keyboard.KeyCodes;
+    this.keys=this.input.keyboard?.addKeys({
+      W:keyCodes.W,A:keyCodes.A,S:keyCodes.S,D:keyCodes.D,
+      UP:keyCodes.UP,DOWN:keyCodes.DOWN,
+      LEFT:keyCodes.LEFT,RIGHT:keyCodes.RIGHT,
+      E:keyCodes.E,SPACE:keyCodes.SPACE
+    },false,true) as Record<string,Phaser.Input.Keyboard.Key>|undefined;
+    this.destinationMarker=this.add.circle(0,0,12,0xf3e4b2,0.08)
+      .setStrokeStyle(3,0xfff0b7,0.94).setDepth(22)
+      .setVisible(false);
+    // Mouse right button chooses a reachable walking route around houses,
+    // instead of walking into a wall and appearing unresponsive.
     this.input.mouse?.disableContextMenu();
     const steer=(pointer:Phaser.Input.Pointer)=>{
-      this.pointerDestination=new Phaser.Math.Vector2(
-        Phaser.Math.Clamp(pointer.worldX,38,921),
-        Phaser.Math.Clamp(pointer.worldY,83,490)
-      );
+      const now=this.time.now;
+      if(now-this.lastPathAt<90)return;
+      const destination={
+        x:Phaser.Math.Clamp(pointer.worldX,38,920),
+        y:Phaser.Math.Clamp(pointer.worldY,86,489)
+      };
+      if(this.pointerDestination&&
+        Phaser.Math.Distance.Between(
+          this.pointerDestination.x,this.pointerDestination.y,
+          destination.x,destination.y)<17)return;
+      this.lastPathAt=now;
+      const points=findWalkingPath(this.player,destination,
+        (x,y)=>this.blocked(x,y));
+      if(!points.length){
+        this.say('Esse local não é acessível. Clique no caminho livre.',2200);
+        return;
+      }
+      this.pointerPath=points.map(p=>new Phaser.Math.Vector2(p.x,p.y));
+      const last=points[points.length-1];
+      this.pointerDestination=new Phaser.Math.Vector2(last.x,last.y);
+      this.destinationMarker?.setPosition(last.x,last.y).setVisible(true);
     };
     this.input.on('pointerdown',(pointer:Phaser.Input.Pointer)=>{
       if(pointer.rightButtonDown())steer(pointer);
@@ -227,7 +259,7 @@ export class WorldScene extends Phaser.Scene{
     hit.on('pointerover',()=>hit.setFillStyle(0x36786b));
     hit.on('pointerout',()=>hit.setFillStyle(0x286a60));
     this.refresh();
-    this.say('Livre para explorar: mato alto, treinos e ginásio de Brock.',4200);
+    this.say('PC: WASD ou setas para andar · botão direito para seguir um caminho · E para interagir.',5100);
     try{
       const evolved=window.sessionStorage.getItem('monster-arena-evolution');
       if(evolved){
@@ -371,13 +403,15 @@ export class WorldScene extends Phaser.Scene{
         .lineBetween(px,y+9,px+3,y+9-h);
     }
     if(this.textures.exists(key)){
-      this.featuredIcon=this.add.image(x,y-21,key,0)
-        .setDisplaySize(this.featured.species==='pikachu'?67:64,69)
+      this.featuredIcon=this.add.image(x,y+2,key,0)
+        .setOrigin(0.5,0.82)
+        .setScale(this.featured.species==='pikachu'?1.85:2.0)
         .setDepth(7).setInteractive({useHandCursor:true});
     }else if(this.textures.exists('safari-icon-'+this.featured.species)){
-      this.featuredIcon=this.add.image(x,y-22,
+      this.featuredIcon=this.add.image(x,y+2,
         'safari-icon-'+this.featured.species,0)
-        .setDisplaySize(64,64).setDepth(7)
+        .setOrigin(0.5,0.85)
+        .setDisplaySize(62,62).setDepth(7)
         .setInteractive({useHandCursor:true});
     }
     this.featuredIcon?.on('pointerdown',()=>{
@@ -499,14 +533,24 @@ export class WorldScene extends Phaser.Scene{
     this.actionHeld=touch;
 
     const manual=Math.abs(vx)>0.1||Math.abs(vy)>0.1;
-    if(manual)this.pointerDestination=null;
-    else if(this.pointerDestination){
-      const deltaX=this.pointerDestination.x-this.player.x;
-      const deltaY=this.pointerDestination.y-this.player.y;
-      const distance=Math.hypot(deltaX,deltaY);
-      if(distance>8){
-        vx=deltaX/distance;vy=deltaY/distance;
-      }else this.pointerDestination=null;
+    if(manual){
+      this.pointerDestination=null;
+      this.pointerPath.length=0;
+      this.destinationMarker?.setVisible(false);
+    }else if(this.pointerPath.length){
+      while(this.pointerPath.length&&
+        this.player.distance(this.pointerPath[0])<12)
+        this.pointerPath.shift();
+      if(this.pointerPath.length){
+        const point=this.pointerPath[0];
+        const vx0=point.x-this.player.x;
+        const vy0=point.y-this.player.y;
+        const distance=Math.hypot(vx0,vy0);
+        if(distance>0.01){vx=vx0/distance;vy=vy0/distance;}
+      }else{
+        this.pointerDestination=null;
+        this.destinationMarker?.setVisible(false);
+      }
     }
     const len=Math.hypot(vx,vy);
     let movedX=0,movedY=0;
@@ -520,8 +564,12 @@ export class WorldScene extends Phaser.Scene{
         this.player.y+=dy;movedY=dy;
       }
       // Don't keep pushing the character into a building on mouse input.
-      if(!manual&&Math.hypot(movedX,movedY)<0.01)
+      if(!manual&&Math.hypot(movedX,movedY)<0.01){
+        // Impossible destination: do not spin in place.
         this.pointerDestination=null;
+        this.pointerPath.length=0;
+        this.destinationMarker?.setVisible(false);
+      }
       const actual=Math.hypot(movedX,movedY);
       if(actual>0.1){
         this.walkingDirection.set(movedX,movedY).normalize();
