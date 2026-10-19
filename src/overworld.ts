@@ -97,6 +97,87 @@ const registry: SheetRegistry = {
     Hurt:{width:40,height:48,ticks:[2,8]},
     Hop:{width:24,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
   },
+  pidgey: {
+    Walk:{width:32,height:32,ticks:[6,4,4,4,4]},
+    Idle:{width:24,height:40,ticks:[30,4,4,4,4]},
+    Shoot:{width:24,height:48,ticks:[3,3,3,3,3,3,3,3,3,2,1]},
+    Attack:{width:64,height:72,ticks:[2,2,2,4,1,1,2,2,2,2,2,2,2,2]},
+    Charge:{width:24,height:32,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:48,height:48,ticks:[2,8]},
+    Hop:{width:24,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  pidgeotto: {
+    Walk:{width:32,height:40,ticks:[6,10,6,10]},
+    Idle:{width:32,height:48,ticks:[40,2,4,2]},
+    Shoot:{width:32,height:56,ticks:[3,3,3,3,3,3,3,3,3,2,1]},
+    Attack:{width:64,height:80,ticks:[2,2,2,4,1,1,2,2,2,2,2,2,2,2]},
+    Charge:{width:32,height:48,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:48,height:64,ticks:[2,8]},
+    Hop:{width:32,height:88,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  spearow: {
+    Walk:{width:32,height:40,ticks:[6,4,4,4,4]},
+    Idle:{width:24,height:40,ticks:[40,2,3,4,3,2]},
+    Shoot:{width:32,height:48,ticks:[2,3,3,3,3,2,2,2,2,2,2,2]},
+    Attack:{width:64,height:80,ticks:[2,2,2,4,1,1,2,2,2,2,2,2,2,2]},
+    Charge:{width:24,height:32,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:40,height:56,ticks:[2,8]},
+    Hop:{width:32,height:72,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  fearow: {
+    Walk:{width:40,height:64,ticks:[4,5,6,4,5,6]},
+    Idle:{width:40,height:72,ticks:[40,20,4,4,4,4,4,4,4,4]},
+    Shoot:{width:48,height:64,ticks:[3,3,3,3,1,2,2,2,2,2,2,2,1]},
+    Attack:{width:64,height:72,ticks:[2,2,2,2,2,4,1,1,2,2,2,2,2,2,2]},
+    Charge:{width:40,height:64,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:48,height:72,ticks:[2,8]},
+    Hop:{width:40,height:104,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  caterpie: {
+    Walk:{width:32,height:32,ticks:[10,10,10]},
+    Idle:{width:32,height:32,ticks:[8,8,8,8,8,8,8,4,10,4]},
+    Shoot:{width:32,height:40,ticks:[2,2,2,2,2,1,1,6]},
+    Attack:{width:64,height:64,ticks:[4,2,4,2,2,2,2,2,2,2,4]},
+    Charge:{width:24,height:40,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:48,height:56,ticks:[2,8]},
+    Hop:{width:24,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  metapod: {
+    Walk:{width:32,height:48,ticks:[4,2,2,2,2,4,4,4,4,4]},
+    Idle:{width:32,height:40,ticks:[10,14,10,14]},
+    Shoot:{width:32,height:48,ticks:[4,2,2,2,4,2,2,2,2,2,2,2,2]},
+    Attack:{width:72,height:80,ticks:[2,4,1,1,1,2,2,2,2,2]},
+    Charge:{width:24,height:40,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:48,height:64,ticks:[2,8]},
+    Hop:{width:32,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  weedle: {
+    Walk:{width:32,height:40,ticks:[8,10,8]},
+    Idle:{width:32,height:40,ticks:[40,8,8,8]},
+    Shoot:{width:32,height:40,ticks:[2,2,4,4,2,2,2,2,2,2,2,2,4]},
+    Attack:{width:64,height:64,ticks:[4,2,4,2,2,2,2,2,2,2,4]},
+    Charge:{width:24,height:32,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:56,height:64,ticks:[2,8]},
+    Hop:{width:32,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  kakuna: {
+    Walk:{width:24,height:40,ticks:[8,4,4,4,10]},
+    Idle:{width:24,height:40,ticks:[40,1,1,4,1,1]},
+    Shoot:{width:24,height:40,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Attack:{width:64,height:72,ticks:[2,2,2,2,2,2,2,6,1,1,1,2,2,2]},
+    Charge:{width:24,height:40,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:48,height:56,ticks:[2,8]},
+    Hop:{width:24,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
+  raticate: {
+    Walk:{width:40,height:48,ticks:[4,6,4,4,4,4]},
+    Idle:{width:32,height:48,ticks:[30,6,3,4,3,6]},
+    Shoot:{width:32,height:40,ticks:[2,2,4,2,2,1,2,2,2,2,2,2,2,2]},
+    Attack:{width:72,height:72,ticks:[2,2,4,1,2,2,2,2,2,2,2,2,2]},
+    Charge:{width:32,height:32,ticks:[2,2,2,2,2,2,2,2,2,2]},
+    Hurt:{width:40,height:48,ticks:[2,8]},
+    Hop:{width:32,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}
+  },
   charizard: {
     Walk: { width: 40, height: 48, ticks: [8, 10, 8, 10] },
     Idle: { width: 40, height: 48, ticks: [15, 15, 15, 15] },
@@ -149,6 +230,15 @@ export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Cha
     charmeleon: { Shoot: 2, Attack: 5, Charge: 5 },
     rattata: { Shoot: 4, Attack: 3, Charge: 5 },
     jigglypuff: { Shoot: 2, Attack: 3, Charge: 5 },
+    pidgey: {Shoot:3,Attack:4,Charge:5},
+    pidgeotto: {Shoot:3,Attack:4,Charge:5},
+    spearow: {Shoot:3,Attack:4,Charge:5},
+    fearow: {Shoot:3,Attack:6,Charge:5},
+    caterpie: {Shoot:1,Attack:5,Charge:5},
+    metapod: {Shoot:4,Attack:3,Charge:5},
+    weedle: {Shoot:3,Attack:5,Charge:5},
+    kakuna: {Shoot:3,Attack:7,Charge:5},
+    raticate: {Shoot:2,Attack:5,Charge:5},
     charizard: { Shoot: 2, Attack: 5, Charge: 5 },
     pikachu:  { Shoot: 2, Attack: 3, Charge: 5 },
     geodude:  { Shoot: 5, Attack: 5, Charge: 5 },
@@ -161,7 +251,16 @@ export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Cha
 const ids: Record<Creature,string> = {
   charmander:'0004',charmeleon:'0005',charizard:'0006',
   bulbasaur:'0001',ivysaur:'0002',squirtle:'0007',wartortle:'0008',
-  rattata:'0019',jigglypuff:'0039',pikachu:'0025',geodude:'0074',onix:'0095'
+  rattata:'0019',jigglypuff:'0039',pikachu:'0025',geodude:'0074',onix:'0095',
+  pidgey:'0016',
+  pidgeotto:'0017',
+  spearow:'0021',
+  fearow:'0022',
+  caterpie:'0010',
+  metapod:'0011',
+  weedle:'0013',
+  kakuna:'0014',
+  raticate:'0020'
 };
 const motions: Motion[] = ['Walk', 'Idle', 'Shoot', 'Attack', 'Charge', 'Hurt', 'Hop'];
 const base = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/';
@@ -176,6 +275,15 @@ function spriteSize(creature:Creature):number {
     case 'wartortle':return 2.10;
     case 'rattata':return 1.88;
     case 'jigglypuff':return 2.15;
+    case 'pidgey':return 2.05;
+    case 'pidgeotto':return 2.05;
+    case 'spearow':return 2.05;
+    case 'fearow':return 2;
+    case 'caterpie':return 2.05;
+    case 'metapod':return 2.05;
+    case 'weedle':return 2.05;
+    case 'kakuna':return 2.05;
+    case 'raticate':return 1.91;
     case 'onix':return 1.95;
     case 'geodude':return 1.95;
     case 'charizard':return 1.9;
@@ -187,7 +295,9 @@ function spriteLift(creature:Creature):number {
     creature==='charmander'||creature==='bulbasaur'||creature==='squirtle'
     ||creature==='rattata'||creature==='jigglypuff'?24:
     creature==='ivysaur'||creature==='wartortle'||creature==='charmeleon'?27:
-    creature==='geodude'?15:17;
+    creature==='geodude'?15:
+    creature==='fearow'||creature==='pidgeotto'?37:
+    creature==='pidgey'||creature==='spearow'?26:21;
 }
 
 function key(creature: Creature, motion: Motion) {
@@ -222,7 +332,7 @@ export function preloadOverworld(scene: Phaser.Scene, roster: readonly Creature[
     for (const motion of motions) {
       if((creature==='geodude'||creature==='onix')&&motion==='Hop')continue;
       const info = registry[creature][motion];
-      const spriteMotion=creature==='charmander'&&motion==='Shoot'?'Charge':motion;
+      const spriteMotion=(creature==='charmander'||creature==='kakuna')&&motion==='Shoot'?'Charge':motion;
       scene.load.spritesheet(key(creature, motion), base + ids[creature] + '/' + spriteMotion + '-Anim.png', {
         frameWidth: info.width,
         frameHeight: info.height
