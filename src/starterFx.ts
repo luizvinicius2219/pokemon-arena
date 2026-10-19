@@ -252,4 +252,87 @@ export class StarterFx {
       y:-40,duration:1100,onComplete:()=>g.destroy()});
   }
 
+  /** Bird attacks are unmistakable: wind slashes with layered bright rings. */
+  gust(origin:Point,target:Point,strong=false){
+    const g=this.scene.add.graphics().setDepth(15);
+    const dx=target.x-origin.x,dy=target.y-origin.y;
+    const angle=Math.atan2(dy,dx);
+    const palette=strong?[0xb5f4ec,0xffffff,0x69bbc6]:
+      [0xd8f3dc,0xfef9cb,0x84bca5];
+    for(let line=0;line<5;line++){
+      const t=line/4;
+      const px=Phaser.Math.Linear(origin.x,target.x,t);
+      const py=Phaser.Math.Linear(origin.y,target.y,t);
+      const r=15+line*8;
+      g.lineStyle(7,line%2?palette[0]:palette[1],0.84);
+      g.beginPath();g.arc(px,py,r,angle-0.72,
+        angle+0.72,false);g.strokePath();
+      g.lineStyle(3,palette[2],0.82);
+      g.beginPath();g.arc(px,py,r+6,angle-0.62,
+        angle+0.62,false);g.strokePath();
+      for(const off of [-1,1]){
+        g.lineStyle(2,0xe8fff3,0.9);
+        g.lineBetween(px,py+off*10,px+dx*0.04,py+dy*0.04+off*4);
+      }
+    }
+    this.scene.tweens.add({targets:g,alpha:0,
+      x:Math.cos(angle)*23,y:Math.sin(angle)*23,duration:590,
+      ease:'Sine.easeOut',onComplete:()=>g.destroy()});
+  }
+
+  /** Caterpie and Weedle make a net of web strings that persists briefly. */
+  silk(origin:Point,target:Point){
+    const g=this.scene.add.graphics().setDepth(15);
+    g.lineStyle(5,0xd1e4df,0.92)
+      .lineBetween(origin.x,origin.y,target.x,target.y);
+    g.lineStyle(2,0xffffff,0.9)
+      .lineBetween(origin.x,origin.y-4,target.x,target.y-4);
+    for(let arm=0;arm<8;arm++){
+      const a=arm*Math.PI/4;
+      const radius=33;
+      const fx=target.x+Math.cos(a)*radius;
+      const fy=target.y+Math.sin(a)*radius*0.65;
+      g.lineStyle(2,0xe4f3ee,0.96)
+        .lineBetween(target.x,target.y,fx,fy);
+      for(const ring of [0.42,0.78]){
+        const one={
+          x:target.x+Math.cos(a)*radius*ring,
+          y:target.y+Math.sin(a)*radius*ring*0.65
+        };
+        const nextAngle=a+Math.PI/4;
+        const two={
+          x:target.x+Math.cos(nextAngle)*radius*ring,
+          y:target.y+Math.sin(nextAngle)*radius*ring*0.65
+        };
+        g.lineStyle(2,0xbfd8d0,0.9)
+          .lineBetween(one.x,one.y,two.x,two.y);
+      }
+    }
+    this.scene.tweens.add({targets:g,alpha:0,duration:1150,
+      delay:520,onComplete:()=>g.destroy()});
+  }
+
+  /** Poison Sting has a neon tip; Bug Bite stays green, not a recycled flame. */
+  sting(origin:Point,target:Point,poison:boolean){
+    const g=this.scene.add.graphics().setDepth(15);
+    const angle=Math.atan2(target.y-origin.y,target.x-origin.x);
+    const color=poison?0xcb8ce0:0x9ddc79;
+    for(let i=-2;i<=2;i++){
+      const a=angle+i*0.16;
+      const endX=target.x+Math.cos(a)*15;
+      const endY=target.y+Math.sin(a)*15;
+      g.lineStyle(7,poison?0x723c88:0x438461,0.7)
+        .lineBetween(origin.x,origin.y,endX,endY);
+      g.lineStyle(3,color,0.95)
+        .lineBetween(origin.x,origin.y,endX,endY);
+      g.fillStyle(0xffffff,0.92).fillCircle(endX,endY,3);
+    }
+    const burst=this.scene.add.circle(target.x,target.y,
+      16,color,0.32).setStrokeStyle(4,0xffffff,0.84).setDepth(15);
+    this.scene.tweens.add({targets:g,alpha:0,duration:425,
+      onComplete:()=>g.destroy()});
+    this.scene.tweens.add({targets:burst,alpha:0,scaleX:2.7,
+      scaleY:2.7,duration:480,onComplete:()=>burst.destroy()});
+  }
+
 }
