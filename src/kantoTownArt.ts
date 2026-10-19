@@ -1,257 +1,367 @@
 /**
- * Aurora / Kanto-inspired town art built from a tight 16px tile language.
- * Nothing is drawn by the GPU each frame: the whole map is cached as ONE
- * 480x288 texture, scaled exactly 2x by Phaser, with nearest-pixel sampling.
+ * Aurora Town — original, GBA-inspired 16px pixel tile scene.
  *
- * Distinct, deliberately placed buildings/roof edges/windows/signs make this
- * a readable village instead of random noise stamped across a green plane.
+ * Art direction: Gen III proportions, crisp geometric pixels, a restrained
+ * 32-colour palette, detailed roofs, real street hierarchy and readable
+ * grass tiles. The scene is painted ONCE to a 480×288 canvas and scaled 2×
+ * with nearest-neighbour filtering by Phaser.
+ *
+ * The three solid buildings, pond, grass and paths deliberately retain
+ * the world-space coordinates consumed by WorldScene interactions,
+ * findWalkingPath() and the existing save positions.
  */
 export function paintKantoTown(ctx:CanvasRenderingContext2D):void{
-  const g=ctx;
-  g.imageSmoothingEnabled=false;
-  const rect=(x:number,y:number,w:number,h:number,c:string)=>{
-    g.fillStyle=c;
-    g.fillRect(Math.round(x),Math.round(y),
-      Math.round(w),Math.round(h));
+  ctx.imageSmoothingEnabled=false;
+  type Point=readonly [number,number];
+  const C={
+    grass:'#87ae75',grassLight:'#94b980',grassShade:'#78a56d',
+    grassDeep:'#61915e',leaf:'#4b895f',leafDark:'#275a48',
+    leafMid:'#347551',leafLight:'#6ba477',leafGlint:'#9fc68a',
+    dark:'#293c41',outline:'#415454',shadow:'#506e59',
+    earth:'#b6a37e',earthLight:'#dcc89b',earthTop:'#f0ddae',
+    earthDark:'#877e66',stone:'#b9b4a1',stoneLight:'#e4dbc5',
+    wall:'#e5d5b3',wallLight:'#f5e4c3',wallShadow:'#b3a58c',
+    timber:'#876d54',timberDark:'#584b3f',water:'#408ca5',
+    waterLight:'#89cbd0',waterDark:'#2c687c',
+    red:'#cb645e',redHi:'#e98c74',redShadow:'#844b54',
+    blue:'#5088ab',blueHi:'#83b6c8',blueShadow:'#345975',
+    slate:'#787f89',slateHi:'#acacb0',slateDark:'#505762',
+    cream:'#f7e9cb',gold:'#f3ca7f'
   };
-  const px=(x:number,y:number,c:string)=>rect(x,y,1,1,c);
-  const tile=(x:number,y:number,a:string,b:string,seed:number)=>{
-    rect(x,y,16,16,a);
-    rect(x,y,16,1,b);
-    if(seed%4===0){
-      rect(x+3,y+10,2,3,'#6a9b67');
-      rect(x+7,y+8,2,5,'#7dac73');
-      rect(x+11,y+11,2,2,'#416d55');
-    }else if(seed%7===0){
-      rect(x+6,y+7,1,3,'#3d6b52');
-      rect(x+8,y+8,2,2,'#93bd78');
+  const fill=(x:number,y:number,w:number,h:number,color:string)=>{
+    ctx.fillStyle=color;
+    ctx.fillRect(Math.round(x),Math.round(y),
+      Math.max(1,Math.round(w)),Math.max(1,Math.round(h)));
+  };
+  const poly=(points:readonly Point[],color:string)=>{
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.moveTo(points[0][0],points[0][1]);
+    for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);
+    ctx.closePath();
+    ctx.fill();
+  };
+  const hash=(x:number,y:number)=>
+    ((Math.imul(x+71,741103597)^Math.imul(y+19,1597334677))>>>0);
+
+  // 1. Grass is made of actual repeating 16px tiles, rather than
+  // a giant noisy rectangle. Sparse highlights preserve player readability.
+  const meadow=(tx:number,ty:number)=>{
+    const x=tx*16,y=ty*16;
+    const value=hash(tx,ty);
+    const swatches=[C.grass,C.grassLight,C.grassShade,C.grass];
+    fill(x,y,16,16,swatches[value%swatches.length]);
+    fill(x,y,16,1,value%3===0?'#9bbe84':'#80a971');
+    if(value%5===0){
+      fill(x+3,y+9,2,4,C.grassDeep);
+      fill(x+5,y+6,2,6,'#afd18b');
+      fill(x+10,y+10,2,3,'#659765');
+    }else if(value%7===1){
+      fill(x+11,y+5,2,3,'#679965');
+      fill(x+3,y+12,3,2,'#b0d390');
     }
+    if(value%17===1)fill(x+8,y+2,3,2,'#c2d897');
   };
-  // The ground uses clean, reusable 16x16 tiles and a fixed palette.
-  for(let y=0;y<288;y+=16)for(let x=0;x<480;x+=16){
-    const hash=((x*37+y*73)/16|0)>>>0;
-    const variants=['#7fa76c','#82aa70','#7ca468','#86ad74'];
-    tile(x,y,variants[hash%4],
-      hash%3===0?'#8ab478':'#77a269',hash);
+  for(let ty=0;ty<18;ty++)for(let tx=0;tx<30;tx++)meadow(tx,ty);
+
+  // 2. Continuous ground terrain: roads and door approaches are NOT
+  // separate floating islands; all roads converge on one broad junction.
+  const road=(x:number,y:number,w:number,h:number,variant='dirt')=>{
+    fill(x-3,y-3,w+6,h+6,C.grassDeep);
+    fill(x-1,y-1,w+2,h+2,'#9b9d77');
+    fill(x,y,w,h,variant==='square'?'#b9ae92':C.earth);
+    fill(x+2,y+2,w-4,h-4,variant==='square'?'#c9b99a':C.earthLight);
+    const step=variant==='square'?12:16;
+    for(let yy=y+2;yy<y+h-3;yy+=step){
+      for(let xx=x+3;xx<x+w-4;xx+=step){
+        const stagger=((yy-y)/step|0)%2?5:0;
+        const rx=Math.min(x+w-6,xx+stagger);
+        const length=Math.min(step-2,x+w-rx-3);
+        if(length<3)continue;
+        fill(rx,yy,length,1,'#a99576');
+        fill(rx+1,yy+2,Math.max(2,length-3),1,'#f3ddb3');
+        if(hash(rx,yy)%4===0)
+          fill(rx+4,yy+step-4,3,2,'#ae9e80');
+      }
+    }
+    fill(x,y,w,2,'#ecdbb3');
+    fill(x,y+h-2,w,2,'#a28c70');
+  };
+  road(0,204,480,42);
+  road(88,135,29,108);
+  road(146,137,35,109);
+  road(385,108,56,132);
+  road(181,188,65,53);
+  road(83,191,127,55,'square');
+  // Route/grass threshold: a walkable narrow strip aligns with inGrass().
+  fill(206,185,36,24,'#9c9976');
+  fill(206,188,35,19,'#d9c79f');
+  fill(210,193,25,9,C.earthTop);
+  for(let i=0;i<5;i++)fill(210+i*6,206,3,2,'#b3a380');
+
+  // 3. Town plaza laid in alternating sandstone tiles.
+  // Large, low-contrast squares keep NPCs readable on top.
+  for(let y=196;y<245;y+=13){
+    for(let x=88;x<209;x+=15){
+      const odd=((x+y)>>2)&1;
+      fill(x+1,y+1,13,11,odd?'#d5c7a4':'#daceac');
+      fill(x+1,y+10,13,1,'#b8a989');
+      fill(x+2,y+2,11,1,'#f1e2b9');
+      fill(x+3,y+6,1,3,'#cab894');
+    }
   }
-  // North edge is a layer of believable gray stone cliffs, not a wall of
-  // identical rectangles. Short ledges and exposed faces form 16px blocks.
+  // Lower street boundary has a consistent stone kerb.
   for(let x=0;x<480;x+=16){
-    const step=(x/16|0)%5===0?4:0;
-    rect(x,0,16,24+step,'#385a56');
-    rect(x,0,16,5,'#617c70');
-    rect(x+2,3,12,2,'#8a9f82');
-    rect(x+1,8,14,1,'#263f44');
-    rect(x,16,16,9+step,'#455c58');
-    rect(x+1,18,4,5,'#57716b');
-    rect(x+10,17,5,3,'#293e42');
-    rect(x,25+step,16,3,'#2c4946');
+    fill(x,243,16,2,'#a48f70');
+    fill(x+2,243,12,1,'#e6d4aa');
   }
 
-  // Road stones are 8x8 blocks, with breaks that read as actual pavement.
-  const paving=(x:number,y:number,w:number,h:number)=>{
-    rect(x-3,y-3,w+6,h+6,'#78956e');
-    rect(x,y,w,h,'#c8b88e');
-    rect(x+2,y+2,w-4,h-4,'#cfbc93');
-    for(let row=0;row<h;row+=12){
-      for(let col=0;col<w;col+=20){
-        const xx=x+col+(row%24===0?0:9);
-        const ww=Math.min(17,w-col-1);
-        if(ww>0)rect(xx,y+row,ww,1,'#b9a784');
-        if((row+col)%36===0)rect(xx+3,y+row+5,5,1,'#eee0b5');
+  // 4. Pond: organic 8-bit shoreline (not a flat blue rectangle).
+  const bank:Point[]=[
+    [19,150],[29,147],[73,147],[85,153],[90,166],
+    [89,183],[80,195],[29,197],[18,192],[13,181],[13,163]
+  ];
+  poly(bank,'#5b8b61');
+  poly(bank.map(([x,y])=>[x+2,y+3] as Point),'#3f704f');
+  poly([[22,155],[77,154],[85,164],[85,182],[77,191],
+    [25,190],[19,179],[19,162]],C.waterDark);
+  poly([[25,158],[75,157],[80,166],[80,180],
+    [74,186],[28,187],[23,177],[23,164]],C.water);
+  fill(27,160,46,3,'#64abb8');
+  for(const [x,y,len] of [[28,168,13],[54,165,18],[41,176,11],
+    [65,182,9],[28,183,15]] as readonly [number,number,number][])
+    fill(x,y,len,2,C.waterLight);
+  for(const [x,y] of [[33,172],[71,171],[45,183]] as Point[]){
+    fill(x-5,y,8,2,'#3f7c60');
+    fill(x-3,y-3,5,3,'#93bc7b');
+    fill(x+1,y-1,3,2,'#d4dc8f');
+  }
+  // Simple narrow pond footbridge, within already blocked water.
+  fill(67,188,32,6,C.timberDark);
+  fill(69,185,30,4,'#c7a77b');
+  for(let x=71;x<98;x+=6)fill(x,185,2,4,'#e5c79b');
+
+  // 5. Grass field: 16px dense vegetation tiles, warm highlights,
+  // readable edge and a deliberate west entrance.
+  fill(214,112,178,119,'#416b4a');
+  fill(218,116,169,111,'#2f664a');
+  fill(220,119,165,106,'#52875b');
+  const tuft=(x:number,y:number,variant:number)=>{
+    fill(x,y,16,16,variant%3===0?'#4e8c61':
+      variant%3===1?'#528c5b':'#46815b');
+    fill(x,y+11,16,5,'#39704e');
+    fill(x+1,y+8,2,5,'#275e46');
+    fill(x+3,y+2,2,11,'#90c37b');
+    fill(x+6,y+6,2,7,'#72ad6d');
+    fill(x+9,y+1,2,12,'#a9d187');
+    fill(x+12,y+5,2,8,'#77b66e');
+    fill(x+3,y+11,10,2,'#2f694b');
+    fill(x+5,y+3,1,3,'#d1dfa0');
+    if(variant%7===0){
+      fill(x+12,y+3,2,2,'#f1d28f');
+      fill(x+13,y+1,1,2,'#fff4ba');
+    }
+  };
+  for(let ty=0;ty<6;ty++)for(let tx=0;tx<10;tx++)
+    tuft(222+tx*16,120+ty*16,hash(tx,ty)%23);
+  // East and north boundary decorated with dark hedge lips.
+  fill(217,115,170,4,'#31634a');
+  fill(218,119,4,103,'#2d6048');
+  fill(385,119,3,107,'#265940');
+  fill(217,222,171,6,'#2e5c45');
+  for(let x=222;x<386;x+=16){
+    fill(x,116,10,2,'#699c6b');
+    fill(x+4,227,8,2,'#628e5d');
+  }
+  // West opening looks like an actual worn gate in the tall grass.
+  fill(215,182,20,28,'#987e5a');
+  fill(218,184,17,23,'#c4b18b');
+  fill(220,190,16,13,'#e3cb9e');
+  for(let y=185;y<209;y+=6)fill(218,y,3,2,'#f1dda9');
+
+  // 6. Tree clusters use well-defined GBA-style trunks + crowns, outlined
+  // by dark foliage. They are composed by hand, not soft canvas circles.
+  const tree=(x:number,y:number,scale=1)=>{
+    const p=(xx:number,yy:number,w:number,h:number,c:string)=>
+      fill(x+xx*scale,y+yy*scale,w*scale,h*scale,c);
+    p(-4,-1,10,17,'#5f6242');
+    p(-3,0,7,13,'#846f4e');
+    p(-1,4,2,7,'#b19a64');
+    p(-18,-16,37,18,'#214e3f');
+    p(-21,-11,42,10,'#2b5b42');
+    p(-17,-25,36,17,'#2e6849');
+    p(-13,-32,29,15,'#3a7c51');
+    p(-8,-37,21,12,'#569663');
+    p(-13,-29,11,6,'#46895c');
+    p(2,-33,11,4,'#95c37c');
+    p(-8,-34,6,2,'#83b878');
+    p(9,-26,6,8,'#629f68');
+    p(-18,-13,7,6,'#235942');
+    p(-2,-7,19,4,'#26583f');
+    p(15,-14,6,3,'#366b4b');
+  };
+  // Background treeline covers the old monotonous stone wall.
+  for(const [x,y] of [[12,48],[45,42],[76,44],[111,38],[217,46],
+    [250,45],[287,45],[324,43],[358,48],[463,140],
+    [463,176],[460,210],[18,270],[48,267],[77,268],
+    [238,268],[267,268],[297,268],[332,268],[363,269],
+    [459,277],[425,266]] as Point[])tree(x,y);
+
+  // 7. Construct real 3/4-perspective pixel buildings with readable roof
+  // caps, ridge highlights, tile rows, side walls and a recessed door.
+  type Kind='healing'|'home'|'gym';
+  function building(
+    x:number,y:number,w:number,h:number,
+    kind:Kind
+  ){
+    const center=x+w/2;
+    const color=kind==='healing'?C.red:
+      kind==='home'?C.blue:C.slate;
+    const light=kind==='healing'?C.redHi:
+      kind==='home'?C.blueHi:C.slateHi;
+    const dark=kind==='healing'?C.redShadow:
+      kind==='home'?C.blueShadow:C.slateDark;
+    // House shadow sits on grass but is never a walking blocker.
+    fill(x-6,y+h-5,w+13,13,'#557d5b');
+    fill(x-3,y+18,w+7,h-13,C.timberDark);
+    // Side wall: shaded left and lighter front facade.
+    fill(x-3,y+22,9,h-25,'#b0a387');
+    fill(x+4,y+21,w-6,h-21,C.wall);
+    fill(x+8,y+24,w-12,h-28,C.wallLight);
+    for(let yy=y+28;yy<y+h-4;yy+=9){
+      fill(x+6,yy,w-10,1,C.wallShadow);
+      for(let xx=x+8+(yy%2?5:0);xx<x+w-8;xx+=16){
+        fill(xx,yy+1,1,5,'#d3c5a5');
       }
     }
-    rect(x,y,w,2,'#e2d3a7');
-    rect(x,y+h-2,w,2,'#a89476');
-  };
-  paving(0,202,480,42);            // continuous safe east-west path
-  paving(91,92,23,139);            // west town walking corridor
-  paving(173,153,30,90);           // trainer junction
-  paving(389,97,37,140);           // Brock approach
-  paving(200,167,28,30);           // route entrance connection
-  // Town square is a composed layer of tidy sandstone.
-  rect(82,198,129,51,'#adab80');
-  for(let y=202;y<247;y+=12)for(let x=82;x<211;x+=14){
-    rect(x+1,y+1,12,10,'#cabd96');
-    rect(x+2,y+2,10,7,(x+y)%3?'#d7c8a2':'#c5b58e');
-    rect(x+2,y+9,10,1,'#aa9d7f');
-  }
-
-  // Tall grass is a coherent high-contrast region, with recognisable
-  // 16x16 tuft tiles. The left and top borders use darker vegetation.
-  rect(219,117,166,108,'#386d4a');
-  rect(223,121,158,100,'#508a5c');
-  for(let ty=122;ty<220;ty+=12)for(let tx=223;tx<381;tx+=12){
-    const hash=((tx*11+ty*17)/12|0)%5;
-    rect(tx,ty,12,12,
-      ['#548e5b','#4d8b5c','#468255','#5b9963','#4a8558'][hash]);
-    // angular stalks with a one-pixel dark base and two shades of leaves
-    rect(tx+2,ty+4,2,8,'#255f46');
-    rect(tx+4,ty,2,10,'#a2ca72');
-    rect(tx+7,ty+4,2,8,'#286c4c');
-    rect(tx+9,ty+1,2,9,'#81b96b');
-    rect(tx+1,ty+9,10,2,'#2c704a');
-    if(hash===0){
-      rect(tx+4,ty+5,2,2,'#f0dd89');
-      rect(tx+5,ty+4,1,1,'#fff4b3');
-    }
-  }
-  rect(218,117,166,3,'#2e6348');
-  rect(218,117,4,105,'#316c4b');
-  rect(383,118,3,108,'#275c45');
-  rect(218,223,167,4,'#2e6948');
-  // The path into the grass has a clear break in the border.
-  paving(203,188,34,21);
-  rect(223,188,9,22,'#6b9e66');
-
-  // Pond on the left: tiled outline, dark banks and reflected pixels.
-  rect(13,148,78,49,'#3e704d');
-  rect(16,149,73,45,'#4a7962');
-  rect(18,151,69,41,'#2e6d81');
-  rect(22,154,61,35,'#3f91a5');
-  rect(26,155,53,27,'#55a2ac');
-  for(let k=0;k<18;k++){
-    const x=29+(k*23)%48,y=160+(k*17)%24;
-    rect(x,y,6+(k%3),2,'#90d0d4');
-  }
-  rect(20,185,65,4,'#36788b');
-  rect(16,193,74,3,'#345e54');
-  // Little pier / fence makes the pond a place rather than blue noise.
-  rect(70,184,29,7,'#866e51');
-  for(let x=70;x<101;x+=8)rect(x,184,3,7,'#cfb684');
-  rect(70,182,29,2,'#e1cc97');
-
-  // Tree tile helper, constructed out of multiple pixelated canopy layers.
-  const tree=(cx:number,cy:number)=>{
-    rect(cx-4,cy-1,9,16,'#564b38');
-    rect(cx-6,cy+9,13,3,'#313c36');
-    rect(cx-14,cy-19,30,22,'#275b42');
-    rect(cx-18,cy-12,38,10,'#285e45');
-    rect(cx-12,cy-26,28,16,'#347450');
-    rect(cx-8,cy-32,20,13,'#4c905f');
-    rect(cx-12,cy-24,9,7,'#519666');
-    rect(cx-3,cy-29,10,4,'#94bf7b');
-    rect(cx+7,cy-21,5,7,'#6ca56e');
-    rect(cx-16,cy-6,31,3,'#1e513c');
-    rect(cx+10,cy-14,6,3,'#3a7752');
-  };
-  for(const [x,y] of [
-    [14,59],[44,57],[74,51],[220,56],[251,53],[285,50],
-    [322,57],[355,54],[460,143],[458,177],[461,201],
-    [15,253],[45,259],[66,259],[245,262],[272,261],
-    [306,259],[339,258],[458,267],[430,262]
-  ])tree(x,y);
-
-  // Signs with readable icons near route junction.
-  const sign=(x:number,y:number,c:string)=>{
-    rect(x+7,y+12,4,14,'#6d5840');
-    rect(x+2,y+2,15,14,'#655845');
-    rect(x,y,19,13,'#f0dfb2');
-    rect(x+2,y+2,15,8,c);
-    rect(x+2,y+10,15,2,'#735a42');
-  };
-  sign(204,161,'#64aa7a');
-  sign(379,119,'#e8c087');
-
-  // Pixel-art buildings with visible floors and brick walls.
-  const building=(x:number,y:number,w:number,h:number,
-    roof:string,roofShadow:string,style:'center'|'house'|'gym')=>{
-    rect(x+1,y+5,w+7,h+8,'#305244'); // building drop shadow
-    rect(x,y+23,w,h-24,'#e2d3b0');
-    rect(x+2,y+27,w-4,h-28,'#dfceaa');
-    for(let i=0;i<h-31;i+=10){
-      rect(x+1,y+28+i,w-2,1,'#b4a98c');
-      for(let j=i%2?11:3;j<w-5;j+=18)
-        rect(x+j,y+30+i,1,7,'#b8ae91');
-    }
-    rect(x-5,y+3,w+10,27,roofShadow);
-    rect(x-8,y+12,w+16,13,roof);
-    rect(x-4,y-3,w+8,21,roof);
-    rect(x+1,y-7,w-2,6,roofShadow);
-    rect(x+7,y-11,w-14,5,roof);
-    for(let yy=y+3;yy<y+24;yy+=7){
-      rect(x-3,yy,w+6,2,roofShadow);
-      rect(x+3,yy-2,w-6,1,'#ffdfa4');
-    }
-    rect(x-8,y+24,w+16,4,'#554a43');
-    rect(x-6,y+28,w+12,2,'#f9e8bc');
-    rect(x+1,y+h-7,w,7,'#75694f');
-    rect(x+3,y+h-9,w-4,4,'#efe0b8');
-    // Distinct blue windowpanes, symmetrical.
-    const windowAt=(xx:number)=>{
-      rect(xx-1,y+33,15,16,'#5a665c');
-      rect(xx+1,y+35,11,11,'#659cad');
-      rect(xx+2,y+36,4,7,'#a8d4d2');
-      rect(xx+7,y+36,2,11,'#ddebdc');
-      rect(xx+1,y+42,11,2,'#e1eadb');
-      rect(xx-2,y+49,17,2,'#9c866c');
-    };
-    windowAt(x+8);windowAt(x+w-22);
-    // Door dark interior and sunlit bottom step.
-    rect(x+w/2-9,y+35,18,h-35,'#5a5b4c');
-    rect(x+w/2-7,y+38,14,h-38,'#38504e');
-    rect(x+w/2-6,y+39,5,10,'#659294');
-    rect(x+w/2+3,y+53,2,2,'#f3e6a8');
-    rect(x+w/2-12,y+h,24,4,'#b9a78b');
-    if(style==='center'){
-      // Distinct PokéCenter-style cross emblem and red roof.
-      rect(x+w/2-14,y+3,28,19,'#fbedd0');
-      rect(x+w/2-7,y+8,14,9,'#bd534f');
-      rect(x+w/2-2,y+5,4,16,'#bd534f');
-      rect(x+w/2-14,y+21,28,2,'#8c6555');
-    }
-    if(style==='gym'){
-      rect(x+w/2-23,y+3,46,21,'#ded8bb');
-      rect(x+w/2-20,y+6,40,15,'#85785f');
-      for(let k=-1;k<=1;k++){
-        rect(x+w/2+k*9-2,y+9,5,9,'#eadab0');
+    // Thick red/blue/stone tiled roof with terraced overhang.
+    fill(x-10,y+15,w+20,8,C.dark);
+    fill(x-9,y+15,w+18,5,dark);
+    fill(x-8,y+9,w+16,11,color);
+    fill(x-6,y+3,w+12,12,color);
+    fill(x-2,y-3,w+4,9,color);
+    fill(x+5,y-9,w-10,7,dark);
+    fill(x+9,y-12,w-18,5,light);
+    fill(x-4,y+1,w+8,3,light);
+    fill(x-6,y+12,w+12,2,light);
+    for(let yy=y+5;yy<y+18;yy+=6){
+      fill(x-4,yy,w+8,2,dark);
+      fill(x,yy-2,w,1,light);
+      for(let xx=x+5+(yy%4)*3;xx<x+w-6;xx+=13){
+        fill(xx,yy+2,2,3,dark);
+        fill(xx+2,yy+2,7,1,light);
       }
-      rect(x+w/2-13,y+h-1,26,6,'#ad9773');
     }
-    if(style==='house'){
-      rect(x+w/2-9,y+7,18,13,'#eed7a1');
-      rect(x+w/2-6,y+10,12,7,'#7b9d83');
-      rect(x+w/2-1,y+11,3,5,'#d5edb3');
+    fill(x-10,y+21,w+20,4,C.dark);
+    fill(x-8,y+23,w+16,3,light);
+    // Two correctly framed crystalline window sets.
+    function window(cx:number){
+      fill(cx-9,y+33,19,20,C.timberDark);
+      fill(cx-7,y+35,15,15,C.cream);
+      fill(cx-6,y+36,13,13,'#3d788b');
+      fill(cx-5,y+37,5,10,'#8bc8d2');
+      fill(cx+2,y+37,4,10,'#67afbd');
+      fill(cx,y+36,2,13,'#f6ead0');
+      fill(cx-6,y+42,13,2,C.cream);
+      fill(cx-10,y+51,21,3,'#ad9a79');
+      fill(cx-8,y+50,17,1,'#f1dfb9');
     }
-    // A few flower patches outside, never in the walking corridor.
+    window(x+15);window(x+w-16);
+    // A real recessed doorway, larger than a single black rectangle.
+    fill(center-12,y+31,25,h-29,C.timberDark);
+    fill(center-9,y+33,18,h-32,'#546960');
+    fill(center-7,y+35,14,h-36,kind==='gym'?'#374646':'#537770');
+    fill(center-5,y+38,4,7,'#93b7ac');
+    fill(center+4,y+46,2,2,C.gold);
+    fill(center-14,y+h,29,4,C.earthDark);
+    fill(center-10,y+h+1,21,3,C.earthTop);
+    // Strongly distinguish each building through proper roof emblems.
+    if(kind==='healing'){
+      fill(center-13,y-4,27,22,'#5b5657');
+      fill(center-11,y-6,23,20,C.cream);
+      fill(center-4,y-3,9,14,'#d45b5c');
+      fill(center-8,y+2,17,5,'#d45b5c');
+      fill(center-3,y-1,7,11,'#f39b89');
+      fill(center-8,y+2,17,2,'#dc6e69');
+    }else if(kind==='home'){
+      fill(center-12,y-4,25,17,dark);
+      fill(center-10,y-5,21,14,C.cream);
+      fill(center-8,y-3,17,9,'#87b1a0');
+      fill(center-2,y-2,6,8,'#587d83');
+      fill(center-11,y+11,24,2,light);
+    }else{
+      fill(center-24,y-3,49,19,'#505d62');
+      fill(center-21,y-5,43,17,C.cream);
+      fill(center-18,y-2,37,12,'#8b887e');
+      for(let j=-1;j<=1;j++){
+        fill(center+j*12-3,y+1,6,9,'#e0cfab');
+        fill(center+j*12-2,y+1,2,9,'#fff0cd');
+      }
+      fill(center-25,y+15,51,3,C.gold);
+    }
+    // Flower boxes, handmade pots and wooden porch details.
     for(const side of [-1,1]){
-      const xx=side<0?x+6:x+w-7;
-      rect(xx,y+h+6,4,5,'#3e8055');
-      rect(xx-1,y+h+3,4,3,
-        style==='center'?'#f5cfb4':'#eedf8b');
+      const fx=side<0?x+7:x+w-9;
+      fill(fx-5,y+h-10,12,6,C.timber);
+      fill(fx-4,y+h-13,10,4,C.leafMid);
+      fill(fx-1,y+h-17,4,5,C.leafLight);
+      fill(fx+3,y+h-15,3,3,kind==='healing'?'#f6b6a4':'#f2d48f');
+      fill(fx-3,y+h-15,2,2,'#fff1be');
+    }
+    // Doorstep remains south of the building collision footprint.
+    fill(center-13,y+h+5,27,2,'#eee0b5');
+    fill(center-10,y+h+7,21,2,'#aa9677');
+  }
+  building(25,69,68,65,'healing');
+  building(128,72,68,65,'home');
+  building(392,42,76,63,'gym');
+
+  // 8. Route furniture: signposts, porch fences, planter boxes, flowers.
+  // Keep all collision and access points free for keyboard and mouse.
+  const sign=(x:number,y:number,paint:string)=>{
+    fill(x+7,y+14,4,14,C.timberDark);
+    fill(x,y+2,19,15,C.timberDark);
+    fill(x+2,y,17,14,C.cream);
+    fill(x+4,y+2,13,8,paint);
+    fill(x+3,y+12,15,2,'#a08b6f');
+    fill(x+4,y+14,2,2,'#fff6d4');
+  };
+  sign(199,164,'#59946c');
+  sign(368,137,'#b39b78');
+  sign(108,193,'#d76c66');
+  // Short waist-high fence: visual guidance without long impassable walls.
+  const fence=(x:number,y:number,sections:number)=>{
+    fill(x,y+6,sections*10,2,'#e1cc9e');
+    fill(x,y+11,sections*10,2,'#a28562');
+    for(let j=0;j<=sections;j++){
+      fill(x+j*10,y+2,4,16,'#7a6049');
+      fill(x+j*10+1,y,2,13,'#f2ddb0');
+      fill(x+j*10,y+2,4,2,'#fff2cb');
     }
   };
-  building(28,72,65,65,'#c95a50','#7e4041','center');
-  building(128,76,68,62,'#547f9b','#35566d','house');
-  building(390,44,82,62,'#8b8993','#525863','gym');
-  // Red roof alone is not enough: patterned stones around the clinic
-  // and porch identify an orderly settlement.
-  for(const [x,y] of [[21,133],[25,143],[84,140],[105,133],
-    [120,139],[201,137],[388,115],[458,119]]){
-    rect(x,y,6,4,'#d6c8a0');
-    rect(x+1,y+1,4,1,'#eee0b6');
-  }
-
-  // Decorative waist-high fences and gardens are clear navigation borders.
-  for(let x=17;x<115;x+=12){
-    if(x>91&&x<113)continue;
-    rect(x,140,3,13,'#785c43');
-    rect(x+1,138,2,13,'#f8e8c8');
-    rect(x,145,11,3,'#d5c49c');
-  }
-  for(let x=116;x<210;x+=14){
-    rect(x,151,3,9,'#83654b');
-    rect(x,148,3,8,'#f6e8c6');
-    rect(x,152,14,2,'#d1bc9a');
-  }
-  // Route sign markers, Pokecenter door mat and clinic flowers.
-  sign(116,199,'#a75f59');
-  rect(75,216,11,4,'#97ac8c');
-  for(let i=0;i<16;i++){
-    const x=8+i*24,y=251+(i%3)*4;
-    if(x>340&&x<460)continue;
-    rect(x,y,3,4,'#3f8b56');
-    rect(x-1,y-1,4,3,i%2?'#f5cdb7':'#f5e49c');
-    px(x+1,y-2,'#fff6d0');
+  fence(18,137,7);
+  fence(119,144,7);
+  fence(305,241,5);
+  // Low flower beds around the town, never over the road.
+  const flowerbed=(x:number,y:number,count:number,seed:number)=>{
+    for(let k=0;k<count;k++){
+      const xx=x+k*7,shade=(k+seed)%3;
+      fill(xx,y+4,8,5,'#437b54');
+      fill(xx+1,y+1,6,5,shade===0?'#edc087':
+        shade===1?'#e9a9b6':'#f6e3a3');
+      fill(xx+3,y,2,2,'#fff3c7');
+      fill(xx+6,y+5,2,3,'#307047');
+    }
+  };
+  flowerbed(23,138,6,1);
+  flowerbed(127,142,7,2);
+  flowerbed(16,255,9,0);
+  flowerbed(240,252,11,3);
+  // Border stones emphasize routes toward grass and the gym.
+  for(const [x,y] of [[204,183],[210,212],[385,221],[401,108],
+    [441,117],[75,193],[119,204],[366,220]] as Point[]){
+    fill(x,y,8,4,'#817c65');
+    fill(x+1,y-1,6,3,'#c6bda0');
+    fill(x+2,y,2,1,'#f8e8c3');
   }
 }
