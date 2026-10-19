@@ -9,13 +9,22 @@ import {
   type StoryProgress
 } from './storyProgress';
 import {
-  rollSafariEncounter,setWildEncounter,type WildEncounter
+  rollSafariEncounter,setWildEncounter,type WildEncounter,type WildSpecies
 } from './encounters';
 import { pokemonCatalog } from './pokemonCatalog';
 import { experienceForLevel,experienceToNext } from './starterProgression';
 import { difficultyRules } from './gameBalance';
 import type { Fighter } from './abilities';
 
+const ROAMERS:Record<WildSpecies,{number:string;width:number;height:number}>={
+  rattata:{number:'0019',width:32,height:32},
+  pidgey:{number:'0016',width:24,height:40},
+  caterpie:{number:'0010',width:32,height:32},
+  weedle:{number:'0013',width:32,height:40},
+  spearow:{number:'0021',width:24,height:40},
+  jigglypuff:{number:'0039',width:24,height:32},
+  pikachu:{number:'0025',width:40,height:56}
+};
 const PARTNER:Record<string,{number:string;width:number;height:number}>={
   charmander:{number:'0004',width:32,height:40},
   charmeleon:{number:'0005',width:32,height:56},
@@ -53,6 +62,11 @@ export class WorldScene extends Phaser.Scene{
   private facing=0;
   private speechSerial=0;
   private species:Fighter='charmander';
+  private featured:WildEncounter|null=null;
+  private featuredIcon?:Phaser.GameObjects.Image;
+  private featuredGrass?:Phaser.GameObjects.Graphics;
+  private featuredX=630;
+  private featuredY=359;
 
   constructor(
     private readonly mobile:MobileControls,
@@ -79,6 +93,11 @@ export class WorldScene extends Phaser.Scene{
     ] as const){
       this.load.image('safari-icon-'+name,
         'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/'+number+'.png');
+      const art=ROAMERS[name];
+      this.load.spritesheet('safari-roamer-'+name,
+        'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/'+
+          art.number+'/Idle-Anim.png',
+        {frameWidth:art.width,frameHeight:art.height});
     }
   }
 
@@ -90,6 +109,7 @@ export class WorldScene extends Phaser.Scene{
     this.mobile.setFinished(false);
     this.cameras.main.setBackgroundColor('#274a41');
     this.drawMap();
+    this.rotateFeatured();
     this.keys=this.input.keyboard?.addKeys(
       'W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE'
     ) as Record<string,Phaser.Input.Keyboard.Key>|undefined;
@@ -358,6 +378,45 @@ export class WorldScene extends Phaser.Scene{
     }
   }
 
+
+  /** Visible creature belongs to the actual pending grass encounter. */
+  private rotateFeatured(){
+    const lvl=getActivePokemon(loadCollection()).level;
+    this.featured=rollSafariEncounter(Math.random,lvl);
+    this.featuredX=512+Math.random()*218;
+    this.featuredY=296+Math.random()*106;
+    this.featuredIcon?.destroy();
+    this.featuredGrass?.destroy();
+    const key='safari-roamer-'+this.featured.species;
+    this.featuredGrass=this.add.graphics().setDepth(5);
+    const ground=this.featuredGrass;
+    const x=this.featuredX,y=this.featuredY;
+    ground.fillStyle(0x183f37,0.41).fillEllipse(x,y+10,57,14);
+    for(let i=0;i<7;i++){
+      const px=x-28+i*9;
+      const h=i%2?13:20;
+      ground.lineStyle(4,i%2?0x5fa66d:0xa0c983,0.96)
+        .lineBetween(px,y+9,px+3,y+9-h);
+    }
+    if(this.textures.exists(key)){
+      this.featuredIcon=this.add.image(x,y-21,key,0)
+        .setDisplaySize(this.featured.species==='pikachu'?67:64,69)
+        .setDepth(7).setInteractive({useHandCursor:true});
+    }else if(this.textures.exists('safari-icon-'+this.featured.species)){
+      this.featuredIcon=this.add.image(x,y-22,
+        'safari-icon-'+this.featured.species,0)
+        .setDisplaySize(64,64).setDepth(7)
+        .setInteractive({useHandCursor:true});
+    }
+    this.featuredIcon?.on('pointerdown',()=>{
+      if(this.near(this.featuredX,this.featuredY,118)){
+        this.openEncounter();
+      }else{
+        this.say('Aproxime-se do Pokémon escondido no mato.');
+      }
+    });
+  }
+
   private openEncounter(){
     if(this.modal||this.menuOpen())return;
     this.lastEncounterAt=this.time.now;
@@ -375,8 +434,9 @@ export class WorldScene extends Phaser.Scene{
       onComplete:()=>burst.destroy()});
     this.progress=updateStoryProgress({visitedRoute:true});
     this.refresh();
-    const trainerLevel=getActivePokemon(loadCollection()).level;
-    const roll=rollSafariEncounter(Math.random,trainerLevel);
+    const roll=this.featured??rollSafariEncounter(
+      Math.random,getActivePokemon(loadCollection()).level
+    );
     const species=pokemonCatalog[roll.species];
     const screen=this.add.container(480,279).setDepth(35);
     screen.add(this.add.rectangle(0,0,700,374,0x10272a,0.97)
@@ -426,7 +486,8 @@ export class WorldScene extends Phaser.Scene{
     button(143,'↩ FUGIR',0x65594e,()=>{
       screen.destroy(true);
       this.modal=undefined;
-      this.say('Você saiu do encontro. Continue explorando.');
+      this.rotateFeatured();
+      this.say('Você saiu do encontro. Outra criatura se escondeu no mato.');
     });
     this.modal=screen;
     this.mobile.clear();
@@ -501,6 +562,9 @@ export class WorldScene extends Phaser.Scene{
     }
     this.partner?.setPosition(this.following.x,this.following.y-24);
     this.partnerShadow?.setPosition(this.following.x,this.following.y+11);
+    if(this.featuredIcon?.texture.key.startsWith('safari-roamer-')){
+      this.featuredIcon.setFrame(Math.floor(time/470)%3);
+    }
     if(this.actionLabel){
       const title=this.inGrass()?'TREINAR':
         this.near(864,227,117)?'BROCK':
