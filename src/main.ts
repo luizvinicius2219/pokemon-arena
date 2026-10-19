@@ -45,11 +45,12 @@ const cardHTML = (action: Action): string => {
 };
 
 app.innerHTML = `
-<header><div><h1>MONSTER <span>ARENA</span></h1><p>Capítulo 1 · Exploração e batalha em tempo real</p></div><div class="header-actions"><button id="switch-mode" type="button">☰ Menu</button><button id="gym-preview" type="button" hidden title="Atalho para testes">🪨 Testar Brock</button><button id="settings" type="button">⚙ Controles</button></div></header>
+<header><div><h1>MONSTER <span>ARENA</span></h1><p>Capítulo 1 · Exploração e batalha em tempo real</p></div><div class="header-actions"><button id="fullscreen-header" type="button" title="Expandir a área do jogo (F)">⛶ Tela cheia</button><button id="switch-mode" type="button">☰ Menu</button><button id="gym-preview" type="button" hidden title="Atalho para testes">🪨 Testar Brock</button><button id="settings" type="button">⚙ Controles</button></div></header>
 <main>
   <div class="arena-column">
     <div id="game-shell">
-      <div id="game" aria-label="Arena de batalha"></div>
+      <div id="game" aria-label="Área do jogo"></div>
+      <button id="toggle-fullscreen" class="game-fullscreen-button" type="button" aria-label="Entrar em tela cheia" title="Tela cheia (F)">⛶ Tela cheia</button>
       <div id="landing-menu" class="landing-menu" role="dialog" aria-modal="true" aria-label="Menu do jogo">
         <section class="landing-card" data-menu-panel="home">
           <span class="landing-eyebrow">KANTO · AVENTURA DE AÇÃO</span>
@@ -318,6 +319,13 @@ window.addEventListener('keydown', event => {
   }
   if (menuOpen) { if (event.code === 'Escape') toggleSettings(false); return; }
   if(mainMenuOpen)return;
+  // In the overworld W is WALK UP, not battle ability #2. Phaser handles
+  // WASD and the arrow keys; this listener only prevents page scrolling.
+  if(gameMode==='world'){
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(event.code))
+      event.preventDefault();
+    return;
+  }
   if (Object.values(bindings).includes(event.code)) {
     event.preventDefault();
     heldKeys.add(event.code);
@@ -380,7 +388,8 @@ const game=new Phaser.Game({
   render:{pixelArt:true,antialias:false,roundPixels:true},
   scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},
   scene:[
-    new WorldScene(mobile,mode=>startGameMode(mode),()=>mainMenuOpen),
+    new WorldScene(mobile,mode=>startGameMode(mode),
+      ()=>mainMenuOpen||menuOpen),
     new ArenaScene(
       ()=>bindings,()=>heldKeys,()=>menuOpen,mobile,()=>gameMode
     )
@@ -388,6 +397,41 @@ const game=new Phaser.Game({
 });
 refreshActivePokemonInfo();
 showPanel('home');
+
+// Fullscreen applies to the entire game shell, so the scene, encounter menus
+// and touch controls all remain visible. The canvas keeps its 5:3 aspect ratio.
+const gameShell=document.querySelector<HTMLElement>('#game-shell')!;
+const fullscreenButtons=[
+  document.querySelector<HTMLButtonElement>('#toggle-fullscreen')!,
+  document.querySelector<HTMLButtonElement>('#fullscreen-header')!
+];
+async function toggleFullscreen(){
+  try{
+    if(document.fullscreenElement)await document.exitFullscreen();
+    else await gameShell.requestFullscreen();
+  }catch(error){
+    console.warn('Tela cheia indisponível neste navegador:',error);
+  }
+}
+fullscreenButtons.forEach(button=>button.addEventListener('click',toggleFullscreen));
+document.addEventListener('fullscreenchange',()=>{
+  const active=document.fullscreenElement===gameShell;
+  fullscreenButtons.forEach(button=>{
+    button.textContent=active?'⤢ Sair da tela cheia':'⛶ Tela cheia';
+    button.setAttribute('aria-label',active?'Sair da tela cheia':'Entrar em tela cheia');
+    button.setAttribute('aria-pressed',String(active));
+  });
+  game.scale.refresh();
+});
+window.addEventListener('keydown',event=>{
+  if(event.code==='KeyF'&&!event.repeat&&!capturing&&!menuOpen
+    &&!['INPUT','SELECT','TEXTAREA'].includes(
+      (document.activeElement?.tagName||'').toUpperCase())){
+    event.preventDefault();
+    void toggleFullscreen();
+  }
+});
+
 document.querySelectorAll<HTMLSelectElement>('[data-difficulty]')
   .forEach(select=>select.addEventListener('change',()=>{
     const value=select.value;

@@ -312,3 +312,42 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
 .testing-level small{color:#bdd2c9;text-align:center;font-size:11px}
 @media(max-width:450px){.testing-grid{gap:7px}
   .testing-grid select{padding:8px 3px;font-size:12px}}
+
+/* A fixed-ratio parent stops Phaser FIT from measuring its own changing
+   canvas height (the old feedback loop caused creeping/infinite zoom). */
+#game-shell{position:relative;min-width:0;width:100%;isolation:isolate}
+#game{position:relative;width:100%;height:auto;aspect-ratio:5/3;
+  contain:layout paint;overflow:hidden;border-radius:10px}
+#game canvas{position:absolute;inset:0;width:100%!important;
+  height:100%!important;object-fit:contain;image-rendering:pixelated;
+  image-rendering:crisp-edges;touch-action:none}
+.game-fullscreen-button{position:absolute;z-index:32;top:12px;right:12px;
+  background:#132a34e8;color:#f7f0d8;border:2px solid #a9c4ac;
+  border-radius:8px;font-size:12px;font-weight:800;
+  padding:7px 10px;box-shadow:0 3px 0 #0a1e27;touch-action:manipulation}
+.game-fullscreen-button:hover{background:#285464}
+#fullscreen-header{border-radius:9px;padding:10px 12px;font-size:12px;
+  font-weight:800;background:#214b50;border-color:#779fa3}
+#game-shell:fullscreen,#game-shell:-webkit-full-screen{
+  width:100vw!important;height:100dvh!important;min-height:100dvh;
+  max-width:none;margin:0;padding:0;background:#081a1c;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;border:0;border-radius:0
+}
+#game-shell:fullscreen #game,#game-shell:-webkit-full-screen #game{
+  flex:none;width:min(100vw, calc(100dvh * 5 / 3))!important;
+  max-width:none;height:auto!important;aspect-ratio:5/3;
+  border-radius:0;border:0
+}
+#game-shell:fullscreen .game-fullscreen-button{position:fixed;
+  right:16px;top:14px;z-index:76}
+#game-shell:fullscreen .landing-menu{position:fixed;inset:0}
+#game-shell:fullscreen #mobile-controls{
+  position:absolute;bottom:0;left:0;right:0;z-index:35;
+  max-width:960px;margin:auto
+}
+@media(max-width:720px){
+  .game-fullscreen-button{top:6px;right:6px;padding:5px 7px;
+    font-size:10px;border-width:1px}
+  #fullscreen-header{padding:7px;font-size:11px}
+}
