@@ -17,6 +17,7 @@ import { getActivePokemon, loadCollection } from './playerCollection';
 import { activeWildEncounter } from './encounters';
 import { createSafariBattlefield } from './safariBattlefield';
 import { difficultyRules,type DifficultyRules } from './gameBalance';
+import { getTrainingSetup } from './trainingSetup';
 import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
 
@@ -154,9 +155,11 @@ export class ArenaScene extends Phaser.Scene {
 
   preload() {
     const mode=this.getMode();
-    const player=mode==='training'?'charizard':this.currentStarter();
+    const setup=getTrainingSetup();
+    const player=mode==='training'?setup.player:this.currentStarter();
     const rival=mode==='story'?'geodude':mode==='wild'
-      ?activeWildEncounter().species:'pikachu';
+      ?activeWildEncounter().species:mode==='training'
+        ?setup.rival:'pikachu';
     const roster=[player,rival,...(mode==='story'?['onix']:[])] as Fighter[];
     preloadOverworld(this,roster);
     if(mode==='story')preloadPewter(this);
@@ -173,12 +176,14 @@ export class ArenaScene extends Phaser.Scene {
     this.mode=this.getMode();
 
     this.playerSpecies=this.mode==='training'
-      ?'charizard':this.currentStarter();
+      ?getTrainingSetup().player:this.currentStarter();
     this.environment=undefined;
     this.rules=difficultyRules();
     this.enemySpecies=this.mode==='story'?'geodude':
-      this.mode==='wild'?activeWildEncounter().species:'pikachu';
-    this.wildLevel=this.mode==='wild'?activeWildEncounter().level:4;
+      this.mode==='wild'?activeWildEncounter().species:
+      this.mode==='training'?getTrainingSetup().rival:'pikachu';
+    this.wildLevel=this.mode==='wild'?activeWildEncounter().level:
+      this.mode==='training'?getTrainingSetup().level:4;
     this.enemyMaxHp=this.mode==='practice'?68:
       this.mode==='wild'?Math.round(
         pokemonCatalog[this.enemySpecies].maxHp*(0.66+this.wildLevel*0.055))
@@ -213,11 +218,13 @@ export class ArenaScene extends Phaser.Scene {
     this.playerMotion = undefined;
     this.enemyMotion = undefined;
     this.hitStopUntil = -1000;
-    this.starterLevel=this.mode==='training'?36:
+    this.starterLevel=this.mode==='training'?getTrainingSetup().level:
       getActivePokemon(loadCollection()).level;
-    this.playerMaxHp=pokemonCatalog[this.playerSpecies].maxHp+
-      (this.mode==='training'?0:
-        Math.min(55,Math.max(0,this.starterLevel-5)*3));
+    this.playerMaxHp=this.mode==='training'?
+      Math.round(pokemonCatalog[this.playerSpecies].maxHp*
+        (0.70+this.starterLevel*0.008)):
+      pokemonCatalog[this.playerSpecies].maxHp+
+        Math.min(55,Math.max(0,this.starterLevel-5)*3);
     if(this.mode==='story'){
       // Handicap is mild: prepare for Brock instead of farming one enemy.
       this.enemyMaxHp=Math.round(this.enemyMaxHp*
@@ -501,10 +508,11 @@ export class ArenaScene extends Phaser.Scene {
 
   private updateHp() {
     this.hpText.setText(pokemonCatalog[this.playerSpecies].name+
-      (this.mode!=='training'?' Nv. '+this.starterLevel:'')+
+      ' Nv. '+this.starterLevel+
       ': '+this.playerHp+' / '+this.playerMaxHp+' HP');
     this.enemyHpText.setText(pokemonCatalog[this.enemySpecies].name+
-      (this.mode==='wild'?' · Nv '+this.wildLevel:'')+
+      (this.mode==='wild'||this.mode==='training'
+        ?' · Nv '+this.wildLevel:'')+
       ': '+this.enemyHp+' / '+this.enemyMaxHp+' HP');
   }
 
@@ -1075,8 +1083,11 @@ export class ArenaScene extends Phaser.Scene {
     const trainer=target==='player'&&this.mode==='practice'?0.52:
       target==='player'&&this.mode==='wild'?0.74:1;
     const weakness=target==='enemy'&&now<this.enemyVulnerableUntil?1.38:1;
-    const levelBoost=target==='enemy'&&this.mode!=='training'
-      ?1+Math.min(0.72,Math.max(0,this.starterLevel-5)*0.064):1;
+    const levelBoost=target==='enemy'&&this.mode==='training'
+      ?Math.max(0.7,Math.min(1.58,
+        0.6+this.starterLevel*0.026)):
+      target==='enemy'
+        ?1+Math.min(0.72,Math.max(0,this.starterLevel-5)*0.064):1;
     const received=scaledDamage(
       Math.max(1,Math.round(amount*growlFactor*trainer*defense*weakness*levelBoost*difficultyFactor*encounterLevel)),
       elemental,pokemonCatalog[defender].elements);
