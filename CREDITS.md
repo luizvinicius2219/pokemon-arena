@@ -82,3 +82,8 @@ Sprite PMD original de Charmander utilizado no modo História: https://github.co
 ## Novos sprites de Pewter Safari (18/10/2026)
 
 Sprites animados em 8 direções, incluindo sprites de exploração e batalha, provenientes do [PMDCollab SpriteCollab](https://github.com/PMDCollab/SpriteCollab): Pidgey (#0016), Pidgeotto (#0017), Spearow (#0021), Fearow (#0022), Caterpie (#0010), Metapod (#0011), Weedle (#0013), Kakuna (#0014) e Raticate (#0020). As imagens ilustrativas do menu e dos encontros vêm de [PokeAPI/sprites](https://github.com/PokeAPI/sprites). Pokémon e os personagens pertencem aos respectivos titulares. Projeto experimental e não comercial; respeitar atribuições/licenças de cada arte ao reutilizar.
+
+
+## Overworld HGSS principal (19/10/2026)
+
+Os sprites de Red (16×32 × 6 frames), Bulbasaur, Charmander e Squirtle (32×32 × 6 frames) foram adaptados como sprites locais sem interpolação: [LucianoNeo/gen1recomp-mods — hgss_sprites](https://github.com/LucianoNeo/gen1recomp-mods/tree/master/hgss_sprites). Esse conjunto reúne sprites de estilo HeartGold/SoulSilver e é baseado em conteúdo de jogo originalmente pertencente a Nintendo, Game Freak e The Pokémon Company. Uso em fan game experimental não comercial, mantendo a fonte explicitamente creditada.

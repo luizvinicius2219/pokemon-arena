@@ -1,6 +1,6 @@
 ## ATUALIZAÇÃO VISUAL / PC — 19 OUT 2026
 
-A Zona Safari agora apresenta **Vila de Kanto em pixel art** desenhada em tiles, com casas, Centro de Cura, caminhos claros, lago, árvores, mato alto e ginásio. O Red usa os **oito frames existentes** sem acessar frames inválidos. O acompanhante Bulbasaur/Squirtle/Charmander e suas evoluções usam sprites PMD **Idle e Walk em oito direções**, sem esticar a imagem para dimensões incompatíveis. As texturas foram preservadas com amostragem **nearest-pixel**, evitando borrão na ampliação.
+A Zona Safari agora apresenta **Vila de Kanto em pixel art** desenhada em tiles, com casas, Centro de Cura, caminhos claros, lago, árvores, mato alto e ginásio. O Red usa os **oito frames existentes** sem acessar frames inválidos. O acompanhante Bulbasaur/Squirtle/Charmander usa sprites pixelados oficiais **HGSS de seis frames**, armazenados localmente; suas evoluções mantêm temporariamente sprites PMD com Idle e Walk em oito direções, sem esticar a imagem para dimensões incompatíveis. As texturas foram preservadas com amostragem **nearest-pixel**, evitando borrão na ampliação.
 
 **Controles para PC:** WASD e setas movem Red; **botão direito** anda até o ponto selecionado (segure para direcionar); **E ou Espaço** interagem na Zona Safari. **F** ou botão **⛶ Tela cheia** ampliam o jogo mantendo a proporção 960 × 576. No celular permanecem joystick e toque. No combate continuam as habilidades Q, W, E e R.
 

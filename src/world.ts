@@ -26,6 +26,7 @@ const ROAMERS:Record<WildSpecies,{number:string;width:number;height:number}>={
   jigglypuff:{number:'0039',width:24,height:32},
   pikachu:{number:'0025',width:40,height:56}
 };
+const HGSS_STARTERS=new Set(['bulbasaur','charmander','squirtle']);
 const PARTNER:Record<string,{
   number:string;idle:readonly [number,number];walk:readonly [number,number]
 }>={
@@ -84,16 +85,28 @@ export class WorldScene extends Phaser.Scene{
     const root='/assets/story/pewter/';
     this.load.spritesheet('safari-red',root+'red-overworld.png',
       {frameWidth:16,frameHeight:32});
+    this.load.spritesheet('world-red-hgss',
+      '/assets/world/hgss/red.png',{frameWidth:16,frameHeight:32});
     this.load.spritesheet('safari-trainer',root+'hiker-overworld.png',
       {frameWidth:16,frameHeight:32});
     this.species=getActivePokemon(loadCollection()).species;
-    const texture=PARTNER[this.species]??PARTNER.charmander;
-    for(const motion of ['idle','walk'] as const){
-      const [width,height]=texture[motion];
-      this.load.spritesheet('world-'+motion+'-'+this.species,
-        'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/'+
-          texture.number+'/'+(motion==='idle'?'Idle':'Walk')+'-Anim.png',
-        {frameWidth:width,frameHeight:height});
+    if(HGSS_STARTERS.has(this.species)){
+      // Real HeartGold/SoulSilver follower sprites: six 32x32 frames
+      // (down/up/side idle + down/up/side walking), bundled locally.
+      this.load.spritesheet('world-hgss-'+this.species,
+        '/assets/world/hgss/'+this.species+'.png',
+        {frameWidth:32,frameHeight:32});
+    }else{
+      // Evolved starters retain the PMD sheet until their own HGSS assets
+      // are added; no forced stretching or wrong aspect ratio.
+      const texture=PARTNER[this.species]??PARTNER.charmander;
+      for(const motion of ['idle','walk'] as const){
+        const [width,height]=texture[motion];
+        this.load.spritesheet('world-'+motion+'-'+this.species,
+          'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/'+
+            texture.number+'/'+(motion==='idle'?'Idle':'Walk')+'-Anim.png',
+          {frameWidth:width,frameHeight:height});
+      }
     }
     for(const [name,number] of [
       ['rattata',19],['pidgey',16],['caterpie',10],
@@ -144,21 +157,29 @@ export class WorldScene extends Phaser.Scene{
     });
     this.heroShadow=this.add.ellipse(this.player.x,
       this.player.y+4,28,7,0x172b28,0.4).setDepth(6);
-    // The existing FireRed-inspired RED strip has EIGHT frames in ONE row,
-    // not twelve frames in four rows. Never request nonexistent frame 9–11.
+    // The HGSS Red strip is six 16x32 frames: down/up/side, then steps.
+    // Keep the old eight-frame sprite as an offline safety fallback.
+    const redTexture=this.textures.exists('world-red-hgss')
+      ?'world-red-hgss':'safari-red';
     this.hero=this.add.image(this.player.x,this.player.y+2,
-      'safari-red',0).setOrigin(0.5,0.94)
-      .setScale(2.65).setDepth(8);
+      redTexture,0).setOrigin(0.5,0.94)
+      .setScale(2.55).setDepth(8);
     this.partnerShadow=this.add.ellipse(this.following.x,
       this.following.y+4,25,8,0x153b2d,0.35).setDepth(6);
+    const hgss='world-hgss-'+this.species;
     const idleKey='world-idle-'+this.species;
-    if(this.textures.exists(idleKey)){
+    if(this.textures.exists(hgss)){
+      this.partner=this.add.image(this.following.x,
+        this.following.y+2,hgss,0)
+        .setOrigin(0.5,0.68).setScale(2.55).setDepth(7);
+      this.lastPartnerTexture=hgss;
+    }else if(this.textures.exists(idleKey)){
       this.partner=this.add.image(this.following.x,
         this.following.y+2,idleKey,0)
         .setOrigin(0.5,0.78).setScale(1.55).setDepth(7);
       this.lastPartnerTexture=idleKey;
     }else{
-      // Non-stretch fallback if SpriteCollab is unavailable.
+      // Non-stretch fallback if the PMD network image is unavailable.
       this.partner=this.add.image(this.following.x,
         this.following.y,'safari-red',0)
         .setOrigin(0.5,0.88).setScale(1.2)
@@ -506,8 +527,15 @@ export class WorldScene extends Phaser.Scene{
         else this.facing=movedY>0?0:1;
         // The strip is 8 frames total: 2 frames per direction,
         // rather than indexing rows/columns that do not exist.
-        const firstFrame=[0,2,4,6][this.facing];
-        this.hero?.setFrame(firstFrame+Math.floor(time/195)%2);
+        const hgss=this.hero?.texture.key==='world-red-hgss';
+        if(hgss){
+          const direction=this.facing===0?0:this.facing===1?1:2;
+          this.hero?.setFrame(direction+3*(Math.floor(time/155)%2));
+          this.hero?.setFlipX(this.facing===3);
+        }else{
+          const firstFrame=[0,2,4,6][this.facing];
+          this.hero?.setFrame(firstFrame+Math.floor(time/195)%2);
+        }
         if(this.inGrass()){
           this.wildSteps+=actual;
           if(this.wildSteps>190&&time-this.lastEncounterAt>8500){
@@ -522,7 +550,13 @@ export class WorldScene extends Phaser.Scene{
       }
     }
     const moving=Math.hypot(movedX,movedY)>0.1;
-    if(!moving)this.hero?.setFrame([0,2,4,6][this.facing]);
+    if(!moving){
+      const hgss=this.hero?.texture.key==='world-red-hgss';
+      this.hero?.setFrame(hgss
+        ?this.facing===0?0:this.facing===1?1:2
+        :[0,2,4,6][this.facing]);
+      this.hero?.setFlipX(hgss&&this.facing===3);
+    }
     this.hero?.setPosition(Math.round(this.player.x),
       Math.round(this.player.y)+2);
     this.heroShadow?.setPosition(Math.round(this.player.x),
@@ -542,28 +576,39 @@ export class WorldScene extends Phaser.Scene{
     }
     const dx=this.following.x-previousX,dy=this.following.y-previousY;
     const companionWalking=Math.hypot(dx,dy)>0.35;
+    const hgssKey='world-hgss-'+this.species;
     const idleKey='world-idle-'+this.species;
     const walkKey='world-walk-'+this.species;
-    const spriteKey=companionWalking&&this.textures.exists(walkKey)?
-      walkKey:idleKey;
-    if(this.partner&&this.textures.exists(spriteKey)){
-      if(spriteKey!==this.lastPartnerTexture){
-        this.partner.setTexture(spriteKey,0);
-        this.lastPartnerTexture=spriteKey;
+    const face=companionWalking?
+      new Phaser.Math.Vector2(dx,dy):
+      this.walkingDirection;
+    if(this.partner&&this.textures.exists(hgssKey)){
+      const horizontal=Math.abs(face.x)>Math.abs(face.y);
+      const direction=horizontal?2:face.y<0?1:0;
+      const frame=direction+(companionWalking?
+        3*(Math.floor(time/165)%2):0);
+      this.partner.setFrame(frame); // frame 0–5, never an invalid PMD row
+      this.partner.setFlipX(horizontal&&face.x>0);
+    }else{
+      const spriteKey=companionWalking&&this.textures.exists(walkKey)
+        ?walkKey:idleKey;
+      if(this.partner&&this.textures.exists(spriteKey)){
+        if(spriteKey!==this.lastPartnerTexture){
+          this.partner.setTexture(spriteKey,0);
+          this.lastPartnerTexture=spriteKey;
+        }
+        const meta=PARTNER[this.species]??PARTNER.charmander;
+        const [width]=companionWalking?meta.walk:meta.idle;
+        const cols=Math.max(1,Math.floor(
+          this.textures.get(spriteKey).source[0].width/width
+        ));
+        const angle=Math.atan2(face.y,face.x);
+        const row=((Math.round(2-angle*4/Math.PI)%8)+8)%8;
+        const tick=companionWalking?Math.floor(time/155):Math.floor(time/540);
+        const columns=Math.min(cols,companionWalking?6:3);
+        this.partner.setFrame(row*cols+tick%Math.max(1,columns));
+        this.partner.setFlipX(false);
       }
-      const meta=PARTNER[this.species]??PARTNER.charmander;
-      const [width]=companionWalking?meta.walk:meta.idle;
-      const cols=Math.max(1,Math.floor(
-        this.textures.get(spriteKey).source[0].width/width
-      ));
-      const face=companionWalking?
-        new Phaser.Math.Vector2(dx,dy):
-        this.walkingDirection;
-      const angle=Math.atan2(face.y,face.x);
-      const row=((Math.round(2-angle*4/Math.PI)%8)+8)%8;
-      const tick=companionWalking?Math.floor(time/155):Math.floor(time/540);
-      const columns=Math.min(cols,companionWalking?6:3);
-      this.partner.setFrame(row*cols+tick%Math.max(1,columns));
     }
     this.partner?.setPosition(Math.round(this.following.x),
       Math.round(this.following.y)+2);
