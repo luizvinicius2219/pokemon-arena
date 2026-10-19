@@ -282,10 +282,8 @@ export class ArenaScene extends Phaser.Scene {
     this.playerShadow=this.add.ellipse(playerSpawn.x,playerSpawn.y+5,
       42,10,0x06181c,0.35).setDepth(1);
     this.enemyShadow=this.add.ellipse(enemySpawn.x,
-      enemySpawn.y+(this.enemySpecies==='onix'?15:
-        this.enemySpecies==='geodude'?10:5),
-      this.enemySpecies==='onix'?88:
-        this.enemySpecies==='pikachu'?30:40,11,
+      enemySpawn.y+(this.mode==='story'?10:5),
+      this.enemySpecies==='pikachu'?30:40,11,
       0x06181c,0.36).setDepth(1);
     const playerKey=this.playerSpecies;
     if (OverworldActor.available(this,playerKey)) {
