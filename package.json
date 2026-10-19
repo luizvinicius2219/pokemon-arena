@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "build": "npm run check:assets && tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "check:assets": "node scripts/verify-art.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0",

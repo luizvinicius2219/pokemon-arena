@@ -290,3 +290,8 @@ A tela inicial agora é **Vila Aurora**, um mapa 2D pixelizado leve (uma única 
 ### Nível e desbloqueio de golpes
 
 Charmander inicia o prólogo no **nível 5**, com Arranhão, Rosnar e Brasas já aprendidos. **Cortina de Fumaça é desbloqueada no nível 8**, exatamente como na progressão consultada. O botão de habilidade mostra a exigência de nível até o desbloqueio; XP de treinos leva o Pokémon a esse marco. A Arena Livre permanece sem bloqueios, com Charizard para os testes avançados.
+
+
+### Validação de sprites e desktop
+
+A checagem `npm run check:assets` é executada por `npm run build` em cada commit/deploy. Ela detecta alterações indevidas na largura dos quadros dos sprites locais HGSS: **Red, Bulbasaur, Charmander e Squirtle são PNG 32×192, com seis poses completas de 32×32 empilhadas verticalmente**. A leitura incorreta como 16×32 cortava o personagem ao meio. No PC, **WASD/setas** movem, **botão direito** percorre um caminho ao redor dos prédios, **E** interage e **F** alterna tela cheia sem recortar a área de jogo.
