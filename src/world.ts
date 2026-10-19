@@ -86,7 +86,7 @@ export class WorldScene extends Phaser.Scene{
     this.load.spritesheet('safari-red',root+'red-overworld.png',
       {frameWidth:16,frameHeight:32});
     this.load.spritesheet('world-red-hgss',
-      '/assets/world/hgss/red.png',{frameWidth:16,frameHeight:32});
+      '/assets/world/hgss/red.png',{frameWidth:32,frameHeight:32});
     this.load.spritesheet('safari-trainer',root+'hiker-overworld.png',
       {frameWidth:16,frameHeight:32});
     this.species=getActivePokemon(loadCollection()).species;
@@ -156,27 +156,30 @@ export class WorldScene extends Phaser.Scene{
       if(pointer.rightButtonDown())steer(pointer);
     });
     this.heroShadow=this.add.ellipse(this.player.x,
-      this.player.y+4,28,7,0x172b28,0.4).setDepth(6);
-    // The HGSS Red strip is six 16x32 frames: down/up/side, then steps.
-    // Keep the old eight-frame sprite as an offline safety fallback.
+      this.player.y+3,25,7,0x172b28,0.34).setDepth(6);
+    // Real bundled HGSS sheet: 32x192 => six 32x32 vertical frames.
+    // Frames 0/1/2 idle down/up/side; 3/4/5 matching walk poses.
+    // NEVER split frames at width=16: that crops Red down the middle.
+    // Keep the original eight-frame strip as a fallback only.
     const redTexture=this.textures.exists('world-red-hgss')
       ?'world-red-hgss':'safari-red';
     this.hero=this.add.image(this.player.x,this.player.y+2,
-      redTexture,0).setOrigin(0.5,0.94)
-      .setScale(2.55).setDepth(8);
+      redTexture,0).setOrigin(0.5,0.90)
+      .setScale(redTexture==='world-red-hgss'?2.65:2.15)
+      .setDepth(8);
     this.partnerShadow=this.add.ellipse(this.following.x,
-      this.following.y+4,25,8,0x153b2d,0.35).setDepth(6);
+      this.following.y+3,25,7,0x153b2d,0.30).setDepth(6);
     const hgss='world-hgss-'+this.species;
     const idleKey='world-idle-'+this.species;
     if(this.textures.exists(hgss)){
       this.partner=this.add.image(this.following.x,
         this.following.y+2,hgss,0)
-        .setOrigin(0.5,0.68).setScale(2.55).setDepth(7);
+        .setOrigin(0.5,0.87).setScale(2.65).setDepth(7);
       this.lastPartnerTexture=hgss;
     }else if(this.textures.exists(idleKey)){
       this.partner=this.add.image(this.following.x,
         this.following.y+2,idleKey,0)
-        .setOrigin(0.5,0.78).setScale(1.55).setDepth(7);
+        .setOrigin(0.5,0.80).setScale(1.80).setDepth(7);
       this.lastPartnerTexture=idleKey;
     }else{
       // Non-stretch fallback if the PMD network image is unavailable.
@@ -560,7 +563,7 @@ export class WorldScene extends Phaser.Scene{
     this.hero?.setPosition(Math.round(this.player.x),
       Math.round(this.player.y)+2);
     this.heroShadow?.setPosition(Math.round(this.player.x),
-      Math.round(this.player.y)+5);
+      Math.round(this.player.y)+3);
 
     // The companion follows the trail, stands on its feet, faces in eight
     // directions and selects actual PMD WALK sprites instead of just IDLE.
@@ -613,7 +616,7 @@ export class WorldScene extends Phaser.Scene{
     this.partner?.setPosition(Math.round(this.following.x),
       Math.round(this.following.y)+2);
     this.partnerShadow?.setPosition(Math.round(this.following.x),
-      Math.round(this.following.y)+5);
+      Math.round(this.following.y)+3);
     // A little ground-aware depth keeps the protagonist in front when
     // the two overlap, without lifting Bulbasaur off the floor.
     this.partner?.setDepth(this.following.y>this.player.y?9:7);

@@ -267,21 +267,21 @@ const base = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sp
 
 function spriteSize(creature:Creature):number {
   switch(creature){
-    case 'charmander':return 2.08;
+    case 'charmander':return 2.55;
     case 'charmeleon':return 2.12;
-    case 'bulbasaur':return 2.04;
+    case 'bulbasaur':return 2.65;
     case 'ivysaur':return 2.04;
-    case 'squirtle':return 2.15;
+    case 'squirtle':return 2.55;
     case 'wartortle':return 2.10;
-    case 'rattata':return 1.88;
-    case 'jigglypuff':return 2.15;
-    case 'pidgey':return 2.05;
+    case 'rattata':return 2.38;
+    case 'jigglypuff':return 2.50;
+    case 'pidgey':return 2.32;
     case 'pidgeotto':return 2.05;
     case 'spearow':return 2.05;
     case 'fearow':return 2;
-    case 'caterpie':return 2.05;
+    case 'caterpie':return 2.35;
     case 'metapod':return 2.05;
-    case 'weedle':return 2.05;
+    case 'weedle':return 2.35;
     case 'kakuna':return 2.05;
     case 'raticate':return 1.91;
     case 'onix':return 1.95;
@@ -380,8 +380,10 @@ export class OverworldActor {
     x: number,
     y: number
   ) {
-    this.image = scene.add.image(x, y - spriteLift(creature), key(creature, 'Idle'), 0)
-      .setOrigin(0.5, 0.5)
+    const huge=creature==='onix';
+    this.image = scene.add.image(x, huge?y-spriteLift(creature):y,
+      key(creature, 'Idle'), 0)
+      .setOrigin(0.5, huge?0.5:0.80)
       .setScale(spriteSize(creature))
       .setDepth(3);
   }
@@ -466,16 +468,16 @@ export class OverworldActor {
       ? Phaser.Math.Clamp((time-this.actionStartedAt)/this.actionDuration,0,1) : 0;
     const lift=hop?Math.sin(Math.PI*hopProgress)*8:0;
     const sinking=this.burrowDepth;
-    // PMD move sheets use different frame heights. A centered anchor made
-    // Charmander appear airborne on Attack/Hop/Shoot, so keep its feet at the
-    // same physical ground level regardless of which sheet is active.
-    const starters:readonly Creature[]=['charmander','charmeleon',
-      'bulbasaur','ivysaur','squirtle','wartortle'];
-    const feetOffset=starters.includes(this.creature)&&next!=='Hop'
-      ?Math.max(0,info.height-40)*spriteSize(this.creature)*0.5:0;
+    // Anchor sprites by the actual feet instead of floating the whole
+    // centred sheet over a shadow. PMD frame heights vary by move:
+    // the bottom anchor keeps idle, walk and attack on the same floor.
+    // Onix retains its original tall-body anchor for Dig's sink/tunnel FX.
+    const isOnix=this.creature==='onix';
+    const restY=isOnix
+      ?y-spriteLift(this.creature)*(1-sinking*0.82)
+      :y+2+(sinking*12);
     this.image.setPosition(x-this.facing.x*3*hurtPulse,
-      y-spriteLift(this.creature)*(1-sinking*0.82)-feetOffset
-      -walkingBob*(1-sinking)-lift*(1-sinking)-3*hurtPulse);
+      restY-walkingBob*(1-sinking)-lift*(1-sinking)-3*hurtPulse);
     const size=spriteSize(this.creature);
     const width= this.creature==='onix'?1.17:1;
     this.image.setScale(
