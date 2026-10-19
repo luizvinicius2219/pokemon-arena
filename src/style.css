@@ -297,3 +297,18 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
   color:#eaf8eb;background:#25483f;font:inherit;font-size:13px;
   font-weight:800;cursor:pointer;outline-offset:3px}
 .safari-difficulty select:focus-visible{outline:2px solid #efdda9}
+
+.testing-grid{display:grid;grid-template-columns:1fr 1fr;
+  gap:13px;margin:14px 0}
+.testing-grid label,.testing-level label{font-size:12px;color:#d6cb9d;
+  letter-spacing:.6px;font-weight:900;text-align:left}
+.testing-grid select{display:block;margin-top:7px;width:100%;
+  border-radius:9px;border:1px solid #76aaa7;background:#274944;
+  color:#f8f7e3;padding:11px 9px;font:inherit;font-weight:700}
+.testing-level{margin:14px auto;max-width:515px;display:flex;
+  flex-direction:column;gap:8px}
+.testing-level label{text-align:center}
+.testing-level input{width:100%;accent-color:#b9dca7}
+.testing-level small{color:#bdd2c9;text-align:center;font-size:11px}
+@media(max-width:450px){.testing-grid{gap:7px}
+  .testing-grid select{padding:8px 3px;font-size:12px}}

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Action, Bindings, defaults, loadBindings, saveBindings, assignBinding, keyLabel } from './controls';
-import { allActions,dodge,skills,type Starter } from './abilities';
+import { allActions,dodge,skills,type Starter,type Fighter } from './abilities';
+import { getTrainingSetup,setTrainingSetup } from './trainingSetup';
 import { pokemonCatalog } from './pokemonCatalog';
 import { loadDifficulty,saveDifficulty } from './gameBalance';
 import { ArenaScene } from './arena';
@@ -30,7 +31,8 @@ const labels: Record<Action, string> = {
 };
 
 const selectedSpecies = () =>
-  gameMode==='training'?'charizard':getActivePokemon(loadCollection()).species;
+  gameMode==='training'?getTrainingSetup().player:
+    getActivePokemon(loadCollection()).species;
 const cardHTML = (action: Action): string => {
   const skill = action === 'dodge' ? dodge : skills[selectedSpecies()][action];
   return `<div class="skill-card ${action === 'r' ? 'ultimate' : ''}" data-action="${action}" title="${skill.description}">
@@ -114,6 +116,44 @@ app.innerHTML = `
             <button type="button" class="landing-primary" data-continue-story>▶ CONTINUAR HISTÓRIA</button>
             <button type="button" class="landing-secondary" data-new-story>ESCOLHER OUTRO INICIAL / NOVO JOGO</button>
             <button type="button" class="landing-secondary" data-menu-back>← MENU PRINCIPAL</button>
+          </div>
+        </section>
+        <section class="landing-card" data-menu-panel="testing" hidden>
+          <span class="landing-eyebrow">TREINO LIVRE · SEM ALTERAR O SAVE</span>
+          <h2>LABORATÓRIO DE <em>BATALHA</em></h2>
+          <p class="landing-lead">Teste os ataques, a velocidade e o equilíbrio de cada Pokémon sem ganhar XP nem gastar tempo de treinador.</p>
+          <div class="testing-grid">
+            <label>SEU POKÉMON
+              <select id="testing-player">
+                <option value="charmander">Charmander</option>
+                <option value="charmeleon">Charmeleon</option>
+                <option value="charizard">Charizard</option>
+                <option value="bulbasaur">Bulbasaur</option>
+                <option value="ivysaur">Ivysaur</option>
+                <option value="squirtle">Squirtle</option>
+                <option value="wartortle">Wartortle</option>
+              </select>
+            </label>
+            <label>ADVERSÁRIO
+              <select id="testing-rival">
+                <option value="pikachu">Pikachu</option>
+                <option value="rattata">Rattata</option>
+                <option value="pidgey">Pidgey</option>
+                <option value="spearow">Spearow</option>
+                <option value="caterpie">Caterpie</option>
+                <option value="weedle">Weedle</option>
+                <option value="jigglypuff">Jigglypuff</option>
+              </select>
+            </label>
+          </div>
+          <div class="testing-level">
+            <label for="testing-level">NÍVEL DE TESTE: <strong data-testing-number>36</strong></label>
+            <input id="testing-level" type="range" min="5" max="36" step="1" value="36"/>
+            <small>Nível de teste não altera a História.</small>
+          </div>
+          <div class="landing-buttons">
+            <button type="button" class="landing-secondary" data-menu-back>← VOLTAR</button>
+            <button type="button" class="landing-primary" data-confirm-testing>⚔ COMEÇAR TESTE</button>
           </div>
         </section>
       </div>
@@ -283,10 +323,18 @@ window.addEventListener('blur', () => heldKeys.clear());
 
 const landing=document.querySelector<HTMLElement>('#landing-menu')!;
 const panels=Array.from(document.querySelectorAll<HTMLElement>('[data-menu-panel]'));
-function showPanel(panel:'home'|'choose'|'resume'){
+function showPanel(panel:'home'|'choose'|'resume'|'testing'){
   panels.forEach(node=>node.hidden=node.dataset.menuPanel!==panel);
   document.querySelectorAll<HTMLSelectElement>('[data-difficulty]')
     .forEach(select=>{select.value=loadDifficulty();});
+  if(panel==='testing'){
+    const setup=getTrainingSetup();
+    document.querySelector<HTMLSelectElement>('#testing-player')!.value=setup.player;
+    document.querySelector<HTMLSelectElement>('#testing-rival')!.value=setup.rival;
+    document.querySelector<HTMLInputElement>('#testing-level')!.value=String(setup.level);
+    document.querySelector<HTMLElement>('[data-testing-number]')!
+      .textContent=String(setup.level);
+  }
   if(panel==='resume'){
     const pokemon=getActivePokemon(loadCollection());
     const preview=document.querySelector<HTMLElement>('[data-save-preview]')!;
@@ -350,7 +398,20 @@ document.querySelector<HTMLButtonElement>('#switch-mode')!
 document.querySelector<HTMLButtonElement>('#gym-preview')!
   .addEventListener('click',()=>startGameMode('story'));
 document.querySelector<HTMLButtonElement>('[data-start-training]')!
-  .addEventListener('click',()=>startGameMode('training'));
+  .addEventListener('click',()=>showPanel('testing'));
+document.querySelector<HTMLInputElement>('#testing-level')!
+  .addEventListener('input',()=>{
+    document.querySelector<HTMLElement>('[data-testing-number]')!
+      .textContent=document.querySelector<HTMLInputElement>('#testing-level')!.value;
+  });
+document.querySelector<HTMLButtonElement>('[data-confirm-testing]')!
+  .addEventListener('click',()=>{
+    const player=document.querySelector<HTMLSelectElement>('#testing-player')!.value as Fighter;
+    const rival=document.querySelector<HTMLSelectElement>('#testing-rival')!.value as Fighter;
+    const level=Number(document.querySelector<HTMLInputElement>('#testing-level')!.value);
+    setTrainingSetup(player,rival,level);
+    startGameMode('training');
+  });
 document.querySelector<HTMLButtonElement>('[data-start-brock]')!
   .addEventListener('click',()=>startGameMode('story'));
 document.querySelector<HTMLButtonElement>('[data-start-story]')!
