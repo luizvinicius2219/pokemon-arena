@@ -1068,6 +1068,9 @@ export class ArenaScene extends Phaser.Scene {
     const growlFactor=target==='player'&&now<this.enemyWeakenedUntil?0.68:1;
     const difficultyFactor=target==='player'&&this.mode!=='training'
       ?this.rules.enemyDamage:1;
+    const encounterLevel=target==='player'&&this.mode==='wild'
+      ?Math.max(0.82,Math.min(1.35,1+
+        (this.wildLevel-this.starterLevel)*0.07)):1;
     const defense=target==='player'&&now<this.playerGuardUntil?0.52:1;
     const trainer=target==='player'&&this.mode==='practice'?0.52:
       target==='player'&&this.mode==='wild'?0.74:1;
@@ -1075,7 +1078,7 @@ export class ArenaScene extends Phaser.Scene {
     const levelBoost=target==='enemy'&&this.mode!=='training'
       ?1+Math.min(0.72,Math.max(0,this.starterLevel-5)*0.064):1;
     const received=scaledDamage(
-      Math.max(1,Math.round(amount*growlFactor*trainer*defense*weakness*levelBoost*difficultyFactor)),
+      Math.max(1,Math.round(amount*growlFactor*trainer*defense*weakness*levelBoost*difficultyFactor*encounterLevel)),
       elemental,pokemonCatalog[defender].elements);
     if(multiplier.category!=='neutral'&&now-this.lastTypeCueAt[target]>1280){
       const label=multiplier.category==='immune'?'NÃO AFETA!':
@@ -1407,37 +1410,100 @@ export class ArenaScene extends Phaser.Scene {
     const dir=this.directionTo(this.enemy,this.player.x,this.player.y,
       this.enemyFacing);
     this.faceDirection('enemy',dir);
-    this.enemyMotion?.trigger(species==='rattata'?'Attack':'Shoot',time,dir);
-    this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+530);
-    if(species==='rattata'){
-      this.starterFx.scratch(
-        {x:this.enemy.x,y:this.enemy.y-18},
-        {x:this.enemy.x+dir.x*65,y:this.enemy.y+dir.y*65},dir
-      );
-      this.time.delayedCall(280,()=>{
-        if(this.finished)return;
-        const distance=Phaser.Math.Distance.Between(this.enemy.x,this.enemy.y,
-          this.player.x,this.player.y);
-        if(distance<124)this.damage('player',move.damage,
-          this.player.x,this.player.y,0xe6cda6,'normal');
+    const origin={x:this.enemy.x,y:this.enemy.y-18};
+    const target={x:this.player.x,y:this.player.y-16};
+    const distance=Phaser.Math.Distance.Between(
+      this.enemy.x,this.enemy.y,this.player.x,this.player.y);
+    const bird=species==='pidgey'||species==='pidgeotto'||
+      species==='spearow'||species==='fearow';
+    const insect=species==='caterpie'||species==='metapod'||
+      species==='weedle'||species==='kakuna';
+    const rat=species==='rattata'||species==='raticate';
+    this.enemyMotion?.trigger(skill==='q'?'Attack':
+      skill==='w'?'Charge':'Shoot',time,dir);
+    this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+510);
+
+    const snapshot={x:this.player.x,y:this.player.y};
+    const deferredHit=(delay:number,reach:number,type:PokemonType,damage:number)=>{
+      // Check destination at impact time: moving/dodging is rewarded.
+      this.time.delayedCall(delay,()=>{
+        if(this.finished||this.enemyHp<=0)return;
+        const dodgeDistance=Phaser.Math.Distance.Between(
+          this.player.x,this.player.y,snapshot.x,snapshot.y);
+        if(dodgeDistance>reach||distance>430)return;
+        this.damage('player',damage,this.player.x,this.player.y,
+          type==='flying'?0xa8ebd2:
+            type==='poison'?0xdba0ec:type==='bug'?0x91d78b:0xe8d4b2,
+          type);
       });
-    }else{
-      this.starterFx.notes({x:this.player.x,y:this.player.y});
+    };
+    if(rat){
+      const reach=skill==='w'?190:125;
+      this.starterFx.scratch(origin,{
+        x:origin.x+dir.x*reach*0.7,y:origin.y+dir.y*reach*0.7
+      },dir);
+      if(distance<reach)deferredHit(310,76,'normal',move.damage);
+      return;
+    }
+    if(bird){
       if(skill==='w'){
-        this.playerSlowUntil=Math.max(this.playerSlowUntil,time+1900);
-        this.skillCallout(this.player.x,this.player.y-66,
-          'CANTAR ♫',0xf0d3fe);
+        this.starterFx.gust(origin,target);
+        if(distance<345){
+          this.playerSlowUntil=Math.max(this.playerSlowUntil,time+1350);
+          this.skillCallout(this.player.x,this.player.y-72,
+            'AREIA NOS OLHOS!',0xdde7b4);
+        }
       }else{
-        this.fx.telegraph(this.player.x,this.player.y,58,'electric',520);
-        this.time.delayedCall(520,()=>{
-          if(this.finished)return;
-          const distance=Phaser.Math.Distance.Between(this.enemy.x,
-            this.enemy.y,this.player.x,this.player.y);
-          if(distance<380)this.damage('player',move.damage,
-            this.player.x,this.player.y,0xeac5fd,
-            skill==='e'?'fairy':'normal');
-        });
+        // Gust and Peck are contrasting shapes, distinct from Jigglypuff.
+        if(skill==='e'||skill==='r'){
+          this.starterFx.gust(origin,target,skill==='r');
+          this.fx.telegraph(snapshot.x,snapshot.y,65,'electric',480);
+          deferredHit(490,74,skill==='e'?'flying':
+            move.element,move.damage);
+        }else{
+          this.starterFx.scratch(origin,{
+            x:origin.x+dir.x*91,y:origin.y+dir.y*91
+          },dir);
+          if(distance<200)deferredHit(250,76,move.element,move.damage);
+        }
       }
+      return;
+    }
+    if(insect){
+      if(skill==='w'||species==='metapod'||species==='kakuna'&&skill==='e'){
+        this.starterFx.silk(origin,target);
+        if(distance<370){
+          this.playerSlowUntil=Math.max(this.playerSlowUntil,time+2250);
+          this.skillCallout(snapshot.x,snapshot.y-65,
+            'PRESO NA SEDA!',0xecf9ee);
+        }
+      }else{
+        const poisonous=species==='weedle'||species==='kakuna';
+        this.starterFx.sting(origin,target,poisonous);
+        if(distance<270){
+          deferredHit(320,75,move.element,move.damage);
+          if(poisonous&&skill==='q'){
+            this.time.delayedCall(1100,()=>{
+              if(this.finished||this.enemyHp<=0)return;
+              if(Phaser.Math.Distance.Between(
+                this.player.x,this.player.y,snapshot.x,snapshot.y)<100){
+                this.damage('player',3,this.player.x,this.player.y,
+                  0xc38cdb,'poison');
+              }
+            });
+          }
+        }
+      }
+      return;
+    }
+    // Jigglypuff: visible singing notes and a slower fairy shockwave.
+    this.starterFx.notes(target);
+    if(skill==='w'){
+      this.playerSlowUntil=Math.max(this.playerSlowUntil,time+1900);
+      this.skillCallout(snapshot.x,snapshot.y-68,'CANTAR ♫',0xe4c1f7);
+    }else{
+      this.fx.telegraph(snapshot.x,snapshot.y,59,'electric',550);
+      deferredHit(555,78,skill==='e'?'fairy':'normal',move.damage);
     }
   }
 
@@ -1465,7 +1531,8 @@ export class ArenaScene extends Phaser.Scene {
       &&this.canCast('enemy','r',time))selection='r';
     const meleeReach=this.enemySpecies==='geodude'?265:
       this.enemySpecies==='onix'?145:140;
-    if(selection==='w' && distance>meleeReach && this.enemySpecies!=='onix')
+    if(selection==='w'&&distance>meleeReach &&
+      this.mode!=='wild'&&this.enemySpecies!=='onix')
       selection=this.mode==='story'&&this.canCast('enemy','e',time)?'e':'q';
     if(!this.canCast('enemy',selection,time))selection='q';
     if(this.canCast('enemy',selection,time)){
