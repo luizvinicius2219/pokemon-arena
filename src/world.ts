@@ -340,7 +340,7 @@ export class WorldScene extends Phaser.Scene{
     this.time.delayedCall(duration,()=>{
       if(id===this.speechSerial&&this.sys.isActive())
         this.message?.setText(
-          'Mova-se no mato alto, escolha TREINAR ou desafie o ginásio.'
+          'WASD / setas: andar · mouse direito: caminhar · E: interagir'
         );
     });
   }

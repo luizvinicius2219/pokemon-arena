@@ -279,9 +279,14 @@ export class ArenaScene extends Phaser.Scene {
       .setStrokeStyle(4,0xffffff).setVisible(false);
     this.enemy = this.add.circle(enemySpawn.x,enemySpawn.y,pokemonCatalog[this.enemySpecies].radius,0xff8b69)
       .setStrokeStyle(4,0xffffff).setVisible(false);
-    this.playerShadow = this.add.ellipse(playerSpawn.x,playerSpawn.y+15,48,14,0x06181c,0.5).setDepth(1);
-    this.enemyShadow = this.add.ellipse(enemySpawn.x,enemySpawn.y+15,
-      this.enemySpecies==='pikachu'?32:45,12,0x06181c,0.5).setDepth(1);
+    this.playerShadow=this.add.ellipse(playerSpawn.x,playerSpawn.y+5,
+      42,10,0x06181c,0.35).setDepth(1);
+    this.enemyShadow=this.add.ellipse(enemySpawn.x,
+      enemySpawn.y+(this.enemySpecies==='onix'?15:
+        this.enemySpecies==='geodude'?10:5),
+      this.enemySpecies==='onix'?88:
+        this.enemySpecies==='pikachu'?30:40,11,
+      0x06181c,0.36).setDepth(1);
     const playerKey=this.playerSpecies;
     if (OverworldActor.available(this,playerKey)) {
       this.playerMotion = new OverworldActor(this,playerKey,playerSpawn.x,playerSpawn.y);
@@ -293,10 +298,11 @@ export class ArenaScene extends Phaser.Scene {
           playerKey==='charmander'?74:88).setDepth(3);
     } else this.player.setVisible(true);
     this.createEnemyArt(enemySpawn.x,enemySpawn.y);
-    this.playerLabel = this.add.text(playerSpawn.x,playerSpawn.y-55,
+    this.playerLabel = this.add.text(playerSpawn.x,playerSpawn.y-86,
       pokemonCatalog[this.playerSpecies].name.toUpperCase(),
       {color:'#c4f7ff',fontSize:'14px',fontStyle:'bold'}).setOrigin(0.5).setDepth(4);
-    this.enemyLabel = this.add.text(enemySpawn.x,enemySpawn.y-35,
+    this.enemyLabel = this.add.text(enemySpawn.x,
+      enemySpawn.y-(this.mode==='wild'?81:35),
       pokemonCatalog[this.enemySpecies].name.toUpperCase(),{
         color:'#ffe9b2',fontSize:'14px',fontStyle:'bold'
       }).setOrigin(0.5).setDepth(4);
@@ -525,7 +531,9 @@ export class ArenaScene extends Phaser.Scene {
       const entity=side==='player'?this.player:this.enemy;
       const hp=side==='player'?this.playerHp:this.enemyHp;
       const width=side==='player'?76:(this.enemySpecies==='onix'?98:70);
-      const y=entity.y-(side==='player'?42:33);
+      const y=entity.y-(side==='player'?70:
+        this.enemySpecies==='onix'?126:
+        this.mode==='wild'?64:33);
       const x=entity.x-width/2;
       this.shownHp[side]=Phaser.Math.Linear(this.shownHp[side],hp,
         Phaser.Math.Clamp(delta/240,0,1));
@@ -1687,7 +1695,7 @@ export class ArenaScene extends Phaser.Scene {
     const enemyVelocity=vector(this.enemy.x-oldEnemy.x,this.enemy.y-oldEnemy.y);
     if(this.playerMotion) {
       this.playerMotion.update(this.player.x,this.player.y,playerVelocity,time);
-      this.playerShadow?.setPosition(this.player.x,this.player.y+15);
+      this.playerShadow?.setPosition(this.player.x,this.player.y+5);
     } else {
       this.animateSprite(this.playerArt,this.playerShadow,this.player,this.playerFacing,
         playerVelocity,this.playerSpecies,this.playerSpecies+'-back',
@@ -1696,7 +1704,9 @@ export class ArenaScene extends Phaser.Scene {
     }
     if(this.enemyMotion) {
       this.enemyMotion.update(this.enemy.x,this.enemy.y,enemyVelocity,time);
-      this.enemyShadow?.setPosition(this.enemy.x,this.enemy.y+15);
+      this.enemyShadow?.setPosition(this.enemy.x,
+        this.enemy.y+(this.enemySpecies==='onix'?15:
+          this.enemySpecies==='geodude'?10:5));
     } else {
       this.animateSprite(this.enemyArt,this.enemyShadow,this.enemy,this.enemyFacing,
         enemyVelocity,this.enemySpecies,this.enemySpecies+'-back',
@@ -1715,9 +1725,10 @@ export class ArenaScene extends Phaser.Scene {
       this.statusText.setVisible(status!=='')
         .setPosition(this.player.x,this.player.y-78);
     }
-    this.playerLabel.setPosition(this.player.x,this.player.y-55);
+    this.playerLabel.setPosition(this.player.x,this.player.y-86);
     this.enemyLabel.setPosition(this.enemy.x,
-      this.enemy.y-(this.enemySpecies==='onix'?160:43));
+      this.enemy.y-(this.enemySpecies==='onix'?160:
+        this.mode==='wild'?81:43));
     this.drawHealthBars(delta);
     this.updateCombo(time);
     this.cinematic.update(time,
