@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Action, Bindings, defaults, loadBindings, saveBindings, assignBinding, keyLabel } from './controls';
 import { allActions,dodge,skills,type Starter } from './abilities';
 import { pokemonCatalog } from './pokemonCatalog';
+import { loadDifficulty,saveDifficulty } from './gameBalance';
 import { ArenaScene } from './arena';
 import { WorldScene } from './world';
 import {
@@ -62,6 +63,14 @@ app.innerHTML = `
               <small>Arena livre, Charizard × Pikachu · Teste seus golpes</small>
             </button>
           </div>
+          <div class="safari-difficulty">
+            <label for="difficulty-home">NÍVEL DO DESAFIO</label>
+            <select id="difficulty-home" data-difficulty>
+              <option value="relax">CASUAL · Menos dano, +20% XP</option>
+              <option value="normal">PADRÃO · Equilibrado</option>
+              <option value="challenge">DESAFIO · Mais dano, -10% XP</option>
+            </select>
+          </div>
           <button class="menu-debug" type="button" data-start-brock>🪨 Testar ginásio diretamente</button>
           <p class="landing-note">Salvamento automático no navegador. As cenas de batalha e o progresso são independentes.</p>
         </section>
@@ -93,6 +102,14 @@ app.innerHTML = `
           <span class="landing-eyebrow">MODO HISTÓRIA · PROGRESSO SALVO</span>
           <h2>SUA <em>JORNADA</em></h2>
           <div class="save-preview" data-save-preview>Seu Pokémon está esperando.</div>
+          <div class="safari-difficulty">
+            <label for="difficulty-resume">DIFICULDADE DA JORNADA</label>
+            <select id="difficulty-resume" data-difficulty>
+              <option value="relax">CASUAL · Mais leve</option>
+              <option value="normal">PADRÃO · Equilibrado</option>
+              <option value="challenge">DESAFIO · Mais difícil</option>
+            </select>
+          </div>
           <div class="landing-buttons landing-buttons-column">
             <button type="button" class="landing-primary" data-continue-story>▶ CONTINUAR HISTÓRIA</button>
             <button type="button" class="landing-secondary" data-new-story>ESCOLHER OUTRO INICIAL / NOVO JOGO</button>
@@ -268,6 +285,8 @@ const landing=document.querySelector<HTMLElement>('#landing-menu')!;
 const panels=Array.from(document.querySelectorAll<HTMLElement>('[data-menu-panel]'));
 function showPanel(panel:'home'|'choose'|'resume'){
   panels.forEach(node=>node.hidden=node.dataset.menuPanel!==panel);
+  document.querySelectorAll<HTMLSelectElement>('[data-difficulty]')
+    .forEach(select=>{select.value=loadDifficulty();});
   if(panel==='resume'){
     const pokemon=getActivePokemon(loadCollection());
     const preview=document.querySelector<HTMLElement>('[data-save-preview]')!;
@@ -316,6 +335,15 @@ const game=new Phaser.Game({
 });
 refreshActivePokemonInfo();
 showPanel('home');
+document.querySelectorAll<HTMLSelectElement>('[data-difficulty]')
+  .forEach(select=>select.addEventListener('change',()=>{
+    const value=select.value;
+    if(value==='relax'||value==='normal'||value==='challenge'){
+      saveDifficulty(value);
+      document.querySelectorAll<HTMLSelectElement>('[data-difficulty]')
+        .forEach(other=>{other.value=value;});
+    }
+  }));
 
 document.querySelector<HTMLButtonElement>('#switch-mode')!
   .addEventListener('click',()=>openMainMenu());
@@ -361,7 +389,8 @@ window.addEventListener('monster-arena:return-world',
 
 window.addEventListener('monster-arena:practice-result',event=>{
   const detail=(event as CustomEvent<{
-    victory:boolean;experience:number;species?:string;level?:number
+    victory:boolean;experience:number;species?:string;level?:number;
+    mode?:'practice'|'wild'
   }>).detail;
   if(!detail)return;
   const back=document.querySelector<HTMLButtonElement>('[data-return-story]');
@@ -370,7 +399,7 @@ window.addEventListener('monster-arena:practice-result',event=>{
   const before=getActivePokemon(loadCollection());
   const award=awardActiveExperience(loadCollection(),detail.experience);
   const after=getActivePokemon(award.collection);
-  registerTrainingVictory();
+  if(detail.mode==='practice')registerTrainingVictory();
   const returnButton=document.querySelector<HTMLButtonElement>(
     '[data-return-story]');
   if(returnButton)returnButton.hidden=false;

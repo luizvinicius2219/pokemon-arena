@@ -287,3 +287,13 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
   .starter-option span{font-size:10px}
   .landing-buttons button{padding:10px;font-size:11px}
 }
+
+.safari-difficulty{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:7px;margin:12px auto;max-width:480px}
+.safari-difficulty label{font-size:11px;color:#d3c89f;
+  font-weight:900;letter-spacing:1.1px}
+.safari-difficulty select{width:100%;padding:10px 14px;
+  border:1px solid #95b7a3;border-radius:10px;
+  color:#eaf8eb;background:#25483f;font:inherit;font-size:13px;
+  font-weight:800;cursor:pointer;outline-offset:3px}
+.safari-difficulty select:focus-visible{outline:2px solid #efdda9}

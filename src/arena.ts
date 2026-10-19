@@ -1170,8 +1170,8 @@ export class ArenaScene extends Phaser.Scene {
       const wild=this.mode==='wild'?activeWildEncounter():null;
       window.dispatchEvent(new CustomEvent('monster-arena:practice-result',{
         detail:{victory:result.victory,
-          experience:result.victory?(wild?.experience??220):0,
-          species:this.enemySpecies,level:this.wildLevel}
+          experience:result.victory?(wild?.experience??100):0,
+          species:this.enemySpecies,level:this.wildLevel,mode:this.mode}
       }));
     }
     if(this.mode==='story'&&result.victory)
@@ -1224,7 +1224,7 @@ export class ArenaScene extends Phaser.Scene {
         fontSize:'16px',fontStyle:'bold',color:'#dbf5f2'
       }).setOrigin(0.5).setDepth(25);
     if(this.mode==='practice'||this.mode==='wild'){
-      const reward=this.mode==='wild'?activeWildEncounter().experience:220;
+      const reward=this.mode==='wild'?activeWildEncounter().experience:100;
       let evolution:string|null=null;
       try{evolution=window.sessionStorage.getItem('monster-arena-evolution');}catch{}
       this.add.text(center,414,
