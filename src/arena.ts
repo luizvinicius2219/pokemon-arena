@@ -15,6 +15,8 @@ import { PokemonSwitchFx } from './pokemonSwitchFx';
 import { StarterFx } from './starterFx';
 import { getActivePokemon, loadCollection } from './playerCollection';
 import { activeWildEncounter } from './encounters';
+import { createSafariBattlefield } from './safariBattlefield';
+import { difficultyRules,type DifficultyRules } from './gameBalance';
 import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
 
@@ -67,6 +69,7 @@ export class ArenaScene extends Phaser.Scene {
   private enemyVulnerableUntil=0;
   private playerGuardUntil=0;
   private wildLevel=4;
+  private rules:DifficultyRules=difficultyRules();
   private lastMoveLockedCue=-3000;
   private rockFx?:RockFx;
   private rockMoves?:RockMoves;
@@ -172,6 +175,7 @@ export class ArenaScene extends Phaser.Scene {
     this.playerSpecies=this.mode==='training'
       ?'charizard':this.currentStarter();
     this.environment=undefined;
+    this.rules=difficultyRules();
     this.enemySpecies=this.mode==='story'?'geodude':
       this.mode==='wild'?activeWildEncounter().species:'pikachu';
     this.wildLevel=this.mode==='wild'?activeWildEncounter().level:4;
@@ -215,11 +219,12 @@ export class ArenaScene extends Phaser.Scene {
       (this.mode==='training'?0:
         Math.min(55,Math.max(0,this.starterLevel-5)*3));
     if(this.mode==='story'){
-      // Brock is the same major encounter but his HP has an intentional
-      // handicap against a very low-level starter. Training still matters.
+      // Handicap is mild: prepare for Brock instead of farming one enemy.
       this.enemyMaxHp=Math.round(this.enemyMaxHp*
         Math.min(1.12,0.77+Math.max(0,this.starterLevel-5)*0.036));
     }
+    if(this.mode==='story'||this.mode==='wild')
+      this.enemyMaxHp=Math.max(20,Math.round(this.enemyMaxHp*this.rules.enemyHp));
     this.playerHp=this.playerMaxHp;
     this.enemyHp=this.enemyMaxHp;
     this.finished = false;
@@ -255,9 +260,13 @@ export class ArenaScene extends Phaser.Scene {
       this.storyIntroUntil=this.time.now+3150;
       this.enemyActiveAt=this.storyIntroUntil+1050;
       this.nextEnemyDecision=this.enemyActiveAt;
+    }else if(this.mode==='wild'){
+      createSafariBattlefield(this);
     }else this.drawArena();
-    const playerSpawn=this.mode==='story'?pewterGym.spawnPlayer:{x:210,y:288};
-    const enemySpawn=this.mode==='story'?pewterGym.spawnRival:{x:750,y:288};
+    const playerSpawn=this.mode==='story'?pewterGym.spawnPlayer:
+      this.mode==='wild'?{x:230,y:319}:{x:210,y:288};
+    const enemySpawn=this.mode==='story'?pewterGym.spawnRival:
+      this.mode==='wild'?{x:724,y:297}:{x:750,y:288};
     this.player = this.add.circle(playerSpawn.x,playerSpawn.y,
       pokemonCatalog[this.playerSpecies].radius,0x60d1ff)
       .setStrokeStyle(4,0xffffff).setVisible(false);
@@ -436,7 +445,7 @@ export class ArenaScene extends Phaser.Scene {
         const info=pokemonCatalog[this.enemySpecies];
         const handicap=Math.min(1.12,0.77+
           Math.max(0,this.starterLevel-5)*0.036);
-        this.enemyMaxHp=Math.round(info.maxHp*handicap);
+        this.enemyMaxHp=Math.round(info.maxHp*handicap*this.rules.enemyHp);
         this.enemyHp=this.enemyMaxHp;
         this.shownHp.enemy=this.enemyMaxHp;
         this.enemy.radius=info.radius;
@@ -494,8 +503,9 @@ export class ArenaScene extends Phaser.Scene {
     this.hpText.setText(pokemonCatalog[this.playerSpecies].name+
       (this.mode!=='training'?' Nv. '+this.starterLevel:'')+
       ': '+this.playerHp+' / '+this.playerMaxHp+' HP');
-    this.enemyHpText.setText(pokemonCatalog[this.enemySpecies].name+': '
-      +this.enemyHp+' / '+this.enemyMaxHp+' HP');
+    this.enemyHpText.setText(pokemonCatalog[this.enemySpecies].name+
+      (this.mode==='wild'?' · Nv '+this.wildLevel:'')+
+      ': '+this.enemyHp+' / '+this.enemyMaxHp+' HP');
   }
 
   /** Small overhead bars make damage visible even on narrow mobile screens. */
@@ -1056,6 +1066,8 @@ export class ArenaScene extends Phaser.Scene {
     const defender=target==='player'?this.playerSpecies:this.enemySpecies;
     const multiplier=effectiveness(elemental,pokemonCatalog[defender].elements);
     const growlFactor=target==='player'&&now<this.enemyWeakenedUntil?0.68:1;
+    const difficultyFactor=target==='player'&&this.mode!=='training'
+      ?this.rules.enemyDamage:1;
     const defense=target==='player'&&now<this.playerGuardUntil?0.52:1;
     const trainer=target==='player'&&this.mode==='practice'?0.52:
       target==='player'&&this.mode==='wild'?0.74:1;
@@ -1063,7 +1075,7 @@ export class ArenaScene extends Phaser.Scene {
     const levelBoost=target==='enemy'&&this.mode!=='training'
       ?1+Math.min(0.72,Math.max(0,this.starterLevel-5)*0.064):1;
     const received=scaledDamage(
-      Math.max(1,Math.round(amount*growlFactor*trainer*defense*weakness*levelBoost)),
+      Math.max(1,Math.round(amount*growlFactor*trainer*defense*weakness*levelBoost*difficultyFactor)),
       elemental,pokemonCatalog[defender].elements);
     if(multiplier.category!=='neutral'&&now-this.lastTypeCueAt[target]>1280){
       const label=multiplier.category==='immune'?'NÃO AFETA!':
@@ -1435,8 +1447,10 @@ export class ArenaScene extends Phaser.Scene {
       || this.finished || this.enemyHp<=0)return;
     // A slower decision beat makes attacks legible while longer telegraphs
     // and a tougher two-Pokémon team maintain the challenge.
-    this.nextEnemyDecision=time+Phaser.Math.Between(
-      this.mode==='story'?1540:1120,this.mode==='story'?2130:1570);
+    const rhythm=this.mode==='training'?1:this.rules.enemySpeed;
+    this.nextEnemyDecision=time+Math.round(Phaser.Math.Between(
+      this.mode==='story'?1540:1060,
+      this.mode==='story'?2130:1480)/rhythm);
     const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,this.enemy.x,this.enemy.y);
     const storyPattern:readonly Skill[]=this.enemySpecies==='onix'
       ?['e','q','w','q','r','e','q','w','r','q']
