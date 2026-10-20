@@ -129,6 +129,7 @@ export class ArenaScene extends Phaser.Scene {
   private starterLevel = 5;
   private enemyHp = 100;
   private finished = false;
+  private knockedOut:Record<Side,boolean>={player:false,enemy:false};
   private projectiles: Projectile[] = [];
   private flameStreams: FlameStream[] = [];
   private dash?: DashState;
@@ -247,6 +248,7 @@ export class ArenaScene extends Phaser.Scene {
     this.playerHp=this.playerMaxHp;
     this.enemyHp=this.enemyMaxHp;
     this.finished = false;
+    this.knockedOut={player:false,enemy:false};
     this.projectiles = [];
     this.flameStreams = [];
     this.dash = undefined;
@@ -432,6 +434,7 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     this.storySwitching=true;
+    this.showKnockout('enemy');
     const switchStartedAt=this.time.now;
     this.enemyActiveAt=Infinity;
     this.reactions.enemy=null;
@@ -445,7 +448,9 @@ export class ArenaScene extends Phaser.Scene {
     const next=this.storyEncounters[this.storyWave+1];
     const nextSpawn=next.species==='onix'
       ?{x:480,y:286}:pewterGym.spawnRival;
-    this.switchFx?.run({
+    this.time.delayedCall(1540,()=>{
+      if(!this.sys.isActive())return;
+      this.switchFx?.run({
       outgoing:this.enemyArt,
       from,
       trainer:{x:trainer.x,y:trainer.y},
@@ -486,10 +491,12 @@ export class ArenaScene extends Phaser.Scene {
         this.enemyBurrowed=false;
         this.enemyBurrowVisual.depth=0;
         this.rolloutUntil=0;
+        this.knockedOut.enemy=false;
         this.enemyAttackAt=-1000;
         this.enemyHurtAt=-1000;
         this.enemyActionIndex=0;
-        this.enemyShadow?.setVisible(true).setDisplaySize(
+        this.enemyShadow?.setVisible(true).setAlpha(0.36)
+          .setScale(1).setDisplaySize(
           this.enemySpecies==='onix'?142:45,
           this.enemySpecies==='onix'?26:17)
           .setPosition(this.enemy.x,this.enemy.y+15);
@@ -509,6 +516,7 @@ export class ArenaScene extends Phaser.Scene {
         this.nextEnemyDecision=this.enemyActiveAt;
         this.updateHp();
       }
+      });
     });
   }
 
@@ -1179,33 +1187,108 @@ export class ArenaScene extends Phaser.Scene {
     }
   }
 
+  /** Show the real fallen Pokémon before any score card or changeover.
+   * The actual OverworldActor image is held in a hurt frame and tipped
+   * onto the ground; it is never replaced by a generic blank outline.
+   */
+  private showKnockout(side:Side):void{
+    if(this.knockedOut[side])return;
+    this.knockedOut[side]=true;
+    this.tackles[side]=null;
+    const body=side==='player'?this.player:this.enemy;
+    const actor=side==='player'?this.playerMotion:this.enemyMotion;
+    const art=side==='player'?this.playerArt:this.enemyArt;
+    const shadow=side==='player'?this.playerShadow:this.enemyShadow;
+    const name=side==='player'
+      ?pokemonCatalog[this.playerSpecies].name
+      :pokemonCatalog[this.enemySpecies].name;
+    actor?.knockOut(body.x,body.y);
+    if(!actor&&art){
+      const angle=side==='player'?86:-86;
+      this.tweens.add({
+        targets:art,y:body.y-4,angle,
+        scaleX:art.scaleX*0.86,scaleY:art.scaleY*0.63,
+        duration:570,ease:'Cubic.easeOut'
+      });
+    }
+    if(!art)body.setVisible(true);
+    if(shadow){
+      this.tweens.add({targets:shadow,alpha:0.17,scaleX:1.35,
+        scaleY:0.75,duration:630,ease:'Cubic.easeOut'});
+    }
+    if(side==='player'){
+      this.playerLabel?.setVisible(false);
+      this.dash=undefined;
+    }else{
+      this.enemyLabel?.setVisible(false);
+      this.enemyBurrowTween?.stop();
+      this.enemyBurrowed=false;
+    }
+    const dust=this.add.ellipse(body.x,body.y+12,48,13,
+      0xd6bea1,0.25).setStrokeStyle(2,0xf5e5c4,0.49).setDepth(3);
+    this.tweens.add({targets:dust,alpha:0,
+      scaleX:2.1,scaleY:1.5,duration:580,
+      onComplete:()=>dust.destroy()});
+    const word=this.add.text(body.x,body.y-
+      (side==='enemy'&&this.enemySpecies==='onix'?160:77),
+      name.toUpperCase()+' NOCAUTEADO!',{
+        fontSize:'19px',fontStyle:'bold',color:'#f5dab4',
+        stroke:'#14242a',strokeThickness:5
+      }).setOrigin(0.5).setDepth(18).setAlpha(0);
+    this.tweens.add({targets:word,alpha:1,y:word.y-7,
+      duration:300,delay:410,ease:'Cubic.easeOut'});
+    this.tweens.add({targets:word,alpha:0,duration:240,
+      delay:1300,onComplete:()=>word.destroy()});
+  }
+
   private endBattle() {
     if(this.finished)return;
+    // The combat stops immediately, but the score panel must wait until
+    // the losing Pokémon has visibly dropped onto the battlefield.
     this.finished=true;
-    this.mobile.setFinished(true);
     this.comboText.setVisible(false);
     this.comboMeter.clear();
-    const result=this.stats.finish(this.time.now,this.playerHp>0,this.playerHp);
-    const returnOnly=this.mode==='wild'||this.mode==='practice';
-    const rematch=document.querySelector<HTMLButtonElement>('[data-battle-rematch]');
-    if(rematch)rematch.textContent=returnOnly?'↩ Voltar à Safari':'↻ Jogar novamente';
-    const touchRestart=document.querySelector<HTMLButtonElement>('[data-touch-restart]');
-    if(touchRestart)touchRestart.textContent=returnOnly?'↩ Voltar à Safari':'↻ Jogar novamente';
-    if(this.mode==='story'){
-      const back=document.querySelector<HTMLButtonElement>('[data-return-story]');
-      if(back)back.hidden=false;
-    }
-    if(this.mode==='practice'||this.mode==='wild'){
-      const wild=this.mode==='wild'?activeWildEncounter():null;
-      window.dispatchEvent(new CustomEvent('monster-arena:practice-result',{
-        detail:{victory:result.victory,
-          experience:result.victory?(wild?.experience??100):0,
-          species:this.enemySpecies,level:this.wildLevel,mode:this.mode}
-      }));
-    }
-    if(this.mode==='story'&&result.victory)
-      window.dispatchEvent(new Event('monster-arena:gym-victory'));
-    this.showResults(result);
+    this.tackles={player:null,enemy:null};
+    this.flameStreams=[];
+    const loser:Side=this.playerHp<=0?'player':'enemy';
+    this.showKnockout(loser);
+    for(const shot of this.projectiles)shot.body.destroy();
+    this.projectiles=[];
+    this.fx.drawShots([],this.time.now);
+    const result=this.stats.finish(
+      this.time.now,this.playerHp>0,this.playerHp
+    );
+    this.time.delayedCall(1700,()=>{
+      if(!this.sys.isActive())return;
+      this.mobile.setFinished(true);
+      const returnOnly=this.mode==='wild'||this.mode==='practice';
+      const rematch=document.querySelector<HTMLButtonElement>(
+        '[data-battle-rematch]');
+      if(rematch)rematch.textContent=returnOnly
+        ?'↩ Voltar à Safari':'↻ Jogar novamente';
+      const touchRestart=document.querySelector<HTMLButtonElement>(
+        '[data-touch-restart]');
+      if(touchRestart)touchRestart.textContent=returnOnly
+        ?'↩ Voltar à Safari':'↻ Jogar novamente';
+      if(this.mode==='story'){
+        const back=document.querySelector<HTMLButtonElement>(
+          '[data-return-story]');
+        if(back)back.hidden=false;
+      }
+      if(this.mode==='practice'||this.mode==='wild'){
+        const wild=this.mode==='wild'?activeWildEncounter():null;
+        window.dispatchEvent(new CustomEvent('monster-arena:practice-result',{
+          detail:{
+            victory:result.victory,
+            experience:result.victory?(wild?.experience??100):0,
+            species:this.enemySpecies,level:this.wildLevel,mode:this.mode
+          }
+        }));
+      }
+      if(this.mode==='story'&&result.victory)
+        window.dispatchEvent(new Event('monster-arena:gym-victory'));
+      this.showResults(result);
+    });
   }
 
   private showResults(result:BattleSummary) {
