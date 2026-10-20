@@ -23,7 +23,7 @@ export interface Ability {
 export const skills: Record<Fighter, Record<Skill, Ability>> = {
   charmander: {
     q: { name: 'Arranhão', description: 'Scratch: golpe físico de garras na frente do Pokémon.', icon: '🐾', cooldown: 780, damage: 10, element: 'normal' },
-    w: { name: 'Rosnar', description: 'Growl: ondas sonoras reduzem temporariamente o dano do rival.', icon: '🔊', cooldown: 4200, damage: 0, element: 'normal' },
+    w: { name: 'Rosnar', description: 'Growl: reduz o Ataque físico do rival em um estágio.', icon: '🔊', cooldown: 4200, damage: 0, element: 'normal' },
     e: { name: 'Brasas', description: 'Ember: chamas nítidas em um projétil com rastro luminoso.', icon: '🔥', cooldown: 1180, damage: 11, element: 'fire' },
     r: { name: 'Cortina de Fumaça', description: 'Smokescreen: nuvem densa reduz a mobilidade e o ritmo do rival.', icon: '💨', cooldown: 6700, damage: 0, element: 'normal' }
   },
@@ -49,13 +49,13 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
     q:{name:'Investida',description:'Golpe rápido com o casco.',icon:'🐢',cooldown:790,damage:10,element:'normal'},
     w:{name:'Abanar de Cauda',description:'Reduz a defesa inimiga.',icon:'💫',cooldown:3900,damage:0,element:'normal'},
     e:{name:'Jato d’Água',description:'Jato de água direcionado.',icon:'💦',cooldown:1150,damage:13,element:'water'},
-    r:{name:'Retirada',description:'Proteção no casco por alguns segundos.',icon:'🛡️',cooldown:6500,damage:0,element:'water'}
+    r:{name:'Retirada',description:'Aumenta a própria Defesa em um estágio.',icon:'🛡️',cooldown:6500,damage:0,element:'water'}
   },
   wartortle: {
     q:{name:'Investida',description:'Golpe com o casco.',icon:'🐢',cooldown:740,damage:15,element:'normal'},
     w:{name:'Abanar de Cauda',description:'Reduz a defesa.',icon:'💫',cooldown:3600,damage:0,element:'normal'},
     e:{name:'Jato d’Água',description:'Jato de água potente.',icon:'💦',cooldown:1020,damage:21,element:'water'},
-    r:{name:'Retirada',description:'Resistência temporária.',icon:'🛡️',cooldown:6100,damage:0,element:'water'}
+    r:{name:'Retirada',description:'Aumenta a própria Defesa em um estágio.',icon:'🛡️',cooldown:6100,damage:0,element:'water'}
   },
   rattata: {
     q:{name:'Investida',description:'Investida curta.',icon:'🐭',cooldown:1200,damage:7,element:'normal'},
@@ -72,13 +72,13 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
 
   pidgey: {
     q:{name:'Investida',description:'Ataque de contato.',icon:'🐦',cooldown:1220,damage:7,element:'normal'},
-    w:{name:'Ataque de Areia',description:'Atrasa o inimigo.',icon:'🌫️',cooldown:3600,damage:0,element:'ground'},
+    w:{name:'Ataque de Areia',description:'Reduz a Precisão inimiga em um estágio.',icon:'🌫️',cooldown:3600,damage:0,element:'ground'},
     e:{name:'Rajada de Vento',description:'Lâmina de vento frontal.',icon:'🌪️',cooldown:3750,damage:11,element:'flying'},
     r:{name:'Ataque Rápido',description:'Bicada veloz.',icon:'💨',cooldown:5900,damage:13,element:'normal'}
   },
   pidgeotto: {
     q:{name:'Investida',description:'Ataque de contato.',icon:'🐦',cooldown:1030,damage:12,element:'normal'},
-    w:{name:'Ataque de Areia',description:'Atrapalha o rival.',icon:'🌫️',cooldown:3400,damage:0,element:'ground'},
+    w:{name:'Ataque de Areia',description:'Reduz a Precisão do rival em um estágio.',icon:'🌫️',cooldown:3400,damage:0,element:'ground'},
     e:{name:'Rajada de Vento',description:'Vento forte.',icon:'🌪️',cooldown:2700,damage:18,element:'flying'},
     r:{name:'Ataque Rápido',description:'Investida rápida.',icon:'💨',cooldown:4700,damage:19,element:'normal'}
   },
@@ -102,7 +102,7 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
   },
   metapod: {
     q:{name:'Investida',description:'Empurrão.',icon:'🐛',cooldown:1550,damage:5,element:'normal'},
-    w:{name:'Endurecer',description:'Protege o corpo.',icon:'🛡️',cooldown:5000,damage:0,element:'normal'},
+    w:{name:'Endurecer',description:'Aumenta a própria Defesa em um estágio.',icon:'🛡️',cooldown:5000,damage:0,element:'normal'},
     e:{name:'Tiro de Seda',description:'Fios te prendem.',icon:'🕸️',cooldown:4400,damage:0,element:'bug'},
     r:{name:'Investida',description:'Golpe defensivo.',icon:'🐛',cooldown:7300,damage:13,element:'normal'}
   },
@@ -114,7 +114,7 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
   },
   kakuna: {
     q:{name:'Ferrão Venenoso',description:'Espinho tóxico.',icon:'☠️',cooldown:1710,damage:9,element:'poison'},
-    w:{name:'Endurecer',description:'Reduz dano.',icon:'🛡️',cooldown:4500,damage:0,element:'normal'},
+    w:{name:'Endurecer',description:'Aumenta a própria Defesa em um estágio.',icon:'🛡️',cooldown:4500,damage:0,element:'normal'},
     e:{name:'Tiro de Seda',description:'Fios pegajosos.',icon:'🕸️',cooldown:3700,damage:0,element:'bug'},
     r:{name:'Ferrão Duplo',description:'Ataque venenoso.',icon:'☠️',cooldown:5900,damage:17,element:'poison'}
   },

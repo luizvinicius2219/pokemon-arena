@@ -20,6 +20,9 @@ import { difficultyRules,type DifficultyRules } from './gameBalance';
 import { getTrainingSetup } from './trainingSetup';
 import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
+import { makeStatStages, changeStatStage, stageMultiplier,
+  accuracyChance, physicalDamageMultiplier, type BattleStat,
+  type StatStages } from './statStages';
 
 type Side = 'player' | 'enemy';
 type ProjectileKind = VfxKind;
@@ -77,9 +80,12 @@ export class ArenaScene extends Phaser.Scene {
   private playerSpecies:Fighter='charizard';
   private fx!: CombatFx;
   private starterFx!:StarterFx;
-  private enemyWeakenedUntil=0;
-  private enemyVulnerableUntil=0;
-  private playerGuardUntil=0;
+  private battleStages:Record<Side,StatStages>={
+    player:makeStatStages(),enemy:makeStatStages()
+  };
+  private playerStageText?:Phaser.GameObjects.Text;
+  private enemyStageText?:Phaser.GameObjects.Text;
+  private lastAccuracyCueAt:Record<Side,number>={player:-1000,enemy:-1000};
   private wildLevel=4;
   private rules:DifficultyRules=difficultyRules();
   private lastMoveLockedCue=-3000;
@@ -222,9 +228,10 @@ export class ArenaScene extends Phaser.Scene {
     this.storyIntroUntil=0;
     this.fx = new CombatFx(this);
     this.starterFx = new StarterFx(this);
-    this.enemyWeakenedUntil=0;
-    this.enemyVulnerableUntil=0;
-    this.playerGuardUntil=0;
+    this.battleStages={player:makeStatStages(),enemy:makeStatStages()};
+    this.playerStageText=undefined;
+    this.enemyStageText=undefined;
+    this.lastAccuracyCueAt={player:-1000,enemy:-1000};
     this.lastMoveLockedCue=-3000;
     this.cinematic = new CinematicFx(this);
     this.stats = new BattleStats(this.time.now);
@@ -321,6 +328,13 @@ export class ArenaScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(4);
     this.hpText = this.add.text(32,24,'',{fontSize:'20px',color:'#a5eeff'}).setDepth(10);
     this.enemyHpText = this.add.text(740,24,'',{fontSize:'20px',color:'#ffcd9e'}).setDepth(10);
+    this.playerStageText=this.add.text(32,51,'',{
+      fontSize:'12px',color:'#a5eeff',stroke:'#142e31',strokeThickness:2
+    }).setDepth(10);
+    this.enemyStageText=this.add.text(740,this.mode==='story'?83:51,'',{
+      fontSize:'12px',color:'#ffcd9e',stroke:'#142e31',strokeThickness:2
+    }).setDepth(10);
+    this.updateStageHud();
     if(this.mode==='story'){
       this.storyWaveText=this.add.text(716,58,'',{
         fontSize:'16px',fontStyle:'bold',color:'#fff0c8',
@@ -486,7 +500,8 @@ export class ArenaScene extends Phaser.Scene {
         this.enemyCastLockUntil=0;
         this.enemySlowUntil=0;
         this.enemyBindUntil=0;
-        this.enemyWeakenedUntil=0;
+        this.battleStages.enemy=makeStatStages();
+        this.updateStageHud();
         this.enemyBurrowTween?.stop();
         this.enemyBurrowed=false;
         this.enemyBurrowVisual.depth=0;
@@ -752,7 +767,7 @@ export class ArenaScene extends Phaser.Scene {
       this.skillCallout(this.player.x,this.player.y-72,'ROSNAR!',0xffe7aa);
       if(Phaser.Math.Distance.Between(this.player.x,this.player.y,
         this.enemy.x,this.enemy.y)<380){
-        this.enemyWeakenedUntil=Math.max(this.enemyWeakenedUntil,time+4700);
+        this.changeBattleStat('enemy','attack',-1);
       }
     } else if(skill==='e'){
       // Ember: visibly larger fireball and a luminous release marker.
@@ -786,14 +801,12 @@ export class ArenaScene extends Phaser.Scene {
     }else if(skill==='w'){
       if(grass){
         this.starterFx.growl(origin,target);
-        this.enemyWeakenedUntil=Math.max(
-          this.enemyWeakenedUntil,time+4200);
+        if(dist<380)this.changeBattleStat('enemy','attack',-1);
         this.skillCallout(this.player.x,this.player.y-65,
           'ROSNAR!',0xe6dda6);
       }else{
         this.starterFx.notes(target);
-        this.enemyVulnerableUntil=Math.max(
-          this.enemyVulnerableUntil,time+4700);
+        if(dist<350)this.changeBattleStat('enemy','defense',-1);
         this.skillCallout(this.player.x,this.player.y-65,
           'DEFESA DO RIVAL ↓',0xb8e8f0);
       }
@@ -805,7 +818,7 @@ export class ArenaScene extends Phaser.Scene {
         this.skillCallout(this.player.x,this.player.y-64,
           'CHICOTE DE VINHA!',0x9eee9a);
         if(dist<310)this.damage('enemy',move.damage,target.x,target.y,
-          0x9ddd90,'grass');
+          0x9ddd90,'grass','physical');
       }else{
         this.starterFx.water(origin,dir);
         this.projectile(origin.x,origin.y,dir,440,14,'water','player',
@@ -836,10 +849,8 @@ export class ArenaScene extends Phaser.Scene {
         }
       }
     }else{
-      this.playerGuardUntil=Math.max(this.playerGuardUntil,time+3500);
       this.starterFx.shell({x:this.player.x,y:this.player.y});
-      this.skillCallout(this.player.x,this.player.y-67,
-        'RETIRADA · ESCUDO!',0xbceefa);
+      this.changeBattleStat('player','defense',1);
     }
   }
 
@@ -973,12 +984,12 @@ export class ArenaScene extends Phaser.Scene {
       },
       applyStatus:(status:RockStatus,duration,side)=>{
         const until=this.time.now+duration;
-        if(side==='enemy'){
-          if(status==='bind')this.playerBindUntil=Math.max(this.playerBindUntil,until);
-          else this.playerSlowUntil=Math.max(this.playerSlowUntil,until);
+        if(status==='slow'){
+          this.changeBattleStat(side==='enemy'?'player':'enemy','speed',-1);
+        }else if(side==='enemy'){
+          this.playerBindUntil=Math.max(this.playerBindUntil,until);
         }else{
-          if(status==='bind')this.enemyBindUntil=Math.max(this.enemyBindUntil,until);
-          else this.enemySlowUntil=Math.max(this.enemySlowUntil,until);
+          this.enemyBindUntil=Math.max(this.enemyBindUntil,until);
         }
       },
       moveSource:(x,y)=>{
@@ -996,6 +1007,35 @@ export class ArenaScene extends Phaser.Scene {
           this.enemy.y-(species==='onix'?110:71),name,0xdfbb8b);
       }
     });
+  }
+
+  /** Update status stages and show both a floating confirmation and a persistent HUD. */
+  private changeBattleStat(side:Side,stat:BattleStat,amount:number):void{
+    if(this.finished||this.storySwitching)return;
+    const changed=changeStatStage(this.battleStages[side],stat,amount);
+    const entity=side==='player'?this.player:this.enemy;
+    const name=({attack:'ATAQUE',defense:'DEFESA',accuracy:'PRECISÃO',
+      speed:'VELOCIDADE'} as const)[stat];
+    const owner=side==='enemy'?'RIVAL':'SEU POKÉMON';
+    const text=changed===0?name+' NO LIMITE':
+      name+' '+(changed>0?'↑':'↓')+' ('+
+      (this.battleStages[side][stat]>0?'+':'')+
+      this.battleStages[side][stat]+')';
+    this.skillCallout(entity.x,entity.y-(side==='enemy'?82:67),
+      owner+' · '+text,changed>0?0xbbe9ab:0xffd9a2);
+    this.updateStageHud();
+  }
+
+  private updateStageHud():void{
+    const summary=(stages:StatStages):string=>
+      (['attack','defense','accuracy','speed'] as BattleStat[])
+        .filter(stat=>stages[stat]!==0)
+        .map(stat=>({
+          attack:'ATQ',defense:'DEF',accuracy:'PRE',speed:'VEL'
+        })[stat]+' '+(stages[stat]>0?'+':'')+stages[stat])
+        .join(' · ');
+    this.playerStageText?.setText(summary(this.battleStages.player));
+    this.enemyStageText?.setText(summary(this.battleStages.enemy));
   }
 
   private skillCallout(x:number,y:number,message:string,color:number){
@@ -1083,7 +1123,7 @@ export class ArenaScene extends Phaser.Scene {
 
   private damage(
     target:Side,amount:number,x:number,y:number,color:number,
-    attackType?:PokemonType
+    attackType?:PokemonType,damageClass?:'physical'|'special'
   ) {
     if(this.finished || this.storySwitching ||
       (target==='enemy'&&this.enemyBurrowed) ||
@@ -1094,23 +1134,25 @@ export class ArenaScene extends Phaser.Scene {
         [0xcbb18b,0xbca57c].includes(color)?'rock':'fire');
     const defender=target==='player'?this.playerSpecies:this.enemySpecies;
     const multiplier=effectiveness(elemental,pokemonCatalog[defender].elements);
-    const growlFactor=target==='player'&&now<this.enemyWeakenedUntil?0.68:1;
+    const attacker:Side=target==='player'?'enemy':'player';
+    const physical=damageClass==='physical'||(!damageClass&&
+      ['normal','rock','ground','flying','bug','poison'].includes(elemental));
+    const stagePower=physical?physicalDamageMultiplier(
+      this.battleStages[attacker],this.battleStages[target]):1;
     const difficultyFactor=target==='player'&&this.mode!=='training'
       ?this.rules.enemyDamage:1;
     const encounterLevel=target==='player'&&this.mode==='wild'
       ?Math.max(0.82,Math.min(1.35,1+
         (this.wildLevel-this.starterLevel)*0.07)):1;
-    const defense=target==='player'&&now<this.playerGuardUntil?0.52:1;
     const trainer=target==='player'&&this.mode==='practice'?0.52:
       target==='player'&&this.mode==='wild'?0.96:1;
-    const weakness=target==='enemy'&&now<this.enemyVulnerableUntil?1.38:1;
     const levelBoost=target==='enemy'&&this.mode==='training'
       ?Math.max(0.7,Math.min(1.58,
         0.6+this.starterLevel*0.026)):
       target==='enemy'
         ?1+Math.min(0.72,Math.max(0,this.starterLevel-5)*0.064):1;
     const received=scaledDamage(
-      Math.max(1,Math.round(amount*growlFactor*trainer*defense*weakness*levelBoost*difficultyFactor*encounterLevel)),
+      Math.max(1,Math.round(amount*stagePower*trainer*levelBoost*difficultyFactor*encounterLevel)),
       elemental,pokemonCatalog[defender].elements);
     if(multiplier.category!=='neutral'&&now-this.lastTypeCueAt[target]>1280){
       const label=multiplier.category==='immune'?'NÃO AFETA!':
@@ -1127,6 +1169,14 @@ export class ArenaScene extends Phaser.Scene {
     // Real dodge invulnerability is tied to the visible Hop, not a teleport.
     if(target==='player' && this.dash && now-this.dash.startAt<this.dash.duration*0.70){
       if(this.stats.registerEvade(now))this.showEvade(now);
+      return;
+    }
+    // A reduced accuracy stage means the attack can miss despite reaching the hitbox.
+    if(Math.random()>accuracyChance(this.battleStages[attacker])){
+      if(now-this.lastAccuracyCueAt[target]>950){
+        this.lastAccuracyCueAt[target]=now;
+        this.skillCallout(x,y-63,'ERROU!',0xdfe7b5);
+      }
       return;
     }
     // Prevent overlapping impact events in the same couple of frames; long
@@ -1552,6 +1602,29 @@ export class ArenaScene extends Phaser.Scene {
           type);
       });
     };
+    // Every enemy status move is resolved before the damaging move branches.
+    // In particular, Rattata/Raticate Growl previously fell through to a
+    // zero-damage Scratch animation, and Harden incorrectly slowed the player.
+    if(move.name==='Rosnar'){
+      this.starterFx.growl(origin,target);
+      if(distance<370)this.changeBattleStat('player','attack',-1);
+      return;
+    }
+    if(move.name==='Endurecer'){
+      this.starterFx.shell(origin);
+      this.changeBattleStat('enemy','defense',1);
+      return;
+    }
+    if(move.name==='Tiro de Seda'){
+      this.starterFx.silk(origin,target);
+      if(distance<370)this.changeBattleStat('player','speed',-1);
+      return;
+    }
+    if(move.name==='Ataque de Areia'){
+      this.starterFx.gust(origin,target);
+      if(distance<345)this.changeBattleStat('player','accuracy',-1);
+      return;
+    }
     if(rat&&(skill==='q'||skill==='w')){
       this.startTackle('enemy',move.damage,move.element,time);
       return;
@@ -1804,7 +1877,8 @@ export class ArenaScene extends Phaser.Scene {
     const channeling=this.flameStreams.some(stream=>time-stream.startAt<stream.duration);
     const slowed=time<this.playerSlowUntil?0.64:1;
     const bound=time<this.playerBindUntil?0.52:1;
-    const moveFactor=(channeling?0.72:1)*Math.min(slowed,bound);
+    const moveFactor=(channeling?0.72:1)*Math.min(slowed,bound)*
+      stageMultiplier(this.battleStages.player.speed);
     if(this.dash){
       this.animateDash(time);
     } else if(this.tackles.player){
@@ -1846,9 +1920,11 @@ export class ArenaScene extends Phaser.Scene {
       const strafe=distance>285?18:distance<100?12:72;
       const profile=pokemonCatalog[this.enemySpecies];
       const impeded=time<this.enemyBindUntil?0.52:time<this.enemySlowUntil?0.64:1;
-      const scale=profile.moveSpeed/122*impeded;
+      const scale=profile.moveSpeed/122*impeded*
+        stageMultiplier(this.battleStages.enemy.speed);
       const step=toward.scale(chase*scale).add(drift.scale(sign*strafe*scale))
-        .limit(profile.moveSpeed*impeded).scale(dt);
+        .limit(profile.moveSpeed*impeded*
+          stageMultiplier(this.battleStages.enemy.speed)).scale(dt);
       this.enemy.x=clampX(this.enemy.x+step.x);
       this.enemy.y=clampY(this.enemy.y+step.y);
     }
