@@ -656,10 +656,10 @@ export class ArenaScene extends Phaser.Scene {
       this.playerCastAt.dodge=time;
       this.stats.registerDodge();
       this.playerFacing.copy(dir);
-      this.dash={from:start,to:end,direction:dir,startAt:time,duration:230,lastGhostAt:-1000};
-      this.playerMotion?.trigger('Hop',time,dir,230);
-      this.fx.dashDust(start.x,start.y,dir);
-      this.pulse(start.x,start.y,0x94e8ff,20,0.4);
+      this.dash={from:start,to:end,direction:dir,startAt:time,duration:340,lastGhostAt:-1000};
+      this.playerMotion?.trigger('Hop',time,dir,340);
+      this.fx.dodgeWind(start.x,start.y,dir,1.05);
+      this.fx.dashDust(start.x,start.y,dir,0.22);
       this.destination.copy(end);
       return;
     }
@@ -1671,30 +1671,21 @@ export class ArenaScene extends Phaser.Scene {
     const dash=this.dash;
     if(!dash)return;
     const t=Phaser.Math.Clamp((time-dash.startAt)/dash.duration,0,1);
-    // Smooth acceleration and deceleration: no instantaneous relocation.
-    const eased=0.5-0.5*Math.cos(Math.PI*t);
+    // Ground-level evasive step, easing into a controlled stop.
+    const eased=t*t*(3-2*t);
     this.player.setPosition(
       Phaser.Math.Linear(dash.from.x,dash.to.x,eased),
       Phaser.Math.Linear(dash.from.y,dash.to.y,eased)
     );
     this.destination.set(this.player.x,this.player.y);
-    if(time-dash.lastGhostAt>=47){
+    if(time-dash.lastGhostAt>=85){
       dash.lastGhostAt=time;
-      if(this.playerArt){
-        const art=this.playerArt;
-        const ghost=this.add.image(this.player.x,art.y,art.texture.key,art.frame.name)
-          .setOrigin(art.originX,art.originY)
-          .setDisplaySize(art.displayWidth,art.displayHeight)
-          .setFlipX(art.flipX).setDepth(2).setAlpha(0.35).setTint(0x9be7f2);
-        this.tweens.add({targets:ghost,alpha:0,duration:170,
-          onComplete:()=>ghost.destroy()});
-      }
-      this.fx.dashDust(this.player.x,this.player.y,dash.direction,0.28);
+      this.fx.dodgeWind(this.player.x,this.player.y,dash.direction,0.58);
     }
     if(t>=1){
       this.player.setPosition(dash.to.x,dash.to.y);
       this.destination.copy(dash.to);
-      this.fx.dashDust(dash.to.x,dash.to.y,dash.direction,0.65);
+      this.fx.dodgeWind(dash.to.x,dash.to.y,dash.direction,0.62);
       this.dash=undefined;
     }
   }
