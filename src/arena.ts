@@ -44,6 +44,17 @@ interface FlameStream {
   duration:number;
   nextHitAt:number;
 }
+interface TackleState {
+  from:Phaser.Math.Vector2;
+  to:Phaser.Math.Vector2;
+  direction:Phaser.Math.Vector2;
+  startAt:number;
+  duration:number;
+  hit:boolean;
+  lastDustAt:number;
+  damage:number;
+  element:PokemonType;
+}
 interface DashState {
   from:Phaser.Math.Vector2;
   to:Phaser.Math.Vector2;
@@ -121,6 +132,7 @@ export class ArenaScene extends Phaser.Scene {
   private projectiles: Projectile[] = [];
   private flameStreams: FlameStream[] = [];
   private dash?: DashState;
+  private tackles:Record<Side,TackleState|null>={player:null,enemy:null};
   private reactions: Record<Side,HitReaction|null> = {player:null,enemy:null};
   private lastHitAt:Record<Side,number>={player:-1000,enemy:-1000};
   private lastTypeCueAt:Record<Side,number>={player:-2000,enemy:-2000};
@@ -238,6 +250,7 @@ export class ArenaScene extends Phaser.Scene {
     this.projectiles = [];
     this.flameStreams = [];
     this.dash = undefined;
+    this.tackles={player:null,enemy:null};
     this.reactions={player:null,enemy:null};
     this.lastHitAt={player:-1000,enemy:-1000};
     this.lastTypeCueAt={player:-2000,enemy:-2000};
@@ -626,7 +639,8 @@ export class ArenaScene extends Phaser.Scene {
 
   private playerCast(action:Action,time:number) {
     if(action==='dodge') {
-      if(this.dash || time-this.playerCastAt.dodge<dodge.cooldown)return;
+      if(this.dash||this.tackles.player||
+      time-this.playerCastAt.dodge<dodge.cooldown)return;
       const pointer=this.input.activePointer;
       const stick=this.mobile.axis;
       const dir=this.mobile.active
@@ -662,7 +676,7 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     // Dodge locks other casts briefly so the Hop frames play clearly.
-    if(this.dash)return;
+    if(this.dash||this.tackles.player)return;
     if(!this.canCast('player',action,time))return;
     this.playerCastAt[action]=time;
     this.playerAttackAt=time;
@@ -760,14 +774,7 @@ export class ArenaScene extends Phaser.Scene {
     const dist=Phaser.Math.Distance.Between(this.player.x,this.player.y,
       this.enemy.x,this.enemy.y);
     if(skill==='q'){
-      const end=dist<96+this.enemy.radius&&
-        (this.enemy.x-this.player.x)*dir.x+
-        (this.enemy.y-this.player.y)*dir.y>0;
-      this.starterFx.scratch(origin,end?target:{
-        x:this.player.x+dir.x*64,y:this.player.y+dir.y*64
-      },dir);
-      if(end)this.damage('enemy',move.damage,target.x,target.y,
-        0xe3d5b5,'normal');
+      this.startTackle('player',move.damage,move.element,time);
     }else if(skill==='w'){
       if(grass){
         this.starterFx.growl(origin,target);
@@ -1462,8 +1469,12 @@ export class ArenaScene extends Phaser.Scene {
           type);
       });
     };
+    if(rat&&(skill==='q'||skill==='w')){
+      this.startTackle('enemy',move.damage,move.element,time);
+      return;
+    }
     if(rat){
-      const reach=skill==='w'?190:125;
+      const reach=125;
       this.starterFx.scratch(origin,{
         x:origin.x+dir.x*reach*0.7,y:origin.y+dir.y*reach*0.7
       },dir);
@@ -1471,6 +1482,10 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     if(bird){
+      if(skill==='q'&&(species==='pidgey'||species==='pidgeotto')){
+        this.startTackle('enemy',move.damage,move.element,time);
+        return;
+      }
       if(skill==='w'){
         this.starterFx.gust(origin,target);
         if(distance<345){
@@ -1495,6 +1510,10 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     if(insect){
+      if(skill==='q'&&(species==='caterpie'||species==='metapod')){
+        this.startTackle('enemy',move.damage,move.element,time);
+        return;
+      }
       if(skill==='w'||species==='metapod'||species==='kakuna'&&skill==='e'){
         this.starterFx.silk(origin,target);
         if(distance<370){
@@ -1535,7 +1554,7 @@ export class ArenaScene extends Phaser.Scene {
   private enemyDecision(time:number) {
     if(time<this.nextEnemyDecision || time<this.enemyActiveAt
       || time<this.enemyCastLockUntil || this.storySwitching
-      || this.finished || this.enemyHp<=0)return;
+      || this.finished || this.tackles.enemy || this.enemyHp<=0)return;
     // A slower decision beat makes attacks legible while longer telegraphs
     // and a tougher two-Pokémon team maintain the challenge.
     const rhythm=this.mode==='training'?1:this.rules.enemySpeed;
@@ -1565,6 +1584,86 @@ export class ArenaScene extends Phaser.Scene {
       else if(this.enemySpecies==='geodude'||this.enemySpecies==='onix')
         this.castRockPokemon(selection,time);
       else this.castSafariMove(selection,time);
+    }
+  }
+
+  /** An Investida traverses real world coordinates, stops against the
+   * opponent and recoils a few pixels. No sprite teleport, no instant hit.
+   */
+  private startTackle(side:Side,damage:number,element:PokemonType,time:number):void{
+    if(this.finished||this.storySwitching||this.tackles[side])return;
+    const source=side==='player'?this.player:this.enemy;
+    const target=side==='player'?this.enemy:this.player;
+    const relative=vector(target.x-source.x,target.y-source.y);
+    const distance=relative.length();
+    const direction=distance>0.01?relative.scale(1/distance):
+      (side==='player'?this.playerFacing:this.enemyFacing).clone();
+    const distanceToStop=source.radius+target.radius+13;
+    const travel=Math.max(8,Math.min(side==='player'?225:180,
+      distance-distanceToStop));
+    const endX=clampX(source.x+direction.x*travel);
+    const endY=clampY(source.y+direction.y*travel);
+    const safe=this.environment?.resolve(endX,endY,source.radius);
+    this.tackles[side]={
+      from:vector(source.x,source.y),
+      to:vector(safe?.x??endX,safe?.y??endY),
+      direction,startAt:time,duration:side==='player'?490:540,
+      hit:false,lastDustAt:time-90,damage,element
+    };
+    if(side==='player'){
+      this.playerFacing.copy(direction);
+      this.playerMotion?.trigger('Attack',time,direction,490);
+      this.destination.set(source.x,source.y);
+    }else{
+      this.enemyFacing.copy(direction);
+      this.enemyMotion?.trigger('Attack',time,direction,540);
+      this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+600);
+    }
+    this.fx.dashDust(source.x,source.y,direction,0.28);
+  }
+
+  private animateTackles(time:number):void{
+    for(const side of ['player','enemy'] as const){
+      const state=this.tackles[side];
+      if(!state)continue;
+      const source=side==='player'?this.player:this.enemy;
+      const target=side==='player'?this.enemy:this.player;
+      const t=Phaser.Math.Clamp(
+        (time-state.startAt)/state.duration,0,1);
+      // Anticipate, accelerate toward contact, then recover on the floor.
+      let distance=0;
+      if(t<0.14){
+        distance=-7*Math.sin((t/0.14)*Math.PI/2);
+      }else if(t<0.78){
+        const u=(t-0.14)/0.64;
+        distance=1-Math.pow(1-u,2.5);
+      }else{
+        distance=1-0.085*(t-0.78)/0.22;
+      }
+      const dx=state.to.x-state.from.x;
+      const dy=state.to.y-state.from.y;
+      const cx=state.from.x+dx*distance;
+      const cy=state.from.y+dy*distance;
+      const safe=this.environment?.resolve(
+        clampX(cx),clampY(cy),source.radius);
+      source.setPosition(safe?.x??clampX(cx),safe?.y??clampY(cy));
+      if(t>0.16&&t<0.79&&time-state.lastDustAt>95){
+        state.lastDustAt=time;
+        this.fx.dashDust(source.x,source.y,state.direction,0.18);
+      }
+      const close=Phaser.Math.Distance.Between(
+        source.x,source.y,target.x,target.y) <=
+        source.radius+target.radius+20;
+      if(!state.hit&&t>0.16&&t<0.92&&close){
+        state.hit=true;
+        this.fx.tackleImpact(target.x,target.y,state.direction,1);
+        this.damage(side==='player'?'enemy':'player',
+          state.damage,target.x,target.y,0xe8d5b3,state.element);
+      }
+      if(t>=1||this.finished){
+        this.tackles[side]=null;
+        if(side==='player')this.destination.set(source.x,source.y);
+      }
     }
   }
 
@@ -1634,6 +1733,8 @@ export class ArenaScene extends Phaser.Scene {
     const moveFactor=(channeling?0.72:1)*Math.min(slowed,bound);
     if(this.dash){
       this.animateDash(time);
+    } else if(this.tackles.player){
+      // Current animation owns the hitbox.
     } else if(staggeredPlayer){
       // A brief stagger lets the Hurt animation read without dropping inputs.
     } else if(this.mobile.active) {
@@ -1663,7 +1764,7 @@ export class ArenaScene extends Phaser.Scene {
     const toward=vector(this.player.x-this.enemy.x,this.player.y-this.enemy.y);
     const distance=toward.length();
     if(distance>0.01 && !this.reactions.enemy && !this.storySwitching
-      && time>=this.enemyCastLockUntil){
+      && !this.tackles.enemy && time>=this.enemyCastLockUntil){
       toward.normalize();
       const drift=vector(-toward.y,toward.x);
       const sign=Math.floor(time/3200)%2===0?1:-1;
@@ -1677,6 +1778,7 @@ export class ArenaScene extends Phaser.Scene {
       this.enemy.x=clampX(this.enemy.x+step.x);
       this.enemy.y=clampY(this.enemy.y+step.y);
     }
+    this.animateTackles(time);
     this.applyHitReaction('player',time);
     this.applyHitReaction('enemy',time);
     if(this.environment){
