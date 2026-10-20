@@ -211,6 +211,76 @@ export class CombatFx {
     }
   }
 
+  /** Directional air ribbons sweep behind the moving Pokémon.
+   * Shape-only VFX: zero frame captures or translucent clone images.
+   */
+  dodgeWind(x:number,y:number,dir:{x:number;y:number},power=1):void{
+    const length=Math.max(0.01,Math.hypot(dir.x,dir.y));
+    const forwardX=dir.x/length,forwardY=dir.y/length;
+    const normalX=-forwardY,normalY=forwardX;
+    const g=this.scene.add.graphics().setDepth(7);
+    const intensity=Math.max(0.1,Math.min(1.3,power));
+    for(let j=-2;j<=2;j++){
+      const side=j*11;
+      const sx=x-forwardX*(18+Math.abs(j)*4)+normalX*side;
+      const sy=y-forwardY*(18+Math.abs(j)*4)+normalY*side-7;
+      const ex=sx-forwardX*(45+Math.abs(j)*9)*intensity;
+      const ey=sy-forwardY*(45+Math.abs(j)*9)*intensity;
+      g.lineStyle(j===0?4:2,j%2?0xbedbe4:0xffffff,0.58*intensity);
+      g.beginPath();
+      g.moveTo(sx,sy);
+      g.lineTo(
+        sx-forwardX*21*intensity+normalX*(j<0?-5:5), 
+        sy-forwardY*21*intensity+normalY*(j<0?-5:5)
+      );
+      g.lineTo(ex,ey);
+      g.strokePath();
+    }
+    const arc=this.scene.add.ellipse(x-forwardX*8,y+6,
+      45,14,0xa5e1cf,0.13).setStrokeStyle(2,0xe2faf4,0.45)
+      .setDepth(2);
+    this.scene.tweens.add({targets:g,alpha:0,
+      x:-forwardX*22,y:-forwardY*22,duration:235,
+      onComplete:()=>g.destroy()});
+    this.scene.tweens.add({targets:arc,alpha:0,
+      scaleX:1.55,scaleY:0.85,duration:250,
+      onComplete:()=>arc.destroy()});
+    for(let j=0;j<3;j++){
+      const offset=(j-1)*15;
+      this.mote(x-forwardX*9+normalX*offset,
+        y-forwardY*8+normalY*offset,
+        j===1?0xe8fbf0:0xa5d1d0,3+2*(j%2),
+        -forwardX*(45+j*12)+normalX*(j-1)*14,
+        -forwardY*(45+j*12)+normalY*(j-1)*14,
+        175+j*28,0.63*intensity);
+    }
+  }
+
+  /** Small dust cloud at the feet and a circular shock ring on impact. */
+  tackleImpact(x:number,y:number,dir:{x:number;y:number},power=1):void{
+    const g=this.scene.add.graphics().setDepth(11);
+    const nx=-dir.y,ny=dir.x;
+    for(let j=-3;j<=3;j++){
+      const d=26+Math.abs(j)*8;
+      g.lineStyle(j===0?5:3,j%2?0xffe7b0:0xf6f9f0,0.94);
+      g.lineBetween(x-nx*j*8-dir.x*10,y-ny*j*8-dir.y*10,
+        x-nx*j*12+dir.x*d,y-ny*j*12+dir.y*d);
+    }
+    const ground=this.scene.add.ellipse(x,y+14,43,10,0xcead7f,0.23)
+      .setStrokeStyle(3,0xf6dea8,0.76).setDepth(3);
+    this.scene.tweens.add({targets:g,alpha:0,
+      duration:280,onComplete:()=>g.destroy()});
+    this.scene.tweens.add({targets:ground,alpha:0,
+      scaleX:2.4*power,scaleY:1.4,duration:355,
+      onComplete:()=>ground.destroy()});
+    for(let i=0;i<5;i++){
+      const a=i*2.4,dist=30+(i%2)*15;
+      this.mote(x,y+7,i%2?0xe3d0a2:0xaacb9d,
+        3+i%3,Math.cos(a)*dist,Math.sin(a)*dist,
+        180+i*30,0.75);
+    }
+  }
+
   dashDust(x:number,y:number,dir:{x:number;y:number},power=1) {
     const px=-dir.y,py=dir.x;
     for(let i=0;i<8;i++){

@@ -360,6 +360,7 @@ export class OverworldActor {
   private lastFrame = -1;
   private lastTexture = '';
   private burrowDepth=0;
+  private knockedOut=false;
 
   /**
    * 0 = above ground, 1 = underground. The actor remains animated while
@@ -402,12 +403,46 @@ export class OverworldActor {
   }
 
   hurt(time: number) {
+    if(this.knockedOut)return;
     if (!this.scene.textures.exists(key(this.creature, 'Hurt'))) return;
     this.hurtStartedAt = time;
     this.hurtExpiresAt = time + totalMs(registry[this.creature].Hurt);
   }
 
+  /** Freeze normal sprite animation and lay the actual defeated monster on
+   * the floor. This works for every species, even Onix and late evolutions.
+   */
+  knockOut(groundX:number,groundY:number):void {
+    if(this.knockedOut)return;
+    this.knockedOut=true;
+    this.action=null;
+    this.hurtExpiresAt=-1;
+    const sheet=registry[this.creature].Hurt;
+    const textureKey=key(this.creature,'Hurt');
+    if(this.scene.textures.exists(textureKey)){
+      const texture=this.scene.textures.get(textureKey);
+      const source=texture.source[0];
+      const columns=Math.max(1,Math.floor(source.width/sheet.width));
+      const rows=Math.max(1,Math.floor(source.height/sheet.height));
+      const row=rows>=8?directionRow(this.facing.x,this.facing.y):0;
+      this.image.setTexture(textureKey,row*columns+Math.min(1,columns-1));
+    }
+    this.image.clearTint().setAlpha(1).setOrigin(0.5,0.82).setDepth(6);
+    const base=spriteSize(this.creature);
+    const giant=this.creature==='onix';
+    this.scene.tweens.add({
+      targets:this.image,
+      x:groundX+(this.facing.x>=0?11:-11),
+      y:groundY-(giant?16:4),
+      angle:this.facing.x>=0?87:-87,
+      scaleX:base*(giant?0.94:0.89),
+      scaleY:base*(giant?0.72:0.66),
+      duration:620,ease:'Cubic.easeOut'
+    });
+  }
+
   update(x: number, y: number, velocity: Phaser.Math.Vector2, time: number) {
+    if(this.knockedOut)return;
     const moving = velocity.lengthSq() > 0.05;
     const actionActive = this.action !== null && time < this.actionExpiresAt;
     const hurtActive = time < this.hurtExpiresAt;
