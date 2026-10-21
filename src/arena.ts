@@ -20,6 +20,8 @@ import { difficultyRules,type DifficultyRules } from './gameBalance';
 import { getTrainingSetup } from './trainingSetup';
 import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
+import { DODGE_DISTANCE, DODGE_DURATION_MS, TACKLE_DURATION_MS,
+  tackleDistance, tacklePosition, dodgePosition } from './combatMovement';
 import { makeStatStages, changeStatStage, stageMultiplier,
   accuracyChance, physicalDamageMultiplier, type BattleStat,
   type StatStages } from './statStages';
@@ -64,7 +66,7 @@ interface DashState {
   direction:Phaser.Math.Vector2;
   startAt:number;
   duration:number;
-  lastGhostAt:number;
+  lastTrailAt:number;
 }
 interface HitReaction {
   startAt:number;
@@ -292,10 +294,14 @@ export class ArenaScene extends Phaser.Scene {
     }else if(this.mode==='wild'){
       createSafariBattlefield(this);
     }else this.drawArena();
-    const playerSpawn=this.mode==='story'?pewterGym.spawnPlayer:
+    const rawPlayerSpawn=this.mode==='story'?pewterGym.spawnPlayer:
       this.mode==='wild'?{x:230,y:319}:{x:210,y:288};
-    const enemySpawn=this.mode==='story'?pewterGym.spawnRival:
+    const rawEnemySpawn=this.mode==='story'?pewterGym.spawnRival:
       this.mode==='wild'?{x:724,y:297}:{x:750,y:288};
+    const playerSpawn=this.environment?.resolve(rawPlayerSpawn.x,rawPlayerSpawn.y,
+      pokemonCatalog[this.playerSpecies].radius)??rawPlayerSpawn;
+    const enemySpawn=this.environment?.resolve(rawEnemySpawn.x,rawEnemySpawn.y,
+      pokemonCatalog[this.enemySpecies].radius)??rawEnemySpawn;
     this.player = this.add.circle(playerSpawn.x,playerSpawn.y,
       pokemonCatalog[this.playerSpecies].radius,0x60d1ff)
       .setStrokeStyle(4,0xffffff).setVisible(false);
@@ -356,7 +362,10 @@ export class ArenaScene extends Phaser.Scene {
     this.destination.set(this.player.x,this.player.y);
     this.input.mouse?.disableContextMenu();
     this.input.on('pointerdown',(p: Phaser.Input.Pointer) => {
-      if(p.rightButtonDown() && !this.settingsOpen() && !this.finished) this.destination.set(clampX(p.x),clampY(p.y));
+      if(p.rightButtonDown() && !this.settingsOpen() && !this.finished) {
+        const safe=this.environment?.resolve(p.x,p.y,this.player.radius);
+        this.destination.set(safe?.x??clampX(p.x),safe?.y??clampY(p.y));
+      }
     });
     this.input.on('pointermove',(p: Phaser.Input.Pointer) => {
       if(p.rightButtonDown() && !this.settingsOpen() && !this.finished) this.destination.set(clampX(p.x),clampY(p.y));
@@ -460,8 +469,10 @@ export class ArenaScene extends Phaser.Scene {
       x:480,y:94
     };
     const next=this.storyEncounters[this.storyWave+1];
-    const nextSpawn=next.species==='onix'
+    const nextRawSpawn=next.species==='onix'
       ?{x:480,y:286}:pewterGym.spawnRival;
+    const nextSpawn=this.environment?.resolve(nextRawSpawn.x,nextRawSpawn.y,
+      pokemonCatalog[next.species].radius)??nextRawSpawn;
     this.time.delayedCall(1540,()=>{
       if(!this.sys.isActive())return;
       this.switchFx?.run({
@@ -602,8 +613,8 @@ export class ArenaScene extends Phaser.Scene {
 
   private showEvade(time:number) {
     const text=this.add.text(this.player.x,this.player.y-54,'ESQUIVA!',{
-      fontSize:'17px',fontStyle:'bold',color:'#b1f5fa',
-      stroke:'#173340',strokeThickness:3
+      fontSize:'17px',fontStyle:'bold',color:'#f4eaca',
+      stroke:'#273c42',strokeThickness:3
     }).setOrigin(0.5).setDepth(14);
     this.tweens.add({targets:text,y:text.y-23,alpha:0,duration:470,
       onComplete:()=>text.destroy()});
@@ -672,17 +683,20 @@ export class ArenaScene extends Phaser.Scene {
           : this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing))
         : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
       const start=vector(this.player.x,this.player.y);
-      const raw=vector(clampX(start.x+dir.x*120),clampY(start.y+dir.y*120));
+      const raw=vector(clampX(start.x+dir.x*DODGE_DISTANCE),
+        clampY(start.y+dir.y*DODGE_DISTANCE));
       const safe=this.environment?.resolve(raw.x,raw.y,this.player.radius);
       const end=safe?vector(safe.x,safe.y):raw;
       if(start.distance(end)<5)return;
       this.playerCastAt.dodge=time;
       this.stats.registerDodge();
       this.playerFacing.copy(dir);
-      this.dash={from:start,to:end,direction:dir,startAt:time,duration:340,lastGhostAt:-1000};
-      this.playerMotion?.trigger('Hop',time,dir,340);
-      this.fx.dodgeWind(start.x,start.y,dir,1.05);
-      this.fx.dashDust(start.x,start.y,dir,0.22);
+      this.dash={from:start,to:end,direction:dir,startAt:time,
+        duration:DODGE_DURATION_MS,lastTrailAt:-1000};
+      // Walk frames remain grounded; the old Hop sprite made this look
+      // like a teleport, especially when sliding near the circular rim.
+      this.playerMotion?.face(dir);
+      this.fx.dodgeWind(start.x,start.y,dir,0.85);
       this.destination.copy(end);
       return;
     }
@@ -1743,8 +1757,8 @@ export class ArenaScene extends Phaser.Scene {
     }
   }
 
-  /** An Investida traverses real world coordinates, stops against the
-   * opponent and recoils a few pixels. No sprite teleport, no instant hit.
+  /** A short headbutt with a restrained windup and recoil.
+   * Both fighters move only a few real pixels; never a 180-225px dash.
    */
   private startTackle(side:Side,damage:number,element:PokemonType,time:number):void{
     if(this.finished||this.storySwitching||this.tackles[side])return;
@@ -1754,28 +1768,29 @@ export class ArenaScene extends Phaser.Scene {
     const distance=relative.length();
     const direction=distance>0.01?relative.scale(1/distance):
       (side==='player'?this.playerFacing:this.enemyFacing).clone();
-    const distanceToStop=source.radius+target.radius+13;
-    const travel=Math.max(8,Math.min(side==='player'?225:180,
-      distance-distanceToStop));
-    const endX=clampX(source.x+direction.x*travel);
-    const endY=clampY(source.y+direction.y*travel);
-    const safe=this.environment?.resolve(endX,endY,source.radius);
+    const travel=tackleDistance(distance,source.radius,target.radius);
+    const requested=vector(clampX(source.x+direction.x*travel),
+      clampY(source.y+direction.y*travel));
+    const safe=this.environment?.resolve(requested.x,requested.y,source.radius);
     this.tackles[side]={
       from:vector(source.x,source.y),
-      to:vector(safe?.x??endX,safe?.y??endY),
-      direction,startAt:time,duration:side==='player'?490:540,
-      hit:false,lastDustAt:time-90,damage,element
+      to:vector(safe?.x??requested.x,safe?.y??requested.y),
+      direction,startAt:time,duration:TACKLE_DURATION_MS,
+      hit:false,lastDustAt:time-100,damage,element
     };
     if(side==='player'){
       this.playerFacing.copy(direction);
-      this.playerMotion?.trigger('Attack',time,direction,490);
+      // The player already began the Attack sheet at cast time.
+      // Don't restart it on release; that causes sudden sprite jumps.
+      this.playerMotion?.face(direction);
       this.destination.set(source.x,source.y);
     }else{
       this.enemyFacing.copy(direction);
-      this.enemyMotion?.trigger('Attack',time,direction,540);
-      this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+600);
+      this.enemyMotion?.face(direction);
+      this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,
+        time+TACKLE_DURATION_MS+55);
     }
-    this.fx.dashDust(source.x,source.y,direction,0.28);
+    this.fx.dashDust(source.x,source.y,direction,0.22);
   }
 
   private animateTackles(time:number):void{
@@ -1784,35 +1799,23 @@ export class ArenaScene extends Phaser.Scene {
       if(!state)continue;
       const source=side==='player'?this.player:this.enemy;
       const target=side==='player'?this.enemy:this.player;
-      const t=Phaser.Math.Clamp(
-        (time-state.startAt)/state.duration,0,1);
-      // Anticipate, accelerate toward contact, then recover on the floor.
-      let distance=0;
-      if(t<0.14){
-        distance=-7*Math.sin((t/0.14)*Math.PI/2);
-      }else if(t<0.78){
-        const u=(t-0.14)/0.64;
-        distance=1-Math.pow(1-u,2.5);
-      }else{
-        distance=1-0.085*(t-0.78)/0.22;
-      }
-      const dx=state.to.x-state.from.x;
-      const dy=state.to.y-state.from.y;
-      const cx=state.from.x+dx*distance;
-      const cy=state.from.y+dy*distance;
-      const safe=this.environment?.resolve(
-        clampX(cx),clampY(cy),source.radius);
+      const t=Phaser.Math.Clamp((time-state.startAt)/state.duration,0,1);
+      const progress=tacklePosition(t);
+      const cx=state.from.x+(state.to.x-state.from.x)*progress;
+      const cy=state.from.y+(state.to.y-state.from.y)*progress;
+      const safe=this.environment?.resolve(clampX(cx),clampY(cy),source.radius);
       source.setPosition(safe?.x??clampX(cx),safe?.y??clampY(cy));
-      if(t>0.16&&t<0.79&&time-state.lastDustAt>95){
+      // A few low, blocky pixels behind the headbutt, not a blue vortex.
+      if(t>0.25&&t<0.66&&time-state.lastDustAt>88){
         state.lastDustAt=time;
-        this.fx.dashDust(source.x,source.y,state.direction,0.18);
+        this.fx.dashDust(source.x,source.y,state.direction,0.32);
       }
       const close=Phaser.Math.Distance.Between(
-        source.x,source.y,target.x,target.y) <=
-        source.radius+target.radius+20;
-      if(!state.hit&&t>0.16&&t<0.92&&close){
+        source.x,source.y,target.x,target.y)<=
+        source.radius+target.radius+13;
+      if(!state.hit&&t>=0.25&&t<=0.74&&close){
         state.hit=true;
-        this.fx.tackleImpact(target.x,target.y,state.direction,1);
+        this.fx.tackleImpact(target.x,target.y,state.direction,0.72);
         this.damage(side==='player'?'enemy':'player',
           state.damage,target.x,target.y,0xe8d5b3,state.element);
       }
@@ -1827,21 +1830,18 @@ export class ArenaScene extends Phaser.Scene {
     const dash=this.dash;
     if(!dash)return;
     const t=Phaser.Math.Clamp((time-dash.startAt)/dash.duration,0,1);
-    // Ground-level evasive step, easing into a controlled stop.
-    const eased=t*t*(3-2*t);
-    this.player.setPosition(
-      Phaser.Math.Linear(dash.from.x,dash.to.x,eased),
-      Phaser.Math.Linear(dash.from.y,dash.to.y,eased)
-    );
+    const eased=dodgePosition(t);
+    const x=Phaser.Math.Linear(dash.from.x,dash.to.x,eased);
+    const y=Phaser.Math.Linear(dash.from.y,dash.to.y,eased);
+    const safe=this.environment?.resolve(x,y,this.player.radius);
+    this.player.setPosition(safe?.x??x,safe?.y??y);
     this.destination.set(this.player.x,this.player.y);
-    if(time-dash.lastGhostAt>=85){
-      dash.lastGhostAt=time;
-      this.fx.dodgeWind(this.player.x,this.player.y,dash.direction,0.58);
+    if(time-dash.lastTrailAt>=85){
+      dash.lastTrailAt=time;
+      this.fx.dodgeWind(this.player.x,this.player.y,dash.direction,0.48);
     }
     if(t>=1){
-      this.player.setPosition(dash.to.x,dash.to.y);
-      this.destination.copy(dash.to);
-      this.fx.dodgeWind(dash.to.x,dash.to.y,dash.direction,0.62);
+      this.destination.set(this.player.x,this.player.y);
       this.dash=undefined;
     }
   }

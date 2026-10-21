@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { pokemonCatalog, gymTeams } from './pokemonCatalog';
 import type { Fighter } from './abilities';
+import { insideBattleCircle, type BattleCircle } from './combatMovement';
 
 /**
  * Story-mode level definitions and environmental interactions.
@@ -41,6 +42,8 @@ export interface StoryStage {
   obstacles: readonly BreakableObstacle[];
   spawnPlayer: {x:number;y:number};
   spawnRival: {x:number;y:number};
+  /** Optional playable floor boundary; spectators stay outside this area. */
+  fightCircle?:BattleCircle;
   preview: boolean;
 }
 export const pewterGym: StoryStage = {
@@ -53,6 +56,9 @@ export const pewterGym: StoryStage = {
   preview: true,
   spawnPlayer: {x:480,y:455},
   spawnRival: {x:480,y:185},
+  // Drawn pixel floor ring: SVG center (240,164) at 2x scale.
+  // 153px keeps the Pokémon hitboxes inside the innermost golden rim.
+  fightCircle:{x:480,y:328,radius:153},
   hero: {id:'red',name:'RED',role:'player',x:480,y:527,palette:0xb32f32},
   npc: [
     {id:'brock',name:'BROCK',role:'leader',x:480,y:94,palette:0x796455,
@@ -227,16 +233,21 @@ export class StoryEnvironment {
   }
 
   resolve(x:number,y:number,radius:number):{x:number;y:number}{
-    let px=Phaser.Math.Clamp(x,47,913),py=Phaser.Math.Clamp(y,73,503);
+    const limit=(px:number,py:number)=>{
+      const clamped={x:Phaser.Math.Clamp(px,47,913),y:Phaser.Math.Clamp(py,73,503)};
+      return this.stage.fightCircle?
+        insideBattleCircle(clamped.x,clamped.y,radius,this.stage.fightCircle):clamped;
+    };
+    let {x:px,y:py}=limit(x,y);
+    // Keep collision with breakable rocks AND always finish inside the ring.
     for(let i=0;i<2;i++)for(const rock of this.rocks){
       if(rock.destroyed)continue;
       const dx=px-rock.x,dy=py-rock.y,min=radius+rock.radius+3,d=Math.hypot(dx,dy);
       if(d>=min)continue;
       const nx=d<0.001?1:dx/d,ny=d<0.001?0:dy/d;
-      px=Phaser.Math.Clamp(rock.x+nx*min,47,913);
-      py=Phaser.Math.Clamp(rock.y+ny*min,73,503);
+      ({x:px,y:py}=limit(rock.x+nx*min,rock.y+ny*min));
     }
-    return{x:px,y:py};
+    return limit(px,py);
   }
 
   intercept(x:number,y:number,radius:number,damage:number):boolean{

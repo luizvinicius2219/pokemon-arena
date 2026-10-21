@@ -211,90 +211,71 @@ export class CombatFx {
     }
   }
 
-  /** Directional air ribbons sweep behind the moving Pokémon.
-   * Shape-only VFX: zero frame captures or translucent clone images.
+  /**
+   * Pixel-only motion lines: quantized 3px cells, muted gym-floor colors,
+   * no translucent body clones, neon cyan particles, strokes or ellipses.
+   * Each frame is an intentional stepped trail of square pixel clusters.
    */
-  dodgeWind(x:number,y:number,dir:{x:number;y:number},power=1):void{
-    const length=Math.max(0.01,Math.hypot(dir.x,dir.y));
-    const forwardX=dir.x/length,forwardY=dir.y/length;
-    const normalX=-forwardY,normalY=forwardX;
+  private pixelWind(
+    x:number,y:number,dir:{x:number;y:number},
+    power:number,kind:'step'|'headbutt'
+  ):void{
+    const length=Math.hypot(dir.x,dir.y)||1;
+    const fx=dir.x/length,fy=dir.y/length,nx=-fy,ny=fx;
     const g=this.scene.add.graphics().setDepth(7);
-    const intensity=Math.max(0.1,Math.min(1.3,power));
-    for(let j=-2;j<=2;j++){
-      const side=j*11;
-      const sx=x-forwardX*(18+Math.abs(j)*4)+normalX*side;
-      const sy=y-forwardY*(18+Math.abs(j)*4)+normalY*side-7;
-      const ex=sx-forwardX*(45+Math.abs(j)*9)*intensity;
-      const ey=sy-forwardY*(45+Math.abs(j)*9)*intensity;
-      g.lineStyle(j===0?4:2,j%2?0xbedbe4:0xffffff,0.58*intensity);
-      g.beginPath();
-      g.moveTo(sx,sy);
-      g.lineTo(
-        sx-forwardX*21*intensity+normalX*(j<0?-5:5), 
-        sy-forwardY*21*intensity+normalY*(j<0?-5:5)
-      );
-      g.lineTo(ex,ey);
-      g.strokePath();
+    const palette=kind==='step'
+      ?[0xf2edd9,0xd0d7c6,0x8ca69a]
+      :[0xf4dda6,0xc6c7ac,0x91a498];
+    const strength=Math.max(0.16,Math.min(1,power));
+    const pixel=(v:number)=>Math.round(v/3)*3;
+    for(let lane=-1;lane<=1;lane++){
+      const count=kind==='step'?4:3;
+      for(let i=0;i<count;i++){
+        const back=13+(i*7+Math.abs(lane)*4)*strength;
+        const sideways=lane*(kind==='step'?12:9)+(i%2?2:0);
+        const bx=pixel(x-fx*back+nx*sideways);
+        const by=pixel(y-fy*back+ny*sideways-6);
+        const size=lane===0&&i<2?6:3;
+        g.fillStyle(palette[(i+Math.abs(lane))%palette.length],
+          Math.max(0.36,0.94-i*0.12));
+        g.fillRect(bx,by,size,3);
+        if(i===0&&lane!==0)g.fillRect(bx+3,by-3,3,3);
+      }
     }
-    const arc=this.scene.add.ellipse(x-forwardX*8,y+6,
-      45,14,0xa5e1cf,0.13).setStrokeStyle(2,0xe2faf4,0.45)
-      .setDepth(2);
     this.scene.tweens.add({targets:g,alpha:0,
-      x:-forwardX*22,y:-forwardY*22,duration:235,
+      x:-fx*(kind==='step'?12:7),
+      y:-fy*(kind==='step'?12:7),
+      duration:kind==='step'?165:135,
       onComplete:()=>g.destroy()});
-    this.scene.tweens.add({targets:arc,alpha:0,
-      scaleX:1.55,scaleY:0.85,duration:250,
-      onComplete:()=>arc.destroy()});
-    for(let j=0;j<3;j++){
-      const offset=(j-1)*15;
-      this.mote(x-forwardX*9+normalX*offset,
-        y-forwardY*8+normalY*offset,
-        j===1?0xe8fbf0:0xa5d1d0,3+2*(j%2),
-        -forwardX*(45+j*12)+normalX*(j-1)*14,
-        -forwardY*(45+j*12)+normalY*(j-1)*14,
-        175+j*28,0.63*intensity);
-    }
   }
 
-  /** Small dust cloud at the feet and a circular shock ring on impact. */
+  dodgeWind(x:number,y:number,dir:{x:number;y:number},power=1):void{
+    this.pixelWind(x,y,dir,power,'step');
+  }
+
+  /** Tiny 3px impact sparks stay aligned to the game's pixel grid. */
   tackleImpact(x:number,y:number,dir:{x:number;y:number},power=1):void{
     const g=this.scene.add.graphics().setDepth(11);
-    const nx=-dir.y,ny=dir.x;
-    for(let j=-3;j<=3;j++){
-      const d=26+Math.abs(j)*8;
-      g.lineStyle(j===0?5:3,j%2?0xffe7b0:0xf6f9f0,0.94);
-      g.lineBetween(x-nx*j*8-dir.x*10,y-ny*j*8-dir.y*10,
-        x-nx*j*12+dir.x*d,y-ny*j*12+dir.y*d);
+    const length=Math.hypot(dir.x,dir.y)||1;
+    const dx=dir.x/length,dy=dir.y/length,nx=-dy,ny=dx;
+    const pixel=(v:number)=>Math.round(v/3)*3;
+    const originX=x-dx*5,originY=y-dy*5;
+    for(let i=-2;i<=2;i++){
+      const reach=(i===0?17:10)*power;
+      const bx=pixel(originX+dx*reach+nx*i*7);
+      const by=pixel(originY+dy*reach+ny*i*7);
+      g.fillStyle(i%2?0xe5d1a1:0xfbf0c9,0.96);
+      g.fillRect(bx,by,6,3);
+      if(i===0)g.fillRect(bx+3,by-6,3,6);
     }
-    const ground=this.scene.add.ellipse(x,y+14,43,10,0xcead7f,0.23)
-      .setStrokeStyle(3,0xf6dea8,0.76).setDepth(3);
     this.scene.tweens.add({targets:g,alpha:0,
-      duration:280,onComplete:()=>g.destroy()});
-    this.scene.tweens.add({targets:ground,alpha:0,
-      scaleX:2.4*power,scaleY:1.4,duration:355,
-      onComplete:()=>ground.destroy()});
-    for(let i=0;i<5;i++){
-      const a=i*2.4,dist=30+(i%2)*15;
-      this.mote(x,y+7,i%2?0xe3d0a2:0xaacb9d,
-        3+i%3,Math.cos(a)*dist,Math.sin(a)*dist,
-        180+i*30,0.75);
-    }
+      duration:140,onComplete:()=>g.destroy()});
+    this.pixelWind(x-dx*13,y-dy*6,dir,0.35,'headbutt');
   }
 
-  dashDust(x:number,y:number,dir:{x:number;y:number},power=1) {
-    const px=-dir.y,py=dir.x;
-    for(let i=0;i<8;i++){
-      const drift=(Math.random()-0.5)*52;
-      const backward=16+Math.random()*48;
-      this.mote(x,y,[0xbdf9fa,0x67c7e4,0x3c7895][i%3],
-        2+Math.random()*5,
-        -dir.x*backward+px*drift,
-        -dir.y*backward+py*drift,
-        190+Math.random()*140,0.74*power);
-    }
+  dashDust(x:number,y:number,dir:{x:number;y:number},power=1):void{
+    this.pixelWind(x,y,dir,power,'headbutt');
   }
-
-
 
     private mote(x: number, y: number, color: number, size: number, vx: number, vy: number, lifetime: number, alpha=1) {
     if(this.particles >= this.maxParticles || !this.scene.sys.isActive()) return;
