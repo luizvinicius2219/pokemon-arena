@@ -3,6 +3,7 @@ import { Action, Bindings, defaults, loadBindings, saveBindings, assignBinding, 
 import { allActions,dodge,skills,type Starter,type Fighter } from './abilities';
 import { getTrainingSetup,setTrainingSetup } from './trainingSetup';
 import { pokemonCatalog } from './pokemonCatalog';
+import { beginMatch,currentMatch,activeMatchPokemon,selectablePokemon,challenges,arenaNames,type ArenaId } from './battleSetup';
 import { loadDifficulty,saveDifficulty } from './gameBalance';
 import { ArenaScene } from './arena';
 import { WorldScene } from './world';
@@ -21,7 +22,11 @@ const app = document.querySelector<HTMLDivElement>('#app')!;
 let bindings: Bindings = loadBindings();
 let capturing: Action | null = null;
 let menuOpen = false;
-let gameMode:GameMode='world';
+let gameMode:GameMode='training';
+let battleKind:'quick'|'story'='quick';
+let chosenTrainer='brock';
+let arenaSelection:ArenaId|'random'='random';
+let teamSelection:Fighter[]=['charizard','bulbasaur','squirtle'];
 let mainMenuOpen=true;
 let candidate:Starter='charmander';
 const heldKeys = new Set<string>();
@@ -31,7 +36,7 @@ const labels: Record<Action, string> = {
 };
 
 const selectedSpecies = () =>
-  gameMode==='training'?getTrainingSetup().player:
+  currentMatch()?activeMatchPokemon().player:gameMode==='training'?getTrainingSetup().player:
     getActivePokemon(loadCollection()).species;
 const cardHTML = (action: Action): string => {
   const skill = action === 'dodge' ? dodge : skills[selectedSpecies()][action];
@@ -45,7 +50,7 @@ const cardHTML = (action: Action): string => {
 };
 
 app.innerHTML = `
-<header><div><h1>MONSTER <span>ARENA</span></h1><p>Capítulo 1 · Exploração e batalha em tempo real</p></div><div class="header-actions"><button id="fullscreen-header" type="button" title="Expandir a área do jogo (F)">⛶ Tela cheia</button><button id="switch-mode" type="button">☰ Menu</button><button id="gym-preview" type="button" hidden title="Atalho para testes">🪨 Testar Brock</button><button id="settings" type="button">⚙ Controles</button></div></header>
+<header><div><h1>MONSTER <span>ARENA</span></h1><p>Batalhas offline em tempo real</p></div><div class="header-actions"><button id="fullscreen-header" type="button" title="Expandir a área do jogo (F)">⛶ Tela cheia</button><button id="switch-mode" type="button">☰ Menu</button><button id="gym-preview" type="button" hidden title="Atalho para testes">🪨 Testar Brock</button><button id="settings" type="button">⚙ Controles</button></div></header>
 <main>
   <div class="arena-column">
     <div id="game-shell">
@@ -56,7 +61,7 @@ app.innerHTML = `
           <span class="landing-eyebrow">KANTO · AVENTURA DE AÇÃO</span>
           <h2>MONSTER <em>ARENA</em></h2>
           <p class="landing-lead">Explore a zona selvagem, treine seu Pokémon e desafie líderes em combates em tempo real.</p>
-          <div class="landing-modes">
+          <div class="landing-modes"><button class="landing-mode" type="button" data-start-arena><span class="mode-icon">🏆</span><strong>ARENA OFFLINE</strong><small>Equipes 3x3 ou desafios de treinadores com 6 Pokémon</small></button>
             <button class="landing-mode" type="button" data-start-story>
               <span class="mode-icon">🌿</span><strong>MODO HISTÓRIA</strong>
               <small>Escolha um inicial · Explore · Treine · Evolua · Brock</small>
@@ -157,6 +162,7 @@ app.innerHTML = `
             <button type="button" class="landing-primary" data-confirm-testing>⚔ COMEÇAR TESTE</button>
           </div>
         </section>
+        <section class="landing-card" data-menu-panel="arena" hidden><span class="landing-eyebrow">ARENA OFFLINE · CPU</span><h2>MONTE SUA <em>EQUIPE</em></h2><p class="landing-lead">Escolha Pokémon e lute em arenas clássicas.</p><div class="arena-mode-buttons"><button type="button" data-kind="quick">⚔ BATALHA 3x3</button><button type="button" data-kind="story">🏆 DESAFIOS 6 POKÉMON</button></div><label id="trainer-choice">TREINADOR<select id="arena-trainer"></select></label><p id="team-count"></p><div id="team-grid" class="arena-pokemon-grid"></div><label>ARENA<select id="arena-choice"><option value="random">🎲 Aleatória</option><option value="classic">Arena clássica</option><option value="pewter">Ginásio do Brock</option><option value="safari">Campo Safari</option></select></label><p id="arena-detail" class="landing-note"></p><button id="start-match" type="button" class="landing-primary">⚔ COMEÇAR PARTIDA</button><button type="button" class="landing-secondary" data-menu-back>VOLTAR</button></section>
       </div>
       <div id="battle-summary" class="battle-summary" hidden role="dialog" aria-modal="true" aria-labelledby="battle-summary-title">
         <section class="battle-summary-card">
@@ -336,7 +342,7 @@ window.addEventListener('blur', () => heldKeys.clear());
 
 const landing=document.querySelector<HTMLElement>('#landing-menu')!;
 const panels=Array.from(document.querySelectorAll<HTMLElement>('[data-menu-panel]'));
-function showPanel(panel:'home'|'choose'|'resume'|'testing'){
+function showPanel(panel:'home'|'choose'|'resume'|'testing'|'arena'){
   panels.forEach(node=>node.hidden=node.dataset.menuPanel!==panel);
   document.querySelectorAll<HTMLSelectElement>('[data-difficulty]')
     .forEach(select=>{select.value=loadDifficulty();});
@@ -362,7 +368,8 @@ function openMainMenu(){
   heldKeys.clear();
   document.querySelector<HTMLElement>('#battle-summary')!.hidden=true;
   if(game.scene.isActive('Arena'))game.scene.pause('Arena');
-  showPanel('home');
+  renderBattleMenu();
+  showPanel('arena');
 }
 function startGameMode(nextMode:GameMode){
   mainMenuOpen=false;
@@ -396,7 +403,7 @@ const game=new Phaser.Game({
   ]
 });
 refreshActivePokemonInfo();
-showPanel('home');
+showPanel('arena');
 
 // Fullscreen applies to the entire game shell, so the scene, encounter menus
 // and touch controls all remain visible. The canvas keeps its 5:3 aspect ratio.
@@ -470,7 +477,7 @@ document.querySelector<HTMLButtonElement>('[data-continue-story]')!
 document.querySelector<HTMLButtonElement>('[data-new-story]')!
   .addEventListener('click',()=>showPanel('choose'));
 document.querySelectorAll<HTMLButtonElement>('[data-menu-back]')
-  .forEach(button=>button.addEventListener('click',()=>showPanel('home')));
+  .forEach(button=>button.addEventListener('click',()=>showPanel('arena')));
 document.querySelectorAll<HTMLButtonElement>('[data-starter]')
   .forEach(button=>button.addEventListener('click',()=>{
     const value=button.dataset.starter;
@@ -531,3 +538,55 @@ window.addEventListener('monster-arena:gym-victory',()=>{
   if(saved.badges.includes('pedra'))return;
   saveCollection({...saved,badges:[...saved.badges,'pedra']});
 });
+
+function renderBattleMenu(){
+ const limit=battleKind==='quick'?3:6;
+ const c=challenges.find(c=>c.id===chosenTrainer);
+ const tr=document.querySelector<HTMLSelectElement>('#arena-trainer')!;
+ tr.innerHTML=challenges.map(c=>'<option value="'+c.id+'">'+c.name+' · '+c.city+'</option>').join('');
+ tr.value=chosenTrainer;
+ document.querySelector<HTMLElement>('#trainer-choice')!.hidden=battleKind==='quick';
+ const arena=document.querySelector<HTMLSelectElement>('#arena-choice')!;
+ arena.disabled=battleKind==='story';
+ arena.value=battleKind==='story'?(c?.arena??'classic'):arenaSelection;
+ document.querySelector<HTMLElement>('#team-count')!.textContent='EQUIPE: '+teamSelection.length+' / '+limit;
+ document.querySelector<HTMLElement>('#team-grid')!.innerHTML=selectablePokemon.map(id=>{
+   const p=pokemonCatalog[id],number=teamSelection.indexOf(id)+1;
+   return '<button class="arena-pokemon-option '+(number?'selected':'')+'" type="button" data-select-pokemon="'+id+'"><img src="'+p.portrait+'" alt="" loading="lazy"><b>'+p.name+'</b><small>'+p.elements.join(' / ')+'</small>'+(number?'<span class="arena-slot">'+number+'</span>':'')+'</button>';
+ }).join('');
+ document.querySelector<HTMLButtonElement>('#start-match')!.disabled=teamSelection.length!==limit;
+ document.querySelector<HTMLElement>('#arena-detail')!.textContent=battleKind==='story'
+   ?'DESAFIO: '+(c?.name??'')+' · '+(c?.team.length??0)+' Pokémon · '+arenaNames[c?.arena??'classic']
+   :'CPU escolhe três Pokémon aleatórios.';
+ document.querySelectorAll<HTMLButtonElement>('[data-kind]').forEach(b=>b.classList.toggle('selected',b.dataset.kind===battleKind));
+}
+document.querySelector<HTMLButtonElement>('[data-start-arena]')!.addEventListener('click',()=>{
+ renderBattleMenu();showPanel('arena');
+});
+document.querySelectorAll<HTMLButtonElement>('[data-kind]').forEach(b=>b.addEventListener('click',()=>{
+ battleKind=b.dataset.kind==='story'?'story':'quick';
+ teamSelection=teamSelection.slice(0,battleKind==='quick'?3:6);
+ renderBattleMenu();
+}));
+document.querySelector<HTMLElement>('#team-grid')!.addEventListener('click',e=>{
+ const b=(e.target as HTMLElement).closest<HTMLButtonElement>('[data-select-pokemon]');
+ const pokemon=b?.dataset.selectPokemon as Fighter|undefined;
+ if(!pokemon)return;
+ if(teamSelection.includes(pokemon))teamSelection=teamSelection.filter(x=>x!==pokemon);
+ else if(teamSelection.length<(battleKind==='quick'?3:6))teamSelection=[...teamSelection,pokemon];
+ renderBattleMenu();
+});
+document.querySelector<HTMLSelectElement>('#arena-trainer')!.addEventListener('change',e=>{
+ chosenTrainer=(e.target as HTMLSelectElement).value;renderBattleMenu();
+});
+document.querySelector<HTMLSelectElement>('#arena-choice')!.addEventListener('change',e=>{
+ arenaSelection=(e.target as HTMLSelectElement).value as ArenaId|'random';renderBattleMenu();
+});
+document.querySelector<HTMLButtonElement>('#start-match')!.addEventListener('click',()=>{
+ if(teamSelection.length!==(battleKind==='quick'?3:6))return;
+ beginMatch(teamSelection,arenaSelection,battleKind,battleKind==='story'?chosenTrainer:undefined);
+ setTrainingSetup(teamSelection[0],'pikachu',36);
+ startGameMode('training');
+});
+window.addEventListener('monster-arena:return-menu',()=>openMainMenu());
+renderBattleMenu();
