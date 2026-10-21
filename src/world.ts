@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { paintKantoTown } from './kantoTownArt';
+import { PEWTER_CITY, pewterCityBlocked, inPewterGrass } from './pewterCityLayout';
 import { findWalkingPath } from './worldNavigation';
 import type { MobileControls } from './mobileControls';
 import {
@@ -45,7 +46,7 @@ const PARTNER:Record<string,{
  * Grass movement, encounters and touch actions cost no tilemap redraw.
  */
 export class WorldScene extends Phaser.Scene{
-  private player=new Phaser.Math.Vector2(190,425);
+  private player=new Phaser.Math.Vector2(PEWTER_CITY.spawn.x,PEWTER_CITY.spawn.y);
   private following=new Phaser.Math.Vector2(147,448);
   private hero?:Phaser.GameObjects.Image;
   private partner?:Phaser.GameObjects.Image;
@@ -86,6 +87,7 @@ export class WorldScene extends Phaser.Scene{
   ){super({key:'World'});}
 
   preload(){
+    this.load.image('pewter-city-map','/assets/world/pewter-main.webp');
     const root='/assets/story/pewter/';
     this.load.spritesheet('safari-red',root+'red-overworld.png',
       {frameWidth:16,frameHeight:32});
@@ -133,7 +135,7 @@ export class WorldScene extends Phaser.Scene{
     this.player.set(this.progress.lastX,this.progress.lastY);
     // Migrate impossible positions from the older prototype safely.
     if(this.blocked(this.player.x,this.player.y))
-      this.player.set(207,426);
+      this.player.set(PEWTER_CITY.spawn.x,PEWTER_CITY.spawn.y);
     this.following.set(this.player.x-39,this.player.y+15);
     this.walkingDirection.set(0,1);
     this.pointerDestination=null;
@@ -221,7 +223,7 @@ export class WorldScene extends Phaser.Scene{
         .setTint(0x9dd888).setDepth(7);
       this.lastPartnerTexture='safari-red';
     }
-    this.add.text(27,19,'VILA DE KANTO  ·  ROTA 1',{
+    this.add.text(27,19,'CIDADE DE PEWTER  ·  KANTO',{
       fontSize:'24px',fontStyle:'bold',color:'#f7e3b9',
       stroke:'#203b3d',strokeThickness:5
     }).setDepth(19);
@@ -282,29 +284,33 @@ export class WorldScene extends Phaser.Scene{
   }
 
   private drawMap(){
-    const key='kanto-pixel-town-v1';
-    if(!this.textures.exists(key)){
-      const canvas=document.createElement('canvas');
-      canvas.width=480;
-      canvas.height=288;
-      const ctx=canvas.getContext('2d');
-      if(!ctx)return;
-      paintKantoTown(ctx);
-      this.textures.addCanvas(key,canvas);
+    const key='pewter-city-map';
+    if(this.textures.exists(key)){
+      // Supplied pixel map at 480×288, scaled exactly 2× using nearest pixels.
+      this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
+      this.add.image(480,288,key).setDisplaySize(960,576).setDepth(0);
+    }else{
+      // Assets missing/offline: remain playable with the previous drawing.
+      const fallback='kanto-pixel-town-v1';
+      if(!this.textures.exists(fallback)){
+        const canvas=document.createElement('canvas');
+        canvas.width=480;canvas.height=288;
+        const ctx=canvas.getContext('2d');
+        if(ctx){paintKantoTown(ctx);this.textures.addCanvas(fallback,canvas);}
+      }
+      if(this.textures.exists(fallback))
+        this.add.image(480,288,fallback).setDisplaySize(960,576).setDepth(0);
     }
-    // No blurry re-rasterization or 8-bit texture filtering per update.
-    this.add.image(480,288,key).setDisplaySize(960,576).setDepth(0);
-    const marker=(x:number,y:number,label:string,color='#fff7d9')=>
+    const marker=(x:number,y:number,label:string)=>
       this.add.text(x,y,label,{
-        fontSize:'12px',fontStyle:'bold',color,
-        stroke:'#23463e',strokeThickness:4
+        fontSize:'12px',fontStyle:'bold',color:'#fff4d6',
+        stroke:'#254234',strokeThickness:4
       }).setOrigin(0.5).setDepth(10);
-    marker(119,294,'CENTRO DE CURA');
-    marker(321,294,'VILA');
-    marker(575,234,'MATO ALTO');
-    marker(845,231,'GINÁSIO');
-    marker(349,369,'TREINADOR');
-    // The trainer uses the authentic eight-frame overworld strip.
+    marker(148,269,'CENTRO POKÉMON');
+    marker(356,270,'CASA');
+    marker(612,185,'MATO ALTO');
+    marker(839,239,'GINÁSIO');
+    marker(347,370,'TREINADOR');
     this.add.ellipse(347,412,28,8,0x28443b,0.32).setDepth(3);
     this.add.image(347,406,'safari-trainer',0)
       .setOrigin(0.5,0.94).setScale(2.35).setDepth(7);
@@ -346,8 +352,7 @@ export class WorldScene extends Phaser.Scene{
   }
 
   private inGrass(){
-    return this.player.x>444&&this.player.x<770&&
-      this.player.y>245&&this.player.y<449;
+    return inPewterGrass(this.player.x,this.player.y);
   }
   private near(x:number,y:number,distance:number){
     return Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)
@@ -355,9 +360,9 @@ export class WorldScene extends Phaser.Scene{
   }
   private interact(){
     if(this.modal||this.menuOpen())return;
-    if(this.inGrass()||this.near(590,350,85)){
+    if(this.inGrass()||this.near(598,337,60)){
       this.openEncounter();
-    }else if(this.near(347,404,94)){
+    }else if(this.near(PEWTER_CITY.trainer.x,PEWTER_CITY.trainer.y,PEWTER_CITY.trainer.reach)){
       const delay=trainerCooldownRemaining();
       if(delay>0){
         this.say(trainerCooldownText()+'. Treine no mato alto enquanto isso.',3300);
@@ -365,10 +370,10 @@ export class WorldScene extends Phaser.Scene{
       }
       this.say('Treinador pronto! Uma vitória rende 100 XP. Próximo duelo em 20 min.',2200);
       this.enterBattle('practice');
-    }else if(this.near(864,227,117)){
+    }else if(this.near(PEWTER_CITY.gym.x,PEWTER_CITY.gym.y,PEWTER_CITY.gym.reach)){
       this.progress=updateStoryProgress({enteredGym:true});
       this.enterBattle('story');
-    }else if(this.near(134,286,76)){
+    }else if(this.near(PEWTER_CITY.pokemonCenter.x,PEWTER_CITY.pokemonCenter.y,PEWTER_CITY.pokemonCenter.reach)){
       const sparkle=this.add.text(this.player.x,this.player.y-78,
         '✚ EQUIPE RECUPERADA!',{
           fontSize:'16px',fontStyle:'bold',color:'#dcffde',
@@ -500,13 +505,7 @@ export class WorldScene extends Phaser.Scene{
   }
 
   private blocked(x:number,y:number){
-    if(x<37||x>923||y<83||y>496)return true;
-    // Exact footprints match the three new building roofs. A walkable
-    // north–south lane around x=190 stays clear even when W is held.
-    return (x>51&&x<178&&y>124&&y<278)||
-      (x>251&&x<395&&y>119&&y<279)||
-      (x>779&&x<944&&y>60&&y<208)||
-      (x>39&&x<180&&y>299&&y<393); // pond water collision
+    return pewterCityBlocked(x,y);
   }
 
   update(time:number,delta:number){
@@ -673,8 +672,8 @@ export class WorldScene extends Phaser.Scene{
       this.featuredIcon.setFrame(Math.floor(time/470)%3);
     if(this.actionLabel){
       const label=this.inGrass()?'TREINAR':
-        this.near(864,227,117)?'BROCK':
-        this.near(347,404,94)?
+        this.near(PEWTER_CITY.gym.x,PEWTER_CITY.gym.y,PEWTER_CITY.gym.reach)?'BROCK':
+        this.near(PEWTER_CITY.trainer.x,PEWTER_CITY.trainer.y,PEWTER_CITY.trainer.reach)?
           trainerCooldownRemaining()>0?'DESCANSO':'BATALHAR':
         'INTERAGIR';
       if(this.actionLabel.text!==label)this.actionLabel.setText(label);

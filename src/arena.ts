@@ -21,7 +21,7 @@ import { getTrainingSetup } from './trainingSetup';
 import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
 import { DODGE_DISTANCE, DODGE_DURATION_MS, TACKLE_DURATION_MS,
-  tackleDistance, tacklePosition, dodgePosition } from './combatMovement';
+  TACKLE_MAX_DISTANCE, tackleDistance, tacklePosition, dodgePosition } from './combatMovement';
 import { makeStatStages, changeStatStage, stageMultiplier,
   accuracyChance, physicalDamageMultiplier, type BattleStat,
   type StatStages } from './statStages';
@@ -814,7 +814,12 @@ export class ArenaScene extends Phaser.Scene {
     const dist=Phaser.Math.Distance.Between(this.player.x,this.player.y,
       this.enemy.x,this.enemy.y);
     if(skill==='q'){
-      this.startTackle('player',move.damage,move.element,time);
+      // Player skill follows the mouse direction at the actual hit frame,
+      // not an auto-aim vector to the enemy. On touch, use aim assist.
+      const aim=this.mobile.active?dir:
+        this.directionTo(this.player,this.input.activePointer.worldX,
+          this.input.activePointer.worldY,dir);
+      this.startTackle('player',move.damage,move.element,time,aim);
     }else if(skill==='w'){
       if(grass){
         this.starterFx.growl(origin,target);
@@ -1763,15 +1768,21 @@ export class ArenaScene extends Phaser.Scene {
   /** A short headbutt with a restrained windup and recoil.
    * Both fighters move only a few real pixels; never a 180-225px dash.
    */
-  private startTackle(side:Side,damage:number,element:PokemonType,time:number):void{
+  private startTackle(side:Side,damage:number,element:PokemonType,time:number,
+    manualDirection?:Phaser.Math.Vector2):void{
     if(this.finished||this.storySwitching||this.tackles[side])return;
     const source=side==='player'?this.player:this.enemy;
     const target=side==='player'?this.enemy:this.player;
     const relative=vector(target.x-source.x,target.y-source.y);
     const distance=relative.length();
-    const direction=distance>0.01?relative.scale(1/distance):
-      (side==='player'?this.playerFacing:this.enemyFacing).clone();
-    const travel=tackleDistance(distance,source.radius,target.radius);
+    const direction=manualDirection&&manualDirection.lengthSq()>0.0001
+      ?manualDirection.clone().normalize()
+      :distance>0.01?relative.scale(1/distance)
+        :(side==='player'?this.playerFacing:this.enemyFacing).clone();
+    // Player headbutt travels towards the cursor, even if the enemy is elsewhere.
+    // AI can still calculate approach distance against its intended target.
+    const travel=side==='player'?TACKLE_MAX_DISTANCE:
+      tackleDistance(distance,source.radius,target.radius);
     const requested=vector(clampX(source.x+direction.x*travel),
       clampY(source.y+direction.y*travel));
     const safe=this.environment?.resolve(requested.x,requested.y,source.radius);
@@ -1816,7 +1827,9 @@ export class ArenaScene extends Phaser.Scene {
       const close=Phaser.Math.Distance.Between(
         source.x,source.y,target.x,target.y)<=
         source.radius+target.radius+13;
-      if(!state.hit&&t>=0.25&&t<=0.74&&close){
+      const inFront=(target.x-source.x)*state.direction.x+
+        (target.y-source.y)*state.direction.y>0;
+      if(!state.hit&&t>=0.25&&t<=0.74&&close&&inFront){
         state.hit=true;
         this.fx.tackleImpact(target.x,target.y,state.direction,0.72);
         this.damage(side==='player'?'enemy':'player',
