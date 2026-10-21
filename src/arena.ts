@@ -18,6 +18,7 @@ import { activeWildEncounter } from './encounters';
 import { createSafariBattlefield } from './safariBattlefield';
 import { difficultyRules,type DifficultyRules } from './gameBalance';
 import { getTrainingSetup } from './trainingSetup';
+import { activeMatchPokemon,currentMatch,advanceMatch,matchProgress } from './battleSetup';
 import type { Fighter } from './abilities';
 import { BattleStats, formatBattleTime, type BattleSummary } from './battleStats';
 import { DODGE_DISTANCE, DODGE_DURATION_MS, TACKLE_DURATION_MS,
@@ -177,13 +178,13 @@ export class ArenaScene extends Phaser.Scene {
   preload() {
     const mode=this.getMode();
     const setup=getTrainingSetup();
-    const player=mode==='training'?setup.player:this.currentStarter();
-    const rival=mode==='story'?'geodude':mode==='wild'
+    const player=currentMatch()?activeMatchPokemon().player:mode==='training'?setup.player:this.currentStarter();
+    const rival=currentMatch()?activeMatchPokemon().enemy:mode==='story'?'geodude':mode==='wild'
       ?activeWildEncounter().species:mode==='training'
         ?setup.rival:'pikachu';
     const roster=[player,rival,...(mode==='story'?['onix']:[])] as Fighter[];
     preloadOverworld(this,roster);
-    if(mode==='story')preloadPewter(this);
+    if(mode==='story'||currentMatch()?.arena==='pewter')preloadPewter(this);
     const base='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
     for(const species of roster){
       const number=String(pokemonCatalog[species].number);
@@ -196,14 +197,14 @@ export class ArenaScene extends Phaser.Scene {
   create() {
     this.mode=this.getMode();
 
-    this.playerSpecies=this.mode==='training'
+    this.playerSpecies=currentMatch()?activeMatchPokemon().player:this.mode==='training'
       ?getTrainingSetup().player:this.currentStarter();
     this.environment=undefined;
     this.rules=difficultyRules();
-    this.enemySpecies=this.mode==='story'?'geodude':
+    this.enemySpecies=currentMatch()?activeMatchPokemon().enemy:this.mode==='story'?'geodude':
       this.mode==='wild'?activeWildEncounter().species:
       this.mode==='training'?getTrainingSetup().rival:'pikachu';
-    this.wildLevel=this.mode==='wild'?activeWildEncounter().level:
+    this.wildLevel=currentMatch()?36:this.mode==='wild'?activeWildEncounter().level:
       this.mode==='training'?getTrainingSetup().level:4;
     this.enemyMaxHp=this.mode==='practice'?68:
       this.mode==='wild'?Math.round(
@@ -240,7 +241,7 @@ export class ArenaScene extends Phaser.Scene {
     this.playerMotion = undefined;
     this.enemyMotion = undefined;
     this.hitStopUntil = -1000;
-    this.starterLevel=this.mode==='training'?getTrainingSetup().level:
+    this.starterLevel=currentMatch()?36:this.mode==='training'?getTrainingSetup().level:
       getActivePokemon(loadCollection()).level;
     this.playerMaxHp=this.mode==='training'?
       Math.round(pokemonCatalog[this.playerSpecies].maxHp*
@@ -283,7 +284,7 @@ export class ArenaScene extends Phaser.Scene {
     this.mobile.setFinished(false);
 
     this.cameras.main.setBackgroundColor('#142e31');
-    if(this.mode==='story'){
+    if(this.mode==='story'||currentMatch()?.arena==='pewter'){
       this.environment=new StoryEnvironment(this,pewterGym,this.playerSpecies);
       this.stats.excludeTime(3150);
       // The VS presentation is a genuine introduction, not a background
@@ -291,12 +292,12 @@ export class ArenaScene extends Phaser.Scene {
       this.storyIntroUntil=this.time.now+3150;
       this.enemyActiveAt=this.storyIntroUntil+1050;
       this.nextEnemyDecision=this.enemyActiveAt;
-    }else if(this.mode==='wild'){
+    }else if(this.mode==='wild'||currentMatch()?.arena==='safari'){
       createSafariBattlefield(this);
     }else this.drawArena();
-    const rawPlayerSpawn=this.mode==='story'?pewterGym.spawnPlayer:
+    const rawPlayerSpawn=(this.mode==='story'||currentMatch()?.arena==='pewter')?pewterGym.spawnPlayer:
       this.mode==='wild'?{x:230,y:319}:{x:210,y:288};
-    const rawEnemySpawn=this.mode==='story'?pewterGym.spawnRival:
+    const rawEnemySpawn=(this.mode==='story'||currentMatch()?.arena==='pewter')?pewterGym.spawnRival:
       this.mode==='wild'?{x:724,y:297}:{x:750,y:288};
     const playerSpawn=this.environment?.resolve(rawPlayerSpawn.x,rawPlayerSpawn.y,
       pokemonCatalog[this.playerSpecies].radius)??rawPlayerSpawn;
@@ -341,12 +342,13 @@ export class ArenaScene extends Phaser.Scene {
       fontSize:'12px',color:'#ffcd9e',stroke:'#142e31',strokeThickness:2
     }).setDepth(10);
     this.updateStageHud();
-    if(this.mode==='story'){
+    if(this.mode==='story'||currentMatch()){
       this.storyWaveText=this.add.text(716,58,'',{
         fontSize:'16px',fontStyle:'bold',color:'#fff0c8',
         stroke:'#192c38',strokeThickness:4
       }).setOrigin(0.5).setDepth(12);
-      this.updateWaveText();
+      if(!currentMatch())this.updateWaveText();
+      else this.storyWaveText.setText(matchProgress());
       this.statusText=this.add.text(playerSpawn.x,playerSpawn.y-75,'',{
         fontSize:'13px',fontStyle:'bold',color:'#ffe8ac',
         stroke:'#152a34',strokeThickness:4
@@ -561,6 +563,7 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private updateHp() {
+    if(currentMatch())this.storyWaveText?.setText(matchProgress());
     this.hpText.setText(pokemonCatalog[this.playerSpecies].name+
       ' Nv. '+this.starterLevel+
       ': '+this.playerHp+' / '+this.playerMaxHp+' HP');
@@ -1252,7 +1255,14 @@ export class ArenaScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(15);
     this.tweens.add({targets:label,y:victim.y-(heavy?83:63),alpha:0,scaleX:heavy?1.2:1.05,
       scaleY:heavy?1.2:1.05,duration:heavy?570:460,onComplete:()=>label.destroy()});
-    if(this.playerHp<=0)this.endBattle();
+    if(currentMatch()&&(this.playerHp<=0||this.enemyHp<=0)){
+      const status=advanceMatch(this.playerHp<=0?'player':'enemy');
+      if(status==='next'){
+        this.finished=true;
+        this.showKnockout(this.playerHp<=0?'player':'enemy');
+        this.time.delayedCall(1350,()=>{if(this.sys.isActive())this.scene.restart();});
+      }else this.endBattle();
+    }else if(this.playerHp<=0)this.endBattle();
     else if(this.enemyHp<=0){
       if(this.mode==='story')this.nextStoryPokemon();
       else this.endBattle();
@@ -1333,7 +1343,7 @@ export class ArenaScene extends Phaser.Scene {
     this.time.delayedCall(1700,()=>{
       if(!this.sys.isActive())return;
       this.mobile.setFinished(true);
-      const returnOnly=this.mode==='wild'||this.mode==='practice';
+      const returnOnly=this.mode==='wild'||this.mode==='practice'||!!currentMatch();
       const rematch=document.querySelector<HTMLButtonElement>(
         '[data-battle-rematch]');
       if(rematch)rematch.textContent=returnOnly
@@ -1347,7 +1357,7 @@ export class ArenaScene extends Phaser.Scene {
           '[data-return-story]');
         if(back)back.hidden=false;
       }
-      if(this.mode==='practice'||this.mode==='wild'){
+      if((this.mode==='practice'||this.mode==='wild')&&!currentMatch()){
         const wild=this.mode==='wild'?activeWildEncounter():null;
         window.dispatchEvent(new CustomEvent('monster-arena:practice-result',{
           detail:{
@@ -1357,8 +1367,9 @@ export class ArenaScene extends Phaser.Scene {
           }
         }));
       }
-      if(this.mode==='story'&&result.victory)
+      if(this.mode==='story'&&result.victory&&!currentMatch())
         window.dispatchEvent(new Event('monster-arena:gym-victory'));
+      if(currentMatch())window.dispatchEvent(new CustomEvent('monster-arena:match-ended',{detail:{victory:result.victory}}));
       this.showResults(result);
     });
   }
@@ -1403,14 +1414,14 @@ export class ArenaScene extends Phaser.Scene {
       fontSize:'14px',fontStyle:'bold',color:recordNotes.length?'#ffe2a1':'#8fb8c1',
       align:'center'
     }).setOrigin(0.5).setDepth(25);
-    const mustReturn=this.mode==='wild'||this.mode==='practice';
+    const mustReturn=this.mode==='wild'||this.mode==='practice'||!!currentMatch();
     this.add.text(center,385,
       mustReturn?
         (this.mobile.active?'TOQUE EM VOLTAR À SAFARI':'ENTER PARA VOLTAR À SAFARI'):
         (this.mobile.active?'TOQUE EM JOGAR NOVAMENTE':'ENTER PARA JOGAR NOVAMENTE'),{
         fontSize:'16px',fontStyle:'bold',color:'#dbf5f2'
       }).setOrigin(0.5).setDepth(25);
-    if(this.mode==='practice'||this.mode==='wild'){
+    if((this.mode==='practice'||this.mode==='wild')&&!currentMatch()){
       const reward=this.mode==='wild'?activeWildEncounter().experience:100;
       let evolution:string|null=null;
       try{evolution=window.sessionStorage.getItem('monster-arena-evolution');}catch{}
@@ -1427,7 +1438,7 @@ export class ArenaScene extends Phaser.Scene {
       back.on('pointerdown',()=>window.dispatchEvent(
         new Event('monster-arena:return-world')));
     }
-    if(this.mode==='story'){
+    if(this.mode==='story'&&!currentMatch()){
       const note=this.add.text(center,415,
         result.victory?'GEODUDE + ONIX VENCIDOS · INSÍGNIA DA PEDRA!':
           'VOCÊ PODE TREINAR NA SAFARI E TENTAR NOVAMENTE',{
@@ -1863,11 +1874,10 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private restartOrReturn():void{
-    if(this.mode==='wild'||this.mode==='practice'){
+    if(currentMatch())window.dispatchEvent(new Event('monster-arena:return-menu'));
+    else if(this.mode==='wild'||this.mode==='practice'){
       window.dispatchEvent(new Event('monster-arena:return-world'));
-    }else{
-      this.scene.restart();
-    }
+    }else this.scene.restart();
   }
 
   update(time:number,delta:number) {
