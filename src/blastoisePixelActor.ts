@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 
 /**
  * Reproduces frames cropped from the reference sprite sheet provided by the
- * project's author. 12 frames in a 4x3 WebP atlas, each 40x40 pixels.
+ * project's author. 12 frames in a 4x3 WebP atlas, each 32x32 pixels.
  * The atlas is only loaded for Blastoise: it never replaces another species.
  */
 export const BLASTOISE_SHEET='blastoise-pixel-art';
