@@ -449,7 +449,7 @@ document.querySelector<HTMLButtonElement>('#switch-mode')!
   .addEventListener('click',()=>openMainMenu());
 document.querySelector<HTMLButtonElement>('#gym-preview')!
   .addEventListener('click',()=>startGameMode('story'));
-document.querySelector<HTMLButtonElement>('[data-start-training]')!
+document.querySelector<HTMLButtonElement>('[data-start-training]')?
   .addEventListener('click',()=>showPanel('testing'));
 document.querySelector<HTMLInputElement>('#testing-level')!
   .addEventListener('input',()=>{
@@ -465,13 +465,13 @@ document.querySelector<HTMLButtonElement>('[data-confirm-testing]')!
     clearMatch();
     startGameMode('training');
   });
-document.querySelector<HTMLButtonElement>('[data-start-brock]')!
+document.querySelector<HTMLButtonElement>('[data-start-brock]')?
   .addEventListener('click',()=>startGameMode('story'));
-document.querySelector<HTMLButtonElement>('[data-start-story]')!
+document.querySelector<HTMLButtonElement>('[data-start-story]')?
   .addEventListener('click',()=>showPanel(chosenStarter()?'resume':'choose'));
-document.querySelector<HTMLButtonElement>('[data-continue-story]')!
+document.querySelector<HTMLButtonElement>('[data-continue-story]')?
   .addEventListener('click',()=>startGameMode('world'));
-document.querySelector<HTMLButtonElement>('[data-new-story]')!
+document.querySelector<HTMLButtonElement>('[data-new-story]')?
   .addEventListener('click',()=>showPanel('choose'));
 document.querySelectorAll<HTMLButtonElement>('[data-menu-back]')
   .forEach(button=>button.addEventListener('click',()=>showPanel('home')));
