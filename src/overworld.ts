@@ -24,6 +24,9 @@ interface SheetInfo {
 type SheetRegistry = Record<Creature, Record<Motion, SheetInfo>>;
 
 const registry: SheetRegistry = {
+  venusaur: {Walk:{width:40,height:48,ticks:[8,10,8,10]},Idle:{width:40,height:48,ticks:[15,15,15,15]},Shoot:{width:56,height:56,ticks:[4,6,2,2]},Attack:{width:80,height:88,ticks:[2,2,2,2]},Charge:{width:48,height:48,ticks:[2,2,2,2]},Hurt:{width:64,height:64,ticks:[2,8]},Hop:{width:48,height:96,ticks:[2,2,2,2]}},
+  blastoise: {Walk:{width:40,height:48,ticks:[8,10,8,10]},Idle:{width:40,height:48,ticks:[15,15,15,15]},Shoot:{width:56,height:56,ticks:[4,6,2,2]},Attack:{width:80,height:88,ticks:[2,2,2,2]},Charge:{width:48,height:48,ticks:[2,2,2,2]},Hurt:{width:64,height:64,ticks:[2,8]},Hop:{width:48,height:96,ticks:[2,2,2,2]}},
+  raichu: {Walk:{width:40,height:48,ticks:[8,10,8,10]},Idle:{width:40,height:48,ticks:[15,15,15,15]},Shoot:{width:56,height:56,ticks:[4,6,2,2]},Attack:{width:80,height:88,ticks:[2,2,2,2]},Charge:{width:48,height:48,ticks:[2,2,2,2]},Hurt:{width:64,height:64,ticks:[2,8]},Hop:{width:48,height:96,ticks:[2,2,2,2]}},
   charmander: {
     Walk: { width: 32, height: 32, ticks: [6,8,6,8] },
     Idle: { width: 32, height: 40, ticks: [12,8,8,8] },
@@ -222,6 +225,9 @@ const registry: SheetRegistry = {
  */
 export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Charge'): number {
   const frames: Record<Creature, Record<'Shoot'|'Attack'|'Charge',number>> = {
+    venusaur:{Shoot:2,Attack:2,Charge:2},
+    blastoise:{Shoot:2,Attack:2,Charge:2},
+    raichu:{Shoot:2,Attack:2,Charge:2},
     charmander: { Shoot: 5, Attack: 5, Charge: 5 },
     bulbasaur: { Shoot: 2, Attack: 5, Charge: 5 },
     ivysaur: { Shoot: 2, Attack: 3, Charge: 5 },
@@ -249,6 +255,7 @@ export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Cha
 }
 
 const ids: Record<Creature,string> = {
+  venusaur:'0003',blastoise:'0009',raichu:'0026',
   charmander:'0004',charmeleon:'0005',charizard:'0006',
   bulbasaur:'0001',ivysaur:'0002',squirtle:'0007',wartortle:'0008',
   rattata:'0019',jigglypuff:'0039',pikachu:'0025',geodude:'0074',onix:'0095',
@@ -267,6 +274,9 @@ const base = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sp
 
 function spriteSize(creature:Creature):number {
   switch(creature){
+    case 'venusaur':return 1.9;
+    case 'blastoise':return 1.9;
+    case 'raichu':return 1.9;
     case 'charmander':return 2.55;
     case 'charmeleon':return 2.12;
     case 'bulbasaur':return 2.65;
