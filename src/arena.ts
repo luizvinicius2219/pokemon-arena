@@ -241,14 +241,8 @@ export class ArenaScene extends Phaser.Scene {
     this.playerMotion = undefined;
     this.enemyMotion = undefined;
     this.hitStopUntil = -1000;
-    this.starterLevel=36; // No XP, evolution or level-based ability unlocks.
-    /* legacy */ const oldLevel=currentMatch()?36:this.mode==='training'?getTrainingSetup().level:
-      getActivePokemon(loadCollection()).level;
-    this.playerMaxHp=this.mode==='training'?
-      Math.round(pokemonCatalog[this.playerSpecies].maxHp*
-        (0.70+this.starterLevel*0.008)):
-      pokemonCatalog[this.playerSpecies].maxHp+
-        Math.min(55,Math.max(0,this.starterLevel-5)*3);
+    this.starterLevel=36; // Todos os golpes estão liberados. Sem progressão.
+    this.playerMaxHp=pokemonCatalog[this.playerSpecies].maxHp;
     if(this.mode==='story'){
       // Handicap is mild: prepare for Brock instead of farming one enemy.
       this.enemyMaxHp=Math.round(this.enemyMaxHp*
@@ -566,11 +560,8 @@ export class ArenaScene extends Phaser.Scene {
   private updateHp() {
     if(currentMatch())this.storyWaveText?.setText(matchProgress());
     this.hpText.setText(pokemonCatalog[this.playerSpecies].name+
-      ' Nv. '+this.starterLevel+
       ': '+this.playerHp+' / '+this.playerMaxHp+' HP');
     this.enemyHpText.setText(pokemonCatalog[this.enemySpecies].name+
-      (this.mode==='wild'||this.mode==='training'
-        ?' · Nv '+this.wildLevel:'')+
       ': '+this.enemyHp+' / '+this.enemyMaxHp+' HP');
   }
 
@@ -1637,6 +1628,50 @@ export class ArenaScene extends Phaser.Scene {
     return true;
   }
 
+  private castFinalEnemy(skill:Skill,time:number){
+    if(!this.canCast('enemy',skill,time))return;
+    const ability=skills[this.enemySpecies][skill];
+    this.enemyCastAt[skill]=time;
+    this.enemyAttackAt=time;
+    const dir=this.directionTo(this.enemy,this.player.x,this.player.y,this.enemyFacing);
+    this.faceDirection('enemy',dir);
+    this.enemyMotion?.trigger(skill==='q'?'Attack':'Shoot',time,dir);
+    const origin={x:this.enemy.x+dir.x*24,y:this.enemy.y-12+dir.y*16};
+    const range=Phaser.Math.Distance.Between(this.enemy.x,this.enemy.y,this.player.x,this.player.y);
+    if(ability.damage===0){
+      if(this.enemySpecies==='blastoise'){
+        this.starterFx.shell(origin);this.changeBattleStat('enemy','defense',1);
+      }else{
+        this.starterFx.growl(origin,{x:this.player.x,y:this.player.y});
+        if(range<360)this.changeBattleStat('player','attack',-1);
+      }
+      return;
+    }
+    if(skill==='q'&&range<195){
+      this.starterFx.scratch(origin,{x:this.player.x,y:this.player.y},dir);
+      this.time.delayedCall(210,()=>{
+        if(this.finished)return;
+        if(Phaser.Math.Distance.Between(this.enemy.x,this.enemy.y,this.player.x,this.player.y)<195)
+          this.damage('player',ability.damage,this.player.x,this.player.y,0xe0c7a1,ability.element);
+      });
+      return;
+    }
+    const element=ability.element;
+    if(element==='water'||element==='fire'||element==='electric'){
+      const kind=element==='water'?'water':element==='electric'?'spark':'ember';
+      this.fx.charge(origin.x,origin.y,element==='water'?'electric':element,0.75);
+      this.projectile(origin.x,origin.y,dir,skill==='r'?450:380,skill==='r'?20:12,
+        kind,'enemy',ability.damage,1200,time);
+      return;
+    }
+    this.starterFx.vines(origin,{x:this.player.x,y:this.player.y});
+    this.time.delayedCall(370,()=>{
+      if(this.finished)return;
+      if(Phaser.Math.Distance.Between(this.enemy.x,this.enemy.y,this.player.x,this.player.y)<315)
+        this.damage('player',ability.damage,this.player.x,this.player.y,0x9ddd90,element);
+    });
+  }
+
   private castSafariMove(skill:Skill,time:number){
     if(!this.canCast('enemy',skill,time))return;
     const species=this.enemySpecies;
@@ -1810,6 +1845,8 @@ export class ArenaScene extends Phaser.Scene {
       if(this.enemySpecies==='pikachu'||this.enemySpecies==='raichu')this.castPikachu(selection,time);
       else if(this.enemySpecies==='geodude'||this.enemySpecies==='onix')
         this.castRockPokemon(selection,time);
+      else if(['venusaur','blastoise','charizard'].includes(this.enemySpecies))
+        this.castFinalEnemy(selection,time);
       else this.castSafariMove(selection,time);
     }
   }
