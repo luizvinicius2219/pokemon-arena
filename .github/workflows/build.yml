@@ -2,7 +2,7 @@ name: Build check
 
 on:
   push:
-    branches: [main, 'feature/batalhas-offline-e-desafios']
+    branches: [main, 'feature/batalhas-offline-e-desafios', 'feature/menu-batalha-formas-finais']
   workflow_dispatch:
 
 jobs:
