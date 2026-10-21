@@ -186,7 +186,7 @@ export class ArenaScene extends Phaser.Scene {
     const roster=[player,rival,...(mode==='story'?['onix']:[])] as Fighter[];
     preloadOverworld(this,roster.filter(id=>!['venusaur','blastoise','raichu'].includes(id)));
     if(roster.includes('blastoise'))this.load.spritesheet(BLASTOISE_SHEET,
-      '/assets/pokemon/blastoise-frames.webp',{frameWidth:40,frameHeight:40});
+      '/assets/pokemon/blastoise-frames.webp',{frameWidth:32,frameHeight:32});
     if(mode==='story'||currentMatch()?.arena==='pewter')preloadPewter(this);
     const base='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
     for(const species of roster){
