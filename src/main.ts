@@ -1,19 +1,13 @@
 import Phaser from 'phaser';
 import { Action, Bindings, defaults, loadBindings, saveBindings, assignBinding, keyLabel } from './controls';
-import { allActions,dodge,skills,type Starter,type Fighter } from './abilities';
+import { allActions,dodge,skills,type Fighter } from './abilities';
 import { getTrainingSetup,setTrainingSetup } from './trainingSetup';
 import { pokemonCatalog } from './pokemonCatalog';
 import { beginMatch,currentMatch,clearMatch,activeMatchPokemon,selectablePokemon,challenges,arenaNames,type ArenaId } from './battleSetup';
 import { loadDifficulty,saveDifficulty } from './gameBalance';
 import { ArenaScene } from './arena';
 import { WorldScene } from './world';
-import {
-  awardActiveExperience,loadCollection,saveCollection,
-  chooseStarter,chosenStarter,getActivePokemon
-} from './playerCollection';
-import {
-  registerTrainingVictory,resetStoryProgress,trainerCooldownRemaining
-} from './storyProgress';
+import {loadCollection,getActivePokemon} from './playerCollection';
 import { MobileControls } from './mobileControls';
 import type { GameMode } from './story';
 import './style.css';
@@ -26,9 +20,9 @@ let gameMode:GameMode='training';
 let battleKind:'quick'|'story'='quick';
 let chosenTrainer='brock';
 let arenaSelection:ArenaId|'random'='random';
-let teamSelection:Fighter[]=['charizard','venusaur','blastoise'];
+let teamSelection:Fighter[]=[];
 let mainMenuOpen=true;
-let candidate:Starter='charmander';
+
 const heldKeys = new Set<string>();
 
 const labels: Record<Action, string> = {
@@ -67,96 +61,7 @@ app.innerHTML = `
             <button class="landing-mode" type="button" data-start-challenges><span class="mode-icon">🏆</span><strong>DESAFIOS DE TREINADORES</strong><small>Equipe de 6 Pokémon · ginásios e personagens</small></button>
             <button class="landing-mode mode-coming-soon" type="button" disabled><span class="mode-icon">🌐</span><strong>MULTIPLAYER ONLINE</strong><small>Em desenvolvimento</small></button>
           </div>
-          <div class="safari-difficulty">
-            <label for="difficulty-home">NÍVEL DO DESAFIO</label>
-            <select id="difficulty-home" data-difficulty>
-              <option value="relax">CASUAL · Menos dano, +20% XP</option>
-              <option value="normal">PADRÃO · Equilibrado</option>
-              <option value="challenge">DESAFIO · Mais dano, -10% XP</option>
-            </select>
-          </div>
-
           <p class="landing-note">Todos os Pokémon estão prontos para lutar. Não é necessário ganhar XP.</p>
-        </section>
-        <section class="landing-card" data-menu-panel="choose" hidden>
-          <span class="landing-eyebrow">MODO HISTÓRIA · NOVA JORNADA</span>
-          <h2>ESCOLHA SEU <em>INICIAL</em></h2>
-          <p class="landing-lead">Três estilos de combate. Cada Pokémon começa no nível 5 e pode evoluir com treinamento.</p>
-          <div class="starter-grid" role="group" aria-label="Escolha seu Pokémon inicial">
-            <button type="button" class="starter-option selected" data-starter="charmander">
-              <img alt="Charmander" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png"/>
-              <strong>CHARMANDER</strong><small>🔥 FOGO</small><span>Ataques ágeis · Ginásio mais difícil</span>
-            </button>
-            <button type="button" class="starter-option" data-starter="squirtle">
-              <img alt="Squirtle" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/7.png"/>
-              <strong>SQUIRTLE</strong><small>💧 ÁGUA</small><span>Jato d’Água · Casco resistente</span>
-            </button>
-            <button type="button" class="starter-option" data-starter="bulbasaur">
-              <img alt="Bulbasaur" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png"/>
-              <strong>BULBASAUR</strong><small>🌿 PLANTA</small><span>Chicote de Vinha · Drena HP</span>
-            </button>
-          </div>
-          <p class="starter-warning">Começar uma nova jornada troca o inicial e reinicia o progresso atual.</p>
-          <div class="landing-buttons">
-            <button type="button" class="landing-secondary" data-menu-back>← VOLTAR</button>
-            <button type="button" class="landing-primary" data-confirm-starter>INICIAR AVENTURA →</button>
-          </div>
-        </section>
-        <section class="landing-card" data-menu-panel="resume" hidden>
-          <span class="landing-eyebrow">MODO HISTÓRIA · PROGRESSO SALVO</span>
-          <h2>SUA <em>JORNADA</em></h2>
-          <div class="save-preview" data-save-preview>Seu Pokémon está esperando.</div>
-          <div class="safari-difficulty">
-            <label for="difficulty-resume">DIFICULDADE DA JORNADA</label>
-            <select id="difficulty-resume" data-difficulty>
-              <option value="relax">CASUAL · Mais leve</option>
-              <option value="normal">PADRÃO · Equilibrado</option>
-              <option value="challenge">DESAFIO · Mais difícil</option>
-            </select>
-          </div>
-          <div class="landing-buttons landing-buttons-column">
-            <button type="button" class="landing-primary" data-continue-story>▶ CONTINUAR HISTÓRIA</button>
-            <button type="button" class="landing-secondary" data-new-story>ESCOLHER OUTRO INICIAL / NOVO JOGO</button>
-            <button type="button" class="landing-secondary" data-menu-back>← MENU PRINCIPAL</button>
-          </div>
-        </section>
-        <section class="landing-card" data-menu-panel="testing" hidden>
-          <span class="landing-eyebrow">TREINO LIVRE · SEM ALTERAR O SAVE</span>
-          <h2>LABORATÓRIO DE <em>BATALHA</em></h2>
-          <p class="landing-lead">Teste os ataques, a velocidade e o equilíbrio de cada Pokémon sem ganhar XP nem gastar tempo de treinador.</p>
-          <div class="testing-grid">
-            <label>SEU POKÉMON
-              <select id="testing-player">
-                <option value="charmander">Charmander</option>
-                <option value="charmeleon">Charmeleon</option>
-                <option value="charizard">Charizard</option>
-                <option value="bulbasaur">Bulbasaur</option>
-                <option value="ivysaur">Ivysaur</option>
-                <option value="squirtle">Squirtle</option>
-                <option value="wartortle">Wartortle</option>
-              </select>
-            </label>
-            <label>ADVERSÁRIO
-              <select id="testing-rival">
-                <option value="pikachu">Pikachu</option>
-                <option value="rattata">Rattata</option>
-                <option value="pidgey">Pidgey</option>
-                <option value="spearow">Spearow</option>
-                <option value="caterpie">Caterpie</option>
-                <option value="weedle">Weedle</option>
-                <option value="jigglypuff">Jigglypuff</option>
-              </select>
-            </label>
-          </div>
-          <div class="testing-level">
-            <label for="testing-level">NÍVEL DE TESTE: <strong data-testing-number>36</strong></label>
-            <input id="testing-level" type="range" min="5" max="36" step="1" value="36"/>
-            <small>Nível de teste não altera a História.</small>
-          </div>
-          <div class="landing-buttons">
-            <button type="button" class="landing-secondary" data-menu-back>← VOLTAR</button>
-            <button type="button" class="landing-primary" data-confirm-testing>⚔ COMEÇAR TESTE</button>
-          </div>
         </section>
         <section class="landing-card" data-menu-panel="arena" hidden><span class="landing-eyebrow">ARENA OFFLINE · CPU</span><h2>MONTE SUA <em>EQUIPE</em></h2><p class="landing-lead">Escolha Pokémon e lute em arenas clássicas.</p><div class="arena-mode-buttons"><button type="button" data-kind="quick">⚔ BATALHA 3x3</button><button type="button" data-kind="story">🏆 DESAFIOS 6 POKÉMON</button></div><label id="trainer-choice">TREINADOR<select id="arena-trainer"></select></label><p id="team-count"></p><div id="team-grid" class="arena-pokemon-grid"></div><label>ARENA<select id="arena-choice"><option value="random">🎲 Aleatória</option><option value="classic">Arena clássica</option><option value="pewter">Ginásio do Brock</option><option value="safari">Campo Safari</option></select></label><p id="arena-detail" class="landing-note"></p><button id="start-match" type="button" class="landing-primary">⚔ COMEÇAR PARTIDA</button><button type="button" class="landing-secondary" data-menu-back>← MENU PRINCIPAL</button></section>
       </div>
@@ -338,25 +243,9 @@ window.addEventListener('blur', () => heldKeys.clear());
 
 const landing=document.querySelector<HTMLElement>('#landing-menu')!;
 const panels=Array.from(document.querySelectorAll<HTMLElement>('[data-menu-panel]'));
-function showPanel(panel:'home'|'choose'|'resume'|'testing'|'arena'){
+function showPanel(panel:'home'|'arena'){
   panels.forEach(node=>node.hidden=node.dataset.menuPanel!==panel);
-  document.querySelectorAll<HTMLSelectElement>('[data-difficulty]')
-    .forEach(select=>{select.value=loadDifficulty();});
-  if(panel==='testing'){
-    const setup=getTrainingSetup();
-    document.querySelector<HTMLSelectElement>('#testing-player')!.value=setup.player;
-    document.querySelector<HTMLSelectElement>('#testing-rival')!.value=setup.rival;
-    document.querySelector<HTMLInputElement>('#testing-level')!.value=String(setup.level);
-    document.querySelector<HTMLElement>('[data-testing-number]')!
-      .textContent=String(setup.level);
-  }
-  if(panel==='resume'){
-    const pokemon=getActivePokemon(loadCollection());
-    const preview=document.querySelector<HTMLElement>('[data-save-preview]')!;
-    preview.textContent=pokemon.nickname+' · Nível '+pokemon.level+
-      ' · '+pokemon.experience+' XP · Pronto para treinar';
-  }
-}
+} // only battle first panels
 function openMainMenu(){
   mainMenuOpen=true;
   landing.hidden=false;
@@ -449,91 +338,14 @@ document.querySelector<HTMLButtonElement>('#switch-mode')!
   .addEventListener('click',()=>openMainMenu());
 document.querySelector<HTMLButtonElement>('#gym-preview')!
   .addEventListener('click',()=>startGameMode('story'));
-document.querySelector<HTMLButtonElement>('[data-start-training]')?.addEventListener('click',()=>showPanel('testing'));
-document.querySelector<HTMLInputElement>('#testing-level')!
-  .addEventListener('input',()=>{
-    document.querySelector<HTMLElement>('[data-testing-number]')!
-      .textContent=document.querySelector<HTMLInputElement>('#testing-level')!.value;
-  });
-document.querySelector<HTMLButtonElement>('[data-confirm-testing]')!
-  .addEventListener('click',()=>{
-    const player=document.querySelector<HTMLSelectElement>('#testing-player')!.value as Fighter;
-    const rival=document.querySelector<HTMLSelectElement>('#testing-rival')!.value as Fighter;
-    const level=36;
-    setTrainingSetup(player,rival,level);
-    clearMatch();
-    startGameMode('training');
-  });
-document.querySelector<HTMLButtonElement>('[data-start-brock]')?.addEventListener('click',()=>startGameMode('story'));
-document.querySelector<HTMLButtonElement>('[data-start-story]')?.addEventListener('click',()=>showPanel(chosenStarter()?'resume':'choose'));
-document.querySelector<HTMLButtonElement>('[data-continue-story]')?.addEventListener('click',()=>startGameMode('world'));
-document.querySelector<HTMLButtonElement>('[data-new-story]')?.addEventListener('click',()=>showPanel('choose'));
 document.querySelectorAll<HTMLButtonElement>('[data-menu-back]')
   .forEach(button=>button.addEventListener('click',()=>showPanel('home')));
-document.querySelectorAll<HTMLButtonElement>('[data-starter]')
-  .forEach(button=>button.addEventListener('click',()=>{
-    const value=button.dataset.starter;
-    if(value==='charmander'||value==='bulbasaur'||value==='squirtle')
-      candidate=value;
-    document.querySelectorAll<HTMLButtonElement>('[data-starter]')
-      .forEach(option=>{
-        const chosen=option.dataset.starter===candidate;
-        option.classList.toggle('selected',chosen);
-        option.setAttribute('aria-pressed',String(chosen));
-      });
-  }));
-document.querySelector<HTMLButtonElement>('[data-confirm-starter]')!
-  .addEventListener('click',()=>{
-    if(chosenStarter()&& !window.confirm(
-      'Começar outra jornada? O nível e a equipe salvos serão reiniciados.'
-    ))return;
-    chooseStarter(candidate);
-    resetStoryProgress();
-    startGameMode('world');
-  });
-document.querySelector<HTMLButtonElement>('[data-return-story]')!
-  .addEventListener('click',()=>startGameMode('world'));
-window.addEventListener('monster-arena:return-world',
-  ()=>startGameMode('world'));
-
-window.addEventListener('monster-arena:practice-result',event=>{
-  const detail=(event as CustomEvent<{
-    victory:boolean;experience:number;species?:string;level?:number;
-    mode?:'practice'|'wild'
-  }>).detail;
-  if(!detail)return;
-  const back=document.querySelector<HTMLButtonElement>('[data-return-story]');
-  if(back)back.hidden=false;
-  if(!detail.victory)return;
-  // Restarting a battle or returning from a stale result never bypasses
-  // the 20-minute trainer rest enforced on the overworld.
-  if(detail.mode==='practice'&&trainerCooldownRemaining()>0)return;
-  const before=getActivePokemon(loadCollection());
-  const award=awardActiveExperience(loadCollection(),detail.experience);
-  const after=getActivePokemon(award.collection);
-  if(detail.mode==='practice')registerTrainingVictory();
-  const returnButton=document.querySelector<HTMLButtonElement>(
-    '[data-return-story]');
-  if(returnButton)returnButton.hidden=false;
-  if(before.species!==after.species){
-    try{window.sessionStorage.setItem('monster-arena-evolution',
-      pokemonCatalog[after.species].name);}catch{}
-    const info=document.querySelector<HTMLElement>('[data-battle-record]');
-    if(info)info.textContent='EVOLUÇÃO! '+
-      pokemonCatalog[after.species].name+' · Nv '+after.level;
-  }
-});
-window.addEventListener('monster-arena:gym-victory',()=>{
-  const back=document.querySelector<HTMLButtonElement>('[data-return-story]');
-  if(back)back.hidden=false;
-  const saved=loadCollection();
-  if(saved.badges.includes('pedra'))return;
-  saveCollection({...saved,badges:[...saved.badges,'pedra']});
-});
+window.addEventListener('monster-arena:return-world',()=>{clearMatch();openMainMenu();});
 
 function renderBattleMenu(){
  const limit=battleKind==='quick'?3:6;
  const c=challenges.find(c=>c.id===chosenTrainer);
+ const remaining=limit-teamSelection.length;
  const tr=document.querySelector<HTMLSelectElement>('#arena-trainer')!;
  tr.innerHTML=challenges.map(c=>'<option value="'+c.id+'">'+c.name+' · '+c.city+'</option>').join('');
  tr.value=chosenTrainer;
@@ -541,26 +353,35 @@ function renderBattleMenu(){
  const arena=document.querySelector<HTMLSelectElement>('#arena-choice')!;
  arena.disabled=battleKind==='story';
  arena.value=battleKind==='story'?(c?.arena??'classic'):arenaSelection;
- document.querySelector<HTMLElement>('#team-count')!.textContent='EQUIPE: '+teamSelection.length+' / '+limit;
+ document.querySelector<HTMLElement>('#team-count')!.textContent=
+  'SUA EQUIPE: '+teamSelection.length+' / '+limit+(remaining>0?' • Escolha mais '+remaining:' • Pronto para lutar!');
  document.querySelector<HTMLElement>('#team-grid')!.innerHTML=selectablePokemon.map(id=>{
    const p=pokemonCatalog[id],number=teamSelection.indexOf(id)+1;
-   return '<button class="arena-pokemon-option '+(number?'selected':'')+'" type="button" data-select-pokemon="'+id+'"><img src="'+p.portrait+'" alt="" loading="lazy"><b>'+p.name+'</b><small>'+p.elements.join(' / ')+'</small>'+(number?'<span class="arena-slot">'+number+'</span>':'')+'</button>';
+   const portrait=id==='blastoise'
+     ?'<span class="arena-pokemon-thumb blastoise-pixel-thumb" aria-hidden="true"></span>'
+     :'<img class="arena-pokemon-thumb" src="'+p.portrait+'" alt="" loading="lazy"/>';
+   const slot=number?'<span class="arena-slot">'+number+'</span>':'';
+   return '<button class="arena-pokemon-option '+(number?'selected':'')+
+      '" type="button" data-select-pokemon="'+id+'" aria-pressed="'+Boolean(number)+'" aria-label="'+
+      (number?'Remover ':'Selecionar ')+p.name+' da equipe">'+portrait+
+      '<b>'+p.name+'</b><small>'+(number?'✓ Selecionado':'Toque para escolher')+
+      '</small>'+slot+'</button>';
  }).join('');
  document.querySelector<HTMLButtonElement>('#start-match')!.disabled=teamSelection.length!==limit;
  document.querySelector<HTMLElement>('#arena-detail')!.textContent=battleKind==='story'
    ?'DESAFIO: '+(c?.name??'')+' · '+(c?.team.length??0)+' Pokémon · '+arenaNames[c?.arena??'classic']
-   :'CPU escolhe três Pokémon aleatórios.';
+   :'CPU escolhe três Pokémon aleatórios. Selecione Charizard, Venusaur ou Blastoise e outros Pokémon.';
  document.querySelectorAll<HTMLButtonElement>('[data-kind]').forEach(b=>b.classList.toggle('selected',b.dataset.kind===battleKind));
 }
 document.querySelector<HTMLButtonElement>('[data-quick-training]')!.addEventListener('click',()=>{
  clearMatch();setTrainingSetup('charizard','raichu',36);startGameMode('training');
 });
 document.querySelector<HTMLButtonElement>('[data-start-arena]')!.addEventListener('click',()=>{
- battleKind='quick';teamSelection=['charizard','venusaur','blastoise'];
+ battleKind='quick';teamSelection=[];
  renderBattleMenu();showPanel('arena');
 });
 document.querySelector<HTMLButtonElement>('[data-start-challenges]')!.addEventListener('click',()=>{
- battleKind='story';teamSelection=[...selectablePokemon];
+ battleKind='story';teamSelection=[];
  renderBattleMenu();showPanel('arena');
 });
 document.querySelectorAll<HTMLButtonElement>('[data-kind]').forEach(b=>b.addEventListener('click',()=>{
@@ -585,7 +406,7 @@ document.querySelector<HTMLSelectElement>('#arena-choice')!.addEventListener('ch
 document.querySelector<HTMLButtonElement>('#start-match')!.addEventListener('click',()=>{
  if(teamSelection.length!==(battleKind==='quick'?3:6))return;
  beginMatch(teamSelection,arenaSelection,battleKind,battleKind==='story'?chosenTrainer:undefined);
- setTrainingSetup(teamSelection[0],'pikachu',36);
+ setTrainingSetup(teamSelection[0],'raichu',36);
  startGameMode('training');
 });
 window.addEventListener('monster-arena:return-menu',()=>{clearMatch();openMainMenu();});
