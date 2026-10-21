@@ -1,3 +1,26 @@
+# Pokémon Arena — batalhas offline (21/10/2026)
+
+A tela inicial agora prioriza **batalhas locais contra CPU**, sem precisar explorar mapas.
+- **Batalha livre 3×3:** escolha três Pokémon, escolha uma arena ou sorteie uma aleatória e derrote a equipe controlada pelo computador.
+- **Circuito de treinadores:** escolha uma equipe de seis Pokémon para enfrentar desafios diretos contra líderes e personagens, sem exploração. O elenco de adversários é inicial e utiliza somente espécies já implementadas; treinadores marcados como planejados ainda não possuem suas equipes definitivas.
+- **Arenas reutilizadas:** arena clássica, campo Safari e ginásio do Brock (arte existente).
+- Os Pokémon entram em sequência após cada nocaute, até que uma das equipes seja eliminada. Os controles Q/W/E/R, esquiva, efeitos e placar seguem o motor anterior.
+- **Online/PvP:** ainda não implementado. A configuração da partida foi isolada em `src/battleSetup.ts` para facilitar uma futura sincronização pela rede.
+- **Modo história antigo:** preservado integralmente na branch `legacy/exploracao-2026-10-21`. Não é mais o fluxo principal; o novo circuito de treinadores é o ponto de partida do futuro modo história sem mapas.
+- A seleção do jogador usa inicialmente as sete espécies cujas habilidades jogáveis estavam implementadas: Charmander, Charmeleon, Charizard, Bulbasaur, Ivysaur, Squirtle e Wartortle. Expandiremos o catálogo jogável nas próximas fases.
+- Os rounds restauram HP e recursos ao entrar um novo Pokémon. Balanço e interação visual ainda precisam de validação jogando no navegador.
+
+## Desenvolvimento
+```bash
+npm install
+npm run dev
+npm run build
+```
+
+---
+
+## Histórico da versão exploratória
+
 ## ATUALIZAÇÃO VISUAL / PC — 19 OUT 2026
 
 A Zona Safari agora apresenta **Vila de Kanto em pixel art** desenhada em tiles, com casas, Centro de Cura, caminhos claros, lago, árvores, mato alto e ginásio. O Red usa os **oito frames existentes** sem acessar frames inválidos. O acompanhante Bulbasaur/Squirtle/Charmander usa sprites pixelados oficiais **HGSS de seis frames**, armazenados localmente; suas evoluções mantêm temporariamente sprites PMD com Idle e Walk em oito direções, sem esticar a imagem para dimensões incompatíveis. As texturas foram preservadas com amostragem **nearest-pixel**, evitando borrão na ampliação.
