@@ -370,3 +370,11 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
 [data-menu-panel="arena"] #start-match{width:100%;margin-top:12px}
 [data-menu-panel="arena"] #start-match:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:650px){.arena-pokemon-grid{grid-template-columns:repeat(3,minmax(0,1fr));max-height:210px}.arena-pokemon-option img{width:46px;height:46px}.arena-mode-buttons button{font-size:12px}}
+
+/* A batalha é a tela principal; não há evolução ou mapa no menu. */
+.battle-home-modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.battle-home-modes .landing-mode{min-height:108px}
+.mode-coming-soon{opacity:.50;cursor:not-allowed}
+#landing-menu [data-menu-panel="home"] .safari-difficulty{display:none}
+#landing-menu [data-menu-panel="arena"] .arena-mode-buttons{display:none}
+@media(max-width:640px){.battle-home-modes{grid-template-columns:1fr}.battle-home-modes .landing-mode{min-height:65px}}
