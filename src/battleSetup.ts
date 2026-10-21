@@ -7,7 +7,7 @@ export interface Challenge {id:string;name:string;city:string;team:readonly Figh
 export const challenges:readonly Challenge[]=[
   {id:'brock',name:'Brock',city:'Pewter',team:['geodude','onix'],arena:'pewter',status:'available'},
   {id:'misty',name:'Misty',city:'Cerulean',team:['squirtle','wartortle'],arena:'classic',status:'available'},
-  {id:'surge',name:'Lt. Surge',city:'Vermilion',team:['pikachu','raichu' as Fighter].filter(p=>p in pokemonCatalog),arena:'classic',status:'planned'},
+  {id:'surge',name:'Lt. Surge',city:'Vermilion',team:['pikachu'],arena:'classic',status:'planned'},
   {id:'erika',name:'Erika',city:'Celadon',team:['bulbasaur','ivysaur'],arena:'safari',status:'available'},
   {id:'koga',name:'Koga',city:'Fuchsia',team:['weedle','kakuna'],arena:'classic',status:'planned'},
   {id:'sabrina',name:'Sabrina',city:'Saffron',team:['jigglypuff'],arena:'classic',status:'planned'},
