@@ -183,7 +183,7 @@ export class ArenaScene extends Phaser.Scene {
       ?activeWildEncounter().species:mode==='training'
         ?setup.rival:'pikachu';
     const roster=[player,rival,...(mode==='story'?['onix']:[])] as Fighter[];
-    preloadOverworld(this,roster);
+    preloadOverworld(this,roster.filter(id=>!['venusaur','blastoise','raichu'].includes(id)));
     if(mode==='story'||currentMatch()?.arena==='pewter')preloadPewter(this);
     const base='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
     for(const species of roster){
@@ -241,7 +241,8 @@ export class ArenaScene extends Phaser.Scene {
     this.playerMotion = undefined;
     this.enemyMotion = undefined;
     this.hitStopUntil = -1000;
-    this.starterLevel=currentMatch()?36:this.mode==='training'?getTrainingSetup().level:
+    this.starterLevel=36; // No XP, evolution or level-based ability unlocks.
+    /* legacy */ const oldLevel=currentMatch()?36:this.mode==='training'?getTrainingSetup().level:
       getActivePokemon(loadCollection()).level;
     this.playerMaxHp=this.mode==='training'?
       Math.round(pokemonCatalog[this.playerSpecies].maxHp*
@@ -637,9 +638,7 @@ export class ArenaScene extends Phaser.Scene {
       if(!element)continue;
       const duration=action==='dodge'
         ?dodge.cooldown:skills[this.playerSpecies][action].cooldown;
-      const levelNeeded=this.playerSpecies==='charmander'?8:
-        this.playerSpecies==='bulbasaur'?7:
-        this.playerSpecies==='squirtle'?9:0;
+      const levelNeeded=0;
       const unlocked=action!=='r'||this.starterLevel>=levelNeeded;
       const remaining=Math.max(0,duration-(time-this.playerCastAt[action]));
       const text=element.querySelector<HTMLElement>('[data-timer]');
@@ -707,9 +706,7 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     // Four slots become available as Charmander learns new moves.
-    const needed=this.playerSpecies==='charmander'?8:
-      this.playerSpecies==='bulbasaur'?7:
-      this.playerSpecies==='squirtle'?9:0;
+    const needed=0;
     if(action==='r'&&this.starterLevel<needed){
       if(time-this.lastMoveLockedCue>1250){
         this.skillCallout(this.player.x,this.player.y-80,
@@ -760,9 +757,49 @@ export class ArenaScene extends Phaser.Scene {
         this.castCharizard(action,dir,this.time.now);
       else if(this.playerSpecies==='charmander'||this.playerSpecies==='charmeleon')
         this.castCharmander(action,dir,this.time.now);
-      else
-        this.castOtherStarter(action,dir,this.time.now);
+      else if(['venusaur','blastoise','raichu','fearow','raticate'].includes(this.playerSpecies))
+        this.castFinalPokemon(action,dir,this.time.now);
+      else this.castOtherStarter(action,dir,this.time.now);
     });
+  }
+
+  private castFinalPokemon(skill:Skill,dir:Phaser.Math.Vector2,time:number){
+    const profile=pokemonCatalog[this.playerSpecies];
+    const ability=skills[this.playerSpecies][skill];
+    const target={x:this.enemy.x,y:this.enemy.y};
+    const origin={x:this.player.x+dir.x*23,y:this.player.y-15+dir.y*16};
+    const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,this.enemy.x,this.enemy.y);
+    if(ability.damage===0){
+      if(this.playerSpecies==='blastoise'){
+        this.starterFx.shell({x:this.player.x,y:this.player.y});
+        this.changeBattleStat('player','defense',1);
+      }else{
+        this.starterFx.growl(origin,target);
+        if(distance<360)this.changeBattleStat('enemy','attack',-1);
+      }
+      return;
+    }
+    if(skill==='q'){
+      this.startTackle('player',ability.damage,ability.element,time,dir);
+      return;
+    }
+    const elemental=profile.attackStyle;
+    if(elemental==='grass'){
+      this.starterFx.vines(origin,target);
+      if(distance<320)this.damage('enemy',ability.damage,target.x,target.y,0x9ddd90,'grass','special');
+    }else if(elemental==='water'){
+      this.starterFx.water(origin,dir);
+      this.projectile(origin.x,origin.y,dir,skill==='r'?490:425,skill==='r'?23:15,
+        'water','player',ability.damage,1150,time);
+    }else if(elemental==='electric'){
+      this.fx.charge(origin.x,origin.y,'electric',skill==='r'?1.5:0.9);
+      this.projectile(origin.x,origin.y,dir,skill==='r'?560:460,skill==='r'?20:11,
+        'spark','player',ability.damage,1050,time);
+    }else{
+      this.starterFx.gust(origin,target,skill==='r');
+      if(distance<330)this.damage('enemy',ability.damage,target.x,target.y,
+        0xb5e9dc,profile.elements[0]);
+    }
   }
 
   private castCharmander(skill:Skill,dir:Phaser.Math.Vector2,time:number){
@@ -916,7 +953,7 @@ export class ArenaScene extends Phaser.Scene {
 
   private castPikachu(skill:Skill,time:number) {
     if(!this.canCast('enemy',skill,time))return;
-    const ability=skills.pikachu[skill];
+    const ability=skills[this.enemySpecies][skill];
     this.enemyCastAt[skill]=time;
     this.enemyAttackAt=time;
     const from=this.enemy;
@@ -932,7 +969,7 @@ export class ArenaScene extends Phaser.Scene {
     }
     if(skill==='q') {
       const x=from.x+dir.x*19,y=from.y+dir.y*19;
-      this.time.delayedCall(this.enemyMotion?releaseFrameMs('pikachu','Shoot'):120,()=>{
+      this.time.delayedCall(this.enemyMotion?releaseFrameMs(this.enemySpecies,'Shoot'):120,()=>{
         if(this.finished)return;
         this.projectile(this.enemy.x+dir.x*19,this.enemy.y+dir.y*19,dir,490,9,'spark','enemy',
           ability.damage,760,this.time.now);
@@ -1347,7 +1384,7 @@ export class ArenaScene extends Phaser.Scene {
       const rematch=document.querySelector<HTMLButtonElement>(
         '[data-battle-rematch]');
       if(rematch)rematch.textContent=returnOnly
-        ?'↩ Voltar à Safari':'↻ Jogar novamente';
+        ?'↩ Menu principal':'↻ Jogar novamente';
       const touchRestart=document.querySelector<HTMLButtonElement>(
         '[data-touch-restart]');
       if(touchRestart)touchRestart.textContent=returnOnly
@@ -1415,9 +1452,10 @@ export class ArenaScene extends Phaser.Scene {
       align:'center'
     }).setOrigin(0.5).setDepth(25);
     const mustReturn=this.mode==='wild'||this.mode==='practice'||!!currentMatch();
+    const returnLabel=currentMatch()?'AO MENU':'À SAFARI';
     this.add.text(center,385,
       mustReturn?
-        (this.mobile.active?'TOQUE EM VOLTAR À SAFARI':'ENTER PARA VOLTAR À SAFARI'):
+        (this.mobile.active?'TOQUE PARA VOLTAR '+returnLabel:'ENTER PARA VOLTAR '+returnLabel):
         (this.mobile.active?'TOQUE EM JOGAR NOVAMENTE':'ENTER PARA JOGAR NOVAMENTE'),{
         fontSize:'16px',fontStyle:'bold',color:'#dbf5f2'
       }).setOrigin(0.5).setDepth(25);
@@ -1769,7 +1807,7 @@ export class ArenaScene extends Phaser.Scene {
       selection=this.mode==='story'&&this.canCast('enemy','e',time)?'e':'q';
     if(!this.canCast('enemy',selection,time))selection='q';
     if(this.canCast('enemy',selection,time)){
-      if(this.enemySpecies==='pikachu')this.castPikachu(selection,time);
+      if(this.enemySpecies==='pikachu'||this.enemySpecies==='raichu')this.castPikachu(selection,time);
       else if(this.enemySpecies==='geodude'||this.enemySpecies==='onix')
         this.castRockPokemon(selection,time);
       else this.castSafariMove(selection,time);
