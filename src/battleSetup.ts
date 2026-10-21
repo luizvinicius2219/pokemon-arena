@@ -1,26 +1,26 @@
 import type { Fighter } from './abilities';
-import { pokemonCatalog } from './pokemonCatalog';
 
 export type ArenaId='classic'|'pewter'|'safari';
 export type MatchKind='quick'|'story';
 export interface Challenge {id:string;name:string;city:string;team:readonly Fighter[];arena:ArenaId;status:'available'|'planned'}
 export const challenges:readonly Challenge[]=[
-  {id:'brock',name:'Brock',city:'Pewter',team:['geodude','onix'],arena:'pewter',status:'available'},
-  {id:'misty',name:'Misty',city:'Cerulean',team:['squirtle','wartortle'],arena:'classic',status:'available'},
-  {id:'surge',name:'Lt. Surge',city:'Vermilion',team:['pikachu'],arena:'classic',status:'planned'},
-  {id:'erika',name:'Erika',city:'Celadon',team:['bulbasaur','ivysaur'],arena:'safari',status:'available'},
-  {id:'koga',name:'Koga',city:'Fuchsia',team:['weedle','kakuna'],arena:'classic',status:'planned'},
-  {id:'sabrina',name:'Sabrina',city:'Saffron',team:['jigglypuff'],arena:'classic',status:'planned'},
-  {id:'blaine',name:'Blaine',city:'Cinnabar',team:['charmeleon','charizard'],arena:'classic',status:'available'},
-  {id:'giovanni',name:'Giovanni',city:'Viridian',team:['raticate','geodude','onix'],arena:'pewter',status:'available'}
+  {id:'brock',name:'Brock',city:'Pewter',team:['onix','raticate'],arena:'pewter',status:'available'},
+  {id:'misty',name:'Misty',city:'Cerulean',team:['blastoise','raticate'],arena:'classic',status:'available'},
+  {id:'surge',name:'Lt. Surge',city:'Vermilion',team:['raichu'],arena:'classic',status:'planned'},
+  {id:'erika',name:'Erika',city:'Celadon',team:['venusaur','fearow'],arena:'safari',status:'available'},
+  {id:'koga',name:'Koga',city:'Fuchsia',team:['raticate','fearow'],arena:'classic',status:'planned'},
+  {id:'sabrina',name:'Sabrina',city:'Saffron',team:['raichu','fearow'],arena:'classic',status:'planned'},
+  {id:'blaine',name:'Blaine',city:'Cinnabar',team:['charizard','raichu'],arena:'classic',status:'available'},
+  {id:'giovanni',name:'Giovanni',city:'Viridian',team:['raticate','onix','blastoise'],arena:'pewter',status:'available'}
 ];
 export const arenaNames:Record<ArenaId,string>={classic:'Arena clássica',pewter:'Ginásio do Brock',safari:'Campo Safari'};
-export const selectablePokemon:readonly Fighter[]=['charmander','charmeleon','charizard','bulbasaur','ivysaur','squirtle','wartortle'];
+export const selectablePokemon:readonly Fighter[]=['charizard','venusaur','blastoise','raichu','fearow','raticate'];
 export interface MatchSetup {
   kind:MatchKind;arena:ArenaId;player:readonly Fighter[];enemy:readonly Fighter[];
   playerIndex:number;enemyIndex:number;challengeId?:string;
 }
 let current:MatchSetup|null=null;
+export function clearMatch():void{current=null;}
 export function currentMatch():MatchSetup|null{return current;}
 export function activeMatchPokemon():{player:Fighter;enemy:Fighter}{
   if(!current)return {player:'charizard',enemy:'pikachu'};
@@ -31,7 +31,7 @@ export function beginMatch(player:readonly Fighter[],arena:ArenaId|'random',kind
   if(unique.length!== (kind==='quick'?3:6))throw new Error('Selecione a quantidade correta de Pokémon.');
   const challenge=challenges.find(c=>c.id===challengeId);
   const opponents:readonly Fighter[]=kind==='story'&&challenge?challenge.team:
-    (Object.keys(pokemonCatalog) as Fighter[]).sort(()=>Math.random()-0.5).slice(0,3);
+    [...selectablePokemon].sort(()=>Math.random()-0.5).slice(0,3);
   const chosenArena=arena==='random'?(['classic','pewter','safari'] as ArenaId[])[Math.floor(Math.random()*3)]:arena;
   current={kind,arena:kind==='story'&&challenge?challenge.arena:chosenArena,
     player:unique,enemy:opponents,playerIndex:0,enemyIndex:0,challengeId};
@@ -54,6 +54,6 @@ export function advanceMatch(loser:'player'|'enemy'):'next'|'victory'|'defeat'{
 }
 export function matchProgress():string{
  if(!current)return '';
- return 'SUA EQUIPE '+(current.playerIndex+1)+'/'+current.player.length+
-    '   •   CPU '+(current.enemyIndex+1)+'/'+current.enemy.length;
+ return 'SUA EQUIPE '+Math.min(current.playerIndex+1,current.player.length)+'/'+current.player.length+
+    '   •   CPU '+Math.min(current.enemyIndex+1,current.enemy.length)+'/'+current.enemy.length;
 }
