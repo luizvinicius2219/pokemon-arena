@@ -136,6 +136,9 @@ export const pokemonCatalog: Record<Fighter,PokemonProfile> = {
     portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/6.png',
     playable:true
   }),
+  venusaur:profile({id:'venusaur',number:3,name:'Venusaur',elements:['grass','poison'],maxHp:140,radius:24,moveSpeed:175,attackStyle:'grass',portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/3.png',playable:true}),
+  blastoise:profile({id:'blastoise',number:9,name:'Blastoise',elements:['water'],maxHp:145,radius:25,moveSpeed:175,attackStyle:'water',portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/9.png',playable:true}),
+  raichu:profile({id:'raichu',number:26,name:'Raichu',elements:['electric'],maxHp:115,radius:20,moveSpeed:215,attackStyle:'electric',portrait:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/26.png',playable:true}),
   pikachu:profile({
     id:'pikachu',number:25,name:'Pikachu',elements:['electric'],
     maxHp:100,radius:19,moveSpeed:122,attackStyle:'electric',
