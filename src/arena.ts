@@ -368,7 +368,10 @@ export class ArenaScene extends Phaser.Scene {
       }
     });
     this.input.on('pointermove',(p: Phaser.Input.Pointer) => {
-      if(p.rightButtonDown() && !this.settingsOpen() && !this.finished) this.destination.set(clampX(p.x),clampY(p.y));
+      if(p.rightButtonDown() && !this.settingsOpen() && !this.finished) {
+        const safe=this.environment?.resolve(p.x,p.y,this.player.radius);
+        this.destination.set(safe?.x??clampX(p.x),safe?.y??clampY(p.y));
+      }
     });
     this.input.keyboard?.on('keydown-ENTER',() => {
       if(this.finished)this.restartOrReturn();
