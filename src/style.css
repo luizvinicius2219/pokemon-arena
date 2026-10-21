@@ -378,3 +378,18 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
 #landing-menu [data-menu-panel="home"] .safari-difficulty{display:none}
 #landing-menu [data-menu-panel="arena"] .arena-mode-buttons{display:none}
 @media(max-width:640px){.battle-home-modes{grid-template-columns:1fr}.battle-home-modes .landing-mode{min-height:65px}}
+
+/* Blastoise selection card uses the same authored 4x3, 32px pixel atlas as battle. */
+.arena-pokemon-thumb{width:64px;height:64px;display:block;flex:none;object-fit:contain;image-rendering:pixelated}
+.blastoise-pixel-thumb{
+  background-image:url('/assets/pokemon/blastoise-frames.webp');
+  background-repeat:no-repeat;
+  background-size:256px 192px;
+  background-position:-64px -64px;
+}
+.arena-pokemon-option{transition:border-color .12s ease,background-color .12s ease}
+.arena-pokemon-option:focus-visible{outline:3px solid #f7dd9c;outline-offset:2px}
+.arena-pokemon-option[aria-pressed="true"]{background:#285f57;border-color:#f7ce76}
+.arena-pokemon-option small{max-width:100%;text-align:center}
+#team-count{color:#f9dc95;font-weight:850;font-size:15px;min-height:20px}
+@media(max-width:650px){.arena-pokemon-thumb{width:64px;height:64px}}
