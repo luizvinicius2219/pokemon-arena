@@ -3,7 +3,7 @@ import type { Action } from './controls';
 export type Skill = Exclude<Action, 'dodge'>;
 export type Fighter = 'charmander' | 'charmeleon' | 'charizard' |
   'bulbasaur' | 'ivysaur' | 'squirtle' | 'wartortle' |
-  'pikachu' | 'rattata' | 'raticate' | 'jigglypuff' |
+  'pikachu' | 'raichu' | 'venusaur' | 'blastoise' | 'rattata' | 'raticate' | 'jigglypuff' |
   'pidgey' | 'pidgeotto' | 'spearow' | 'fearow' |
   'caterpie' | 'metapod' | 'weedle' | 'kakuna' | 'geodude' | 'onix';
 export type Starter = 'charmander' | 'bulbasaur' | 'squirtle';
@@ -129,6 +129,24 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
     w: { name: 'Lança-Chamas', description: 'Feixe contínuo e direcionável de fogo.', icon: '🌋', cooldown: 2300, damage: 5, element: 'fire' },
     e: { name: 'Explosão de Fogo', description: 'Bola de fogo que explode em área.', icon: '💥', cooldown: 3800, damage: 20, element: 'fire' },
     r: { name: 'Rajada de Fogo', description: 'Explosão poderosa com fragmentos flamejantes.', icon: '☄️', cooldown: 7600, damage: 29, element: 'fire' }
+  },
+  venusaur: {
+    q:{name:'Chicote de Vinha',description:'Golpe rápido de planta a curta distância.',icon:'🌿',cooldown:900,damage:13,element:'grass'},
+    w:{name:'Pólen Protetor',description:'Reduz o ataque do adversário.',icon:'🌸',cooldown:4300,damage:0,element:'grass'},
+    e:{name:'Folha Navalha',description:'Golpe vegetal concentrado de médio alcance.',icon:'🍃',cooldown:1900,damage:19,element:'grass'},
+    r:{name:'Raio Solar',description:'Ataque especial concentrado com alto dano.',icon:'☀️',cooldown:7500,damage:27,element:'grass'}
+  },
+  blastoise: {
+    q:{name:'Investida',description:'Avanço rápido para atingir o alvo.',icon:'💨',cooldown:930,damage:14,element:'normal'},
+    w:{name:'Defesa de Casco',description:'Aumenta a defesa temporariamente.',icon:'🛡️',cooldown:4600,damage:0,element:'water'},
+    e:{name:'Jato de Água',description:'Projétil rápido de água.',icon:'💧',cooldown:1650,damage:18,element:'water'},
+    r:{name:'Hidro Bomba',description:'Ataque forte de água de longo alcance.',icon:'🌊',cooldown:7400,damage:30,element:'water'}
+  },
+  raichu: {
+    q:{name:'Choque do Trovão',description:'Faísca elétrica rápida.',icon:'⚡',cooldown:720,damage:11,element:'electric'},
+    w:{name:'Onda de Choque',description:'Descarga elétrica de curto alcance.',icon:'🌀',cooldown:2900,damage:17,element:'electric'},
+    e:{name:'Raio',description:'Descarga direcionada ao adversário.',icon:'🌩️',cooldown:3900,damage:21,element:'electric'},
+    r:{name:'Trovão',description:'Golpe elétrico especial de alto dano.',icon:'⛈️',cooldown:8100,damage:31,element:'electric'}
   },
   pikachu: {
     q: { name: 'Choque do Trovão', description: 'Projétil elétrico rápido.', icon: '⚡', cooldown: 850, damage: 7, element: 'electric' },
