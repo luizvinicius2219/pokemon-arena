@@ -35,7 +35,8 @@ export class RockFx {
     this.impacts.push({x,y,radius,start:now,duration:kind==='quake'?790:kind==='fall'?620:410,kind});
     if(this.impacts.length>12)this.impacts.shift();
     if(kind==='quake'){
-      this.fractures.stamp(x,y,radius,Math.max(0.8,Math.min(1.2,radius/170)));
+      this.fractures.stamp(x,y,radius,Math.max(0.8,Math.min(1.2,radius/170)),
+        radius>=200?'ultimate':'heavy');
       this.scene.cameras.main.shake(115,0.0015);
     }
   }
