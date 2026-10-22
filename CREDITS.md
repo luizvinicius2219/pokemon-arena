@@ -87,3 +87,19 @@ Sprites animados em 8 direções, incluindo sprites de exploração e batalha, p
 ## Overworld HGSS principal (19/10/2026)
 
 Os sprites de Red (16×32 × 6 frames), Bulbasaur, Charmander e Squirtle (32×32 × 6 frames) foram adaptados como sprites locais sem interpolação: [LucianoNeo/gen1recomp-mods — hgss_sprites](https://github.com/LucianoNeo/gen1recomp-mods/tree/master/hgss_sprites). Esse conjunto reúne sprites de estilo HeartGold/SoulSilver e é baseado em conteúdo de jogo originalmente pertencente a Nintendo, Game Freak e The Pokémon Company. Uso em fan game experimental não comercial, mantendo a fonte explicitamente creditada.
+
+
+## Blastoise (#0009) - animacoes locais PMDCollab
+
+Sprites PNG originais sem redimensionamento, provenientes do
+[PMDCollab SpriteCollab](https://github.com/PMDCollab/SpriteCollab/tree/8609c03fe46623daf6dee524a9c573d1e9fc1c2f/sprite/0009).
+Os treze conjuntos `*-Anim.png`, `AnimData.xml` e `credits.txt` originais
+estao em `public/assets/pokemon/blastoise/`.
+As dimensoes, as oito direcoes e duracoes de cada quadro seguem exatamente
+`AnimData.xml`. Credito da origem: CHUNSOFT, conforme `credits.txt`.
+O jogo utiliza sete animacoes para movimentacao, ataques e dano; os outros
+conjuntos preservados possibilitam expansoes futuras.
+O atlas improvisado de 32x32 foi descontinuado e nao deve ser usado.
+A origem tem sua propria politica de licenciamento; e necessario manter os
+creditos, restringir o uso a fins nao comerciais e respeitar os direitos
+dos titulares de Pokemon.
