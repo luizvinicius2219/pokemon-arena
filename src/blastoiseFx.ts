@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CombatFx } from './combatFx';
+import { blastoiseCannonPoint } from './waterJet';
 
 type Point=Readonly<{x:number;y:number}>;
 type Side='player'|'enemy';
@@ -17,32 +18,22 @@ export class BlastoiseFx {
   }
 
   cannon(x:number,y:number,dir:Point,barrel:-1|1):Point{
-    const length=Math.hypot(dir.x,dir.y)||1;
-    const dx=dir.x/length,dy=dir.y/length;
-    return {
-      x:x+dx*34-dy*barrel*21,
-      y:y-34+dy*19+dx*barrel*16
-    };
+    return blastoiseCannonPoint(x,y,dir,barrel);
   }
 
-  /** A short muzzle flare timed to the release frame of Shoot-Anim.png. */
+  /** Pixel-only outlet spray: no round lasers or smooth halos. */
   muzzle(point:Point,dir:Point,heavy=false):void{
     const g=this.scene.add.graphics().setDepth(12);
-    const len=heavy?53:29, spread=heavy?16:9;
-    const ox=point.x,oy=point.y;
-    const nx=-dir.y,ny=dir.x;
-    g.fillStyle(0x1c82bc,0.30).fillCircle(ox,oy,heavy?25:15);
-    g.fillStyle(0x67d9f5,0.93).fillCircle(ox,oy,heavy?13:8);
-    g.fillStyle(0xf1ffff,0.97).fillCircle(ox,oy,heavy?6:4);
-    for(let i=-2;i<=2;i++){
-      const reach=len-5*Math.abs(i);
-      const wx=ox+dir.x*reach+nx*i*spread*0.45;
-      const wy=oy+dir.y*reach+ny*i*spread*0.45;
-      g.lineStyle(i===0?5:3,i%2?0x52c7ef:0xb9f7ff,0.86)
-        .lineBetween(ox+nx*i*3,oy+ny*i*3,wx,wy);
-      g.fillStyle(i%2?0x67d6ff:0xe8fcff,0.9).fillRect(wx-3,wy-3,6,6);
+    const n=Math.hypot(dir.x,dir.y)||1,dx=dir.x/n,dy=dir.y/n;
+    const nx=-dy,ny=dx;
+    const snap=(v:number)=>Math.round(v/3)*3;
+    for(let i=0;i<(heavy?9:6);i++){
+      const forward=7+(i%4)*6,side=(i%3-1)*(heavy?9:6);
+      g.fillStyle([0x1b6497,0x49aed8,0xcaf9ff][i%3],1);
+      g.fillRect(snap(point.x+dx*forward+nx*side),
+        snap(point.y+dy*forward+ny*side),i%2?6:3,i%3?6:3);
     }
-    this.scene.tweens.add({targets:g,alpha:0,duration:heavy?280:180,
+    this.scene.tweens.add({targets:g,alpha:0,duration:150,
       onComplete:()=>g.destroy()});
   }
 
@@ -108,25 +99,23 @@ export class BlastoiseFx {
       elapsed,duration,reach,blocked,heavy);
   }
 
-  /** Crisp cyan droplets, white foam, ground ring and a brief expanding shock. */
+  /** A restrained, pixel-grid water impact with square spray and foam. */
   splash(x:number,y:number,power=1):void{
-    const amount=Math.min(17,Math.max(6,Math.round(9*power)));
     const g=this.scene.add.graphics().setDepth(12);
-    const radius=20*power;
-    g.fillStyle(0x1c79b5,0.19).fillEllipse(x,y+11,radius*2.7,radius*0.8);
-    g.lineStyle(Math.max(2,3*power),0x50c5e9,0.86)
-      .strokeEllipse(x,y,radius*2.2,radius*1.45);
-    g.lineStyle(Math.max(1,2*power),0xd7fbff,0.85)
-      .strokeEllipse(x,y,radius*1.55,radius*1.0);
-    g.fillStyle(0xe8ffff,0.77).fillCircle(x,y,Math.max(5,8*power));
-    for(let i=0;i<amount;i++){
-      const a=i*Math.PI*2/amount+0.12;
-      const distance=(16+(i%4)*6)*power;
-      const px=x+Math.cos(a)*distance,py=y+Math.sin(a)*distance*0.72;
-      g.fillStyle(i%3===0?0xffffff:i%2?0x4eb9eb:0x8aeaff,0.92)
-        .fillRect(Math.round(px)-3,Math.round(py)-3,i%3===0?4:6,i%3===0?4:6);
+    const snap=(v:number)=>Math.round(v/3)*3;
+    const strength=Math.max(0.45,Math.min(1.8,power));
+    const count=Math.round(7+strength*5);
+    for(let i=0;i<count;i++){
+      const a=Math.PI*2*i/count;
+      const spread=(12+(i%3)*7)*strength;
+      const px=snap(x+Math.cos(a)*spread);
+      const py=snap(y+Math.sin(a)*spread*0.73);
+      g.fillStyle([0x1c699a,0x46b7dc,0x93e5fa,0xe4fcff][i%4],1);
+      const size=i%3===0?6:3;
+      g.fillRect(px,py,size,size);
     }
-    this.scene.tweens.add({targets:g,alpha:0,scaleX:1.52,scaleY:1.35,
-      duration:Math.round(230+70*power),onComplete:()=>g.destroy()});
+    g.fillStyle(0xdafaff,1).fillRect(snap(x)-6,snap(y)-6,12,12);
+    this.scene.tweens.add({targets:g,alpha:0,scaleX:1.18,scaleY:1.18,
+      duration:195,onComplete:()=>g.destroy()});
   }
 }
