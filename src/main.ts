@@ -178,6 +178,8 @@ function refreshActivePokemonInfo(){
   }
 }
 
+window.addEventListener('monster-arena:team-switch',()=>refreshActivePokemonInfo());
+
 function updateBindingLabels() {
   for (const action of allActions) {
     const key = document.querySelector<HTMLElement>(`[data-action="${action}"] [data-key]`);
