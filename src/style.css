@@ -416,3 +416,5 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
 @media(max-width:650px){.ingame-menu-button{top:6px;left:6px;padding:5px 7px;font-size:11px}
  .ingame-pause-card{gap:6px;padding:12px}
  .ingame-pause-card button{padding:8px 12px}}
+
+.ingame-menu-button[hidden]{display:none!important}
