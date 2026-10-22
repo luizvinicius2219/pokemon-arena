@@ -145,7 +145,7 @@ export class ArenaScene extends Phaser.Scene {
   private knockedOut:Record<Side,boolean>={player:false,enemy:false};
   private projectiles: Projectile[] = [];
   private flameStreams: FlameStream[] = [];
-  private waterStreams:Array<{side:Side;kind:JetType;startAt:number;nextHitAt:number;dir:Phaser.Math.Vector2;ink:Phaser.GameObjects.Graphics}> = [];
+  private waterStreams:Array<{side:Side;kind:JetType;startAt:number;nextHitAt:number;dir:Phaser.Math.Vector2;ink:Phaser.GameObjects.Graphics;secondInk?:Phaser.GameObjects.Graphics}> = [];
   private switchingTeam=false;
   private dash?: DashState;
   private tackles:Record<Side,TackleState|null>={player:null,enemy:null};
@@ -739,7 +739,10 @@ export class ArenaScene extends Phaser.Scene {
           action==='e'?'Shoot':'Charge'
         :action==='r'?'Attack':action==='e'?'Charge':'Shoot';
     this.playerMotion?.trigger(motion,time,dir,
-      action==='w'&&this.playerSpecies==='charizard'?785:undefined);
+      isBlastoise&&(action==='e'||action==='r')
+        ?JET_SPECS[action==='e'?'gun':'hydro'].durationMs+
+          (action==='r'?410:releaseFrameMs(this.playerSpecies,motion))
+        :action==='w'&&this.playerSpecies==='charizard'?785:undefined);
     // Use the exact launch frame from PMD animations, not guessed timers.
     const windupMs=isBlastoise&&action==='r'?410:this.playerMotion
       ? releaseFrameMs(this.playerSpecies,motion)
@@ -1398,6 +1401,7 @@ export class ArenaScene extends Phaser.Scene {
         this.playerLabel.setText(profile.name.toUpperCase()).setVisible(true);
         this.playerShadow?.setVisible(true).setAlpha(0.35).setScale(1);
         this.mobile.setAbilityNames(species);
+        window.dispatchEvent(new Event('monster-arena:team-switch'));
         this.destination.set(body.x,body.y);
       }else{
         this.enemySpecies=species;
@@ -1774,7 +1778,7 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private stopWaterStreams():void{
-    for(const stream of this.waterStreams)stream.ink.destroy();
+    for(const stream of this.waterStreams){stream.ink.destroy();stream.secondInk?.destroy();}
     this.waterStreams=[];
   }
 
@@ -1784,12 +1788,13 @@ export class ArenaScene extends Phaser.Scene {
     if((side==='player'?this.playerHp:this.enemyHp)<=0)return;
     this.waterStreams=this.waterStreams.filter(stream=>{
       if(stream.side!==side)return true;
-      stream.ink.destroy();return false;
+      stream.ink.destroy();stream.secondInk?.destroy();return false;
     });
     const nozzle=this.blastoiseFx.cannon(entity.x,entity.y,dir,-1);
     this.blastoiseFx.muzzle(nozzle,dir,kind==='hydro');
     this.waterStreams.push({side,kind,startAt:time,nextHitAt:time+95,
-      dir:dir.clone().normalize(),ink:this.add.graphics().setDepth(13)});
+      dir:dir.clone().normalize(),ink:this.add.graphics().setDepth(13),
+      secondInk:kind==='hydro'?this.add.graphics().setDepth(13):undefined});
     this.enemyCastLockUntil=side==='enemy'
       ?Math.max(this.enemyCastLockUntil,time+JET_SPECS[kind].durationMs+220)
       :this.enemyCastLockUntil;
@@ -1804,9 +1809,13 @@ export class ArenaScene extends Phaser.Scene {
       const defeated=(stream.side==='player'?this.playerHp:this.enemyHp)<=0;
       const elapsed=time-stream.startAt;
       if(defeated||elapsed>=spec.durationMs){
-        stream.ink.destroy();this.waterStreams.splice(i,1);continue;
+        stream.ink.destroy();stream.secondInk?.destroy();this.waterStreams.splice(i,1);continue;
       }
       const facing=stream.dir;
+      if(stream.side==='player'&&this.mobile.active){
+        const intended=this.directionTo(this.player,this.enemy.x,this.enemy.y,stream.dir);
+        stream.dir.lerp(intended,0.12).normalize();
+      }
       const origin=this.blastoiseFx.cannon(source.x,source.y,facing,-1);
       const targetCollision=jetCollisionDistance(origin,facing,target,
         spec.reach,target.radius+spec.radius);
@@ -1816,6 +1825,11 @@ export class ArenaScene extends Phaser.Scene {
         visibleJetLength(spec.reach,targetCollision);
       this.blastoiseFx.drawJet(stream.ink,origin,facing,length,
         spec.radius,time,stream.kind==='hydro');
+      if(stream.secondInk){
+        const rightCannon=this.blastoiseFx.cannon(source.x,source.y,facing,1);
+        this.blastoiseFx.drawJet(stream.secondInk,rightCannon,facing,length,
+          spec.radius*0.84,time+190,true);
+      }
       if(targetCollision!==null&&!wallCollision&&time>=stream.nextHitAt){
         stream.nextHitAt=time+spec.hitEveryMs;
         this.blastoiseFx.splash(target.x,target.y,
@@ -1833,7 +1847,10 @@ export class ArenaScene extends Phaser.Scene {
     this.enemyAttackAt=time;
     const dir=this.directionTo(this.enemy,this.player.x,this.player.y,this.enemyFacing);
     this.faceDirection('enemy',dir);
-    this.enemyMotion?.trigger(skill==='q'?'Attack':skill==='w'||skill==='r'?'Charge':'Shoot',time,dir);
+    this.enemyMotion?.trigger(skill==='q'?'Attack':skill==='w'?'Charge':'Shoot',time,dir,
+      skill==='e'||skill==='r'
+        ?JET_SPECS[skill==='e'?'gun':'hydro'].durationMs+(skill==='r'?410:170)
+        :undefined);
     if(skill==='w'){
       this.shellGuardUntil.enemy=Math.max(this.shellGuardUntil.enemy,time+3000);
       this.blastoiseFx.guardCast({x:this.enemy.x,y:this.enemy.y});
