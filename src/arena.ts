@@ -14,7 +14,7 @@ import { RockFx, RockMoves, type RockStatus } from './rockMoves';
 import { PokemonSwitchFx } from './pokemonSwitchFx';
 import { StarterFx } from './starterFx';
 import { BlastoiseFx } from './blastoiseFx';
-import { JET_SPECS,jetCollisionDistance,visibleJetLength,type JetType } from './waterJet';
+import { JET_SPECS,jetCollisionDistance,type JetType } from './waterJet';
 import { getActivePokemon, loadCollection } from './playerCollection';
 import { activeWildEncounter } from './encounters';
 import { createSafariBattlefield } from './safariBattlefield';
@@ -240,7 +240,7 @@ export class ArenaScene extends Phaser.Scene {
     this.storyIntroUntil=0;
     this.fx = new CombatFx(this);
     this.starterFx = new StarterFx(this);
-    this.blastoiseFx = new BlastoiseFx(this);
+    this.blastoiseFx = new BlastoiseFx(this,this.fx);
     this.shellGuardUntil={player:0,enemy:0};
     this.battleStages={player:makeStatStages(),enemy:makeStatStages()};
     this.playerStageText=undefined;
@@ -1323,7 +1323,7 @@ export class ArenaScene extends Phaser.Scene {
     this.cameras.main.shake(heavy?115:64,heavy?0.0038:0.0017);
     const electric=[0xffec7c,0xffe36a,0xffee7a].includes(color);
     const rock=color===0xcbb18b || color===0xbca57c;
-    const element=electric?'electric':'fire';
+    const element=electric?'electric':attackType==='water'?'water':'fire';
     if(rock){
       this.rockFx?.burst(x,y,heavy?42:24,now,'slam');
     }else{
@@ -1333,7 +1333,7 @@ export class ArenaScene extends Phaser.Scene {
     this.flash(x,y,color,heavy?21:13);
     const label=this.add.text(victim.x,victim.y-36,'-'+amount,{
       fontSize:heavy?'24px':'18px',fontStyle:'bold',
-      color:electric?'#fff5aa':rock?'#f0dfc1':'#ffe6c9',
+      color:electric?'#fff5aa':rock?'#f0dfc1':attackType==='water'?'#c7f5ff':'#ffe6c9',
       stroke:'#16222e',strokeThickness:3
     }).setOrigin(0.5).setDepth(15);
     this.tweens.add({targets:label,y:victim.y-(heavy?83:63),alpha:0,scaleX:heavy?1.2:1.05,
@@ -1817,23 +1817,26 @@ export class ArenaScene extends Phaser.Scene {
         stream.dir.lerp(intended,0.12).normalize();
       }
       const origin=this.blastoiseFx.cannon(source.x,source.y,facing,-1);
-      const targetCollision=jetCollisionDistance(origin,facing,target,
-        spec.reach,target.radius+spec.radius);
-      const wallCollision=this.environment?.intercept(
-        origin.x+facing.x*spec.reach,origin.y+facing.y*spec.reach,spec.radius,0)??false;
-      const length=wallCollision?Math.min(220,spec.reach):
-        visibleJetLength(spec.reach,targetCollision);
-      this.blastoiseFx.drawJet(stream.ink,origin,facing,length,
-        spec.radius,time,stream.kind==='hydro');
+      const ramp=beamReach(elapsed,spec.durationMs,spec.reach);
+      const blocked=this.environment?.beam(origin.x,origin.y,facing.x,facing.y,ramp,0)??ramp;
+      const collision=jetCollisionDistance(origin,facing,target,blocked,
+        target.radius+spec.radius);
+      this.blastoiseFx.drawJet(stream.ink,origin,facing,elapsed,
+        spec.durationMs,spec.reach,blocked,stream.kind==='hydro');
+      let secondHit=false;
       if(stream.secondInk){
-        const rightCannon=this.blastoiseFx.cannon(source.x,source.y,facing,1);
-        this.blastoiseFx.drawJet(stream.secondInk,rightCannon,facing,length,
-          spec.radius*0.84,time+190,true);
+        const right=this.blastoiseFx.cannon(source.x,source.y,facing,1);
+        const secondBlocked=this.environment?.beam(right.x,right.y,
+          facing.x,facing.y,ramp,0)??ramp;
+        secondHit=jetCollisionDistance(right,facing,target,
+          secondBlocked,target.radius+spec.radius*0.75)!==null;
+        this.blastoiseFx.drawJet(stream.secondInk,right,facing,elapsed,
+          spec.durationMs,spec.reach,secondBlocked,true);
       }
-      if(targetCollision!==null&&!wallCollision&&time>=stream.nextHitAt){
+      if((collision!==null||secondHit)&&time>=stream.nextHitAt){
         stream.nextHitAt=time+spec.hitEveryMs;
-        this.blastoiseFx.splash(target.x,target.y,
-          stream.kind==='hydro'?0.88:0.48);
+        this.fx.breath(target.x,target.y,Math.atan2(facing.y,facing.x),
+          stream.kind==='hydro'?0.33:0.20,'water');
         this.damage(stream.side==='player'?'enemy':'player',
           spec.tickDamage,target.x,target.y,0x82dfff,'water','special');
       }
