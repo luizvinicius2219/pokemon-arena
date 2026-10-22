@@ -115,12 +115,11 @@ export class GroundCracks {
     for(let i=0;i<plan.plates.length;i++){
       const plate=plan.plates[i];
       const center=plate.points.reduce((sum,p)=>({x:sum.x+p.x,y:sum.y+p.y}),{x:0,y:0});
-      center.x/=plate.points.length;
-      center.y/=plate.points.length;
+      const average={x:center.x/plate.points.length,y:center.y/plate.points.length};
       polygon(plate.points,SHADOW);
       const inset=plate.points.map(p=>({
-        x:Math.round((center.x+(p.x-center.x)*0.88)/2)*2,
-        y:Math.round((center.y+(p.y-center.y)*0.88-1)/2)*2
+        x:Math.round((average.x+(p.x-average.x)*0.88)/2)*2,
+        y:Math.round((average.y+(p.y-average.y)*0.88-1)/2)*2
       }));
       polygon(inset,SLAB_SHADES[plate.tone]);
       // Exposed stone face: a staggered light rim, never a full circle.
