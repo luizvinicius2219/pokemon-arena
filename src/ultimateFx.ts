@@ -23,11 +23,11 @@ export class UltimateFx {
      duration:630,ease:'Cubic.easeIn',onComplete:()=>ring.destroy()});
  }
  terrainImpact(x:number,y:number,force=0.55):void{
-   this.cracks.stamp(x,y,65,force);
+   this.cracks.stamp(x,y,65,force,force>=0.7?'heavy':'small');
  }
  impact(x:number,y:number,element:Element,force=1):void{
    const tint=this.color(element);
-   this.cracks.stamp(x,y,115,force);
+   this.cracks.stamp(x,y,115,force,'ultimate');
    const g=this.scene.add.graphics().setDepth(14);
    for(let i=0;i<3;i++){
      const r=(24+i*25)*force;
