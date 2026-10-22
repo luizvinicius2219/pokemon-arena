@@ -13,6 +13,7 @@ import { effectiveness, scaledDamage } from './typeChart';
 import { RockFx, RockMoves, type RockStatus } from './rockMoves';
 import { PokemonSwitchFx } from './pokemonSwitchFx';
 import { StarterFx } from './starterFx';
+import { BlastoiseFx } from './blastoiseFx';
 import { getActivePokemon, loadCollection } from './playerCollection';
 import { activeWildEncounter } from './encounters';
 import { createSafariBattlefield } from './safariBattlefield';
@@ -83,6 +84,8 @@ export class ArenaScene extends Phaser.Scene {
   private playerSpecies:Fighter='charizard';
   private fx!: CombatFx;
   private starterFx!:StarterFx;
+  private blastoiseFx!:BlastoiseFx;
+  private shellGuardUntil:Record<Side,number>={player:0,enemy:0};
   private battleStages:Record<Side,StatStages>={
     player:makeStatStages(),enemy:makeStatStages()
   };
@@ -231,6 +234,8 @@ export class ArenaScene extends Phaser.Scene {
     this.storyIntroUntil=0;
     this.fx = new CombatFx(this);
     this.starterFx = new StarterFx(this);
+    this.blastoiseFx = new BlastoiseFx(this);
+    this.shellGuardUntil={player:0,enemy:0};
     this.battleStages={player:makeStatStages(),enemy:makeStatStages()};
     this.playerStageText=undefined;
     this.enemyStageText=undefined;
@@ -717,16 +722,24 @@ export class ArenaScene extends Phaser.Scene {
       ? this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing)
       : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
     this.faceDirection('player',dir);
+    const isBlastoise=this.playerSpecies==='blastoise';
     const isBase=this.playerSpecies!=='charizard';
-    const motion=isBase
-      ?action==='q'?'Attack':action==='w'?'Charge':
-        action==='e'?'Shoot':'Charge'
-      :action==='r'?'Attack':action==='e'?'Charge':'Shoot';
+    const motion=isBlastoise
+      ?action==='q'?'Attack':action==='w'?'Charge':action==='e'?'Shoot':'Charge'
+      :isBase
+        ?action==='q'?'Attack':action==='w'?'Charge':
+          action==='e'?'Shoot':'Charge'
+        :action==='r'?'Attack':action==='e'?'Charge':'Shoot';
     this.playerMotion?.trigger(motion,time,dir,
       action==='w'&&this.playerSpecies==='charizard'?785:undefined);
     // Use the exact launch frame from PMD animations, not guessed timers.
-    const windupMs=this.playerMotion ? releaseFrameMs(this.playerSpecies,motion)
+    const windupMs=isBlastoise&&action==='r'?580:this.playerMotion
+      ? releaseFrameMs(this.playerSpecies,motion)
       : ({q:60,w:115,e:180,r:270} as Record<Skill,number>)[action];
+    if(isBlastoise&&action==='r'){
+      this.blastoiseFx.charge(this.player.x,this.player.y,dir,windupMs);
+      this.skillCallout(this.player.x,this.player.y-92,'HIDRO BOMBA',0x8fe8ff);
+    }
     const charge=action==='r'?1.8:action==='e'?1.4:1;
     const advanced=this.playerSpecies==='charizard';
     const flame=this.playerSpecies==='charmander'
@@ -744,7 +757,9 @@ export class ArenaScene extends Phaser.Scene {
     // Intentional short wind-up: the body anticipates before the projectile releases.
     this.time.delayedCall(windupMs,()=>{
       if(this.finished)return;
-      if(this.playerSpecies==='charizard')
+      if(this.playerSpecies==='blastoise')
+        this.castBlastoise(action,dir,this.time.now);
+      else if(this.playerSpecies==='charizard')
         this.castCharizard(action,dir,this.time.now);
       else if(this.playerSpecies==='charmander'||this.playerSpecies==='charmeleon')
         this.castCharmander(action,dir,this.time.now);
@@ -791,6 +806,38 @@ export class ArenaScene extends Phaser.Scene {
       if(distance<330)this.damage('enemy',ability.damage,target.x,target.y,
         0xb5e9dc,profile.elements[0]);
     }
+  }
+
+  private castBlastoise(skill:Skill,dir:Phaser.Math.Vector2,time:number):void{
+    const ability=skills.blastoise[skill];
+    if(skill==='q'){
+      this.fx.dashDust(this.player.x,this.player.y,dir,0.9);
+      this.startTackle('player',ability.damage,'normal',time,dir);
+      return;
+    }
+    if(skill==='w'){
+      this.shellGuardUntil.player=Math.max(this.shellGuardUntil.player,time+3000);
+      this.blastoiseFx.guardCast({x:this.player.x,y:this.player.y});
+      this.skillCallout(this.player.x,this.player.y-85,'CASCO REFORÇADO',0xa5f4ff);
+      return;
+    }
+    if(skill==='e'){
+      for(const barrel of [-1,1] as const){
+        this.time.delayedCall(barrel===-1?0:155,()=>{
+          if(!this.sys.isActive()||this.finished||this.playerHp<=0)return;
+          const from=this.blastoiseFx.cannon(this.player.x,this.player.y,dir,barrel);
+          this.blastoiseFx.muzzle(from,dir);
+          this.projectile(from.x,from.y,dir,530,11,'water','player',
+            Math.round(ability.damage/2),850,this.time.now);
+        });
+      }
+      return;
+    }
+    const from=this.blastoiseFx.cannon(this.player.x,this.player.y,dir,-1);
+    this.blastoiseFx.muzzle(from,dir,true);
+    const power=ability.damage;
+    this.projectile(from.x,from.y,dir,405,25,'water','player',
+      power,1000,time,78);
   }
 
   private castCharmander(skill:Skill,dir:Phaser.Math.Vector2,time:number){
@@ -1156,6 +1203,14 @@ export class ArenaScene extends Phaser.Scene {
     });
   }
 
+  private waterExplosion(x:number,y:number,radius:number,damage:number,side:Side):void{
+    this.blastoiseFx.splash(x,y,2.15);
+    this.cameras.main.shake(140,0.0032);
+    const target=side==='player'?this.enemy:this.player;
+    if(Phaser.Math.Distance.Between(x,y,target.x,target.y)<radius+target.radius)
+      this.damage(side==='player'?'enemy':'player',damage,target.x,target.y,0x82dfff,'water','special');
+  }
+
   private explode(x:number,y:number,radius:number,damage:number,side:Side,special:boolean) {
     const color=special?0xffd058:0xff6838;
     this.fx.impact(x,y,'fire',special?2.3:1.45);
@@ -1204,8 +1259,9 @@ export class ArenaScene extends Phaser.Scene {
         0.6+this.starterLevel*0.026)):
       target==='enemy'
         ?1+Math.min(0.72,Math.max(0,this.starterLevel-5)*0.064):1;
+    const guard=now<this.shellGuardUntil[target]&&defender==='blastoise'?0.55:1;
     const received=scaledDamage(
-      Math.max(1,Math.round(amount*stagePower*trainer*levelBoost*difficultyFactor*encounterLevel)),
+      Math.max(1,Math.round(amount*stagePower*trainer*levelBoost*difficultyFactor*encounterLevel*guard)),
       elemental,pokemonCatalog[defender].elements);
     if(multiplier.category!=='neutral'&&now-this.lastTypeCueAt[target]>1280){
       const label=multiplier.category==='immune'?'NÃO AFETA!':
@@ -1511,20 +1567,23 @@ export class ArenaScene extends Phaser.Scene {
       if(rockHit){
         if(shot.kind==='rock'||shot.kind==='shard')
           this.rockFx?.burst(x,y,19,time,'slam');
+        else if(shot.kind==='water')this.blastoiseFx.splash(x,y,0.65);
         else this.fx.impact(x,y,'fire',0.55);
       } else if(shot.blastRadius>0) {
-        this.explode(x,y,shot.blastRadius,shot.damage,shot.side,shot.kind==='fireburst');
+        if(shot.kind==='water')this.waterExplosion(x,y,shot.blastRadius,shot.damage,shot.side);
+        else this.explode(x,y,shot.blastRadius,shot.damage,shot.side,shot.kind==='fireburst');
       } else if(hit) {
         this.damage(shot.side==='player'?'enemy':'player',shot.damage,target.x,target.y,
           shot.kind==='spark'?0xffee7a:
           shot.kind==='rock'||shot.kind==='shard'?0xcbb18b:
             shot.kind==='water'?0x82dfff:0xff8b40,
           shot.kind==='water'?'water':undefined);
+        if(shot.kind==='water')this.blastoiseFx.splash(x,y,shot.body.radius>=20?1:0.65);
       } else {
         if(shot.kind==='rock'||shot.kind==='shard')
           this.rockFx?.burst(x,y,15,time,'slam');
-        else this.fx.impact(x,y,
-          shot.kind==='spark'||shot.kind==='water'?'electric':'fire',0.4);
+        else if(shot.kind==='water')this.blastoiseFx.splash(x,y,0.45);
+        else this.fx.impact(x,y,shot.kind==='spark'?'electric':'fire',0.4);
       }
     }
     this.fx.drawShots(this.projectiles,time);
@@ -1628,6 +1687,42 @@ export class ArenaScene extends Phaser.Scene {
     return true;
   }
 
+  private castBlastoiseEnemy(skill:Skill,time:number):void{
+    if(!this.canCast('enemy',skill,time))return;
+    const ability=skills.blastoise[skill];
+    this.enemyCastAt[skill]=time;
+    this.enemyAttackAt=time;
+    const dir=this.directionTo(this.enemy,this.player.x,this.player.y,this.enemyFacing);
+    this.faceDirection('enemy',dir);
+    this.enemyMotion?.trigger(skill==='q'?'Attack':skill==='w'||skill==='r'?'Charge':'Shoot',time,dir);
+    if(skill==='w'){
+      this.shellGuardUntil.enemy=Math.max(this.shellGuardUntil.enemy,time+3000);
+      this.blastoiseFx.guardCast({x:this.enemy.x,y:this.enemy.y});
+      return;
+    }
+    if(skill==='q'){
+      this.startTackle('enemy',ability.damage,'normal',time,dir);
+      return;
+    }
+    const delay=skill==='r'?580:170;
+    if(skill==='r')this.blastoiseFx.charge(this.enemy.x,this.enemy.y,dir,delay);
+    this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+delay+320);
+    this.time.delayedCall(delay,()=>{
+      if(!this.sys.isActive()||this.finished||this.enemyHp<=0)return;
+      for(const barrel of skill==='e'?([-1,1] as const):([-1] as const)){
+        this.time.delayedCall(skill==='e'&&barrel===1?150:0,()=>{
+          if(!this.sys.isActive()||this.finished||this.enemyHp<=0)return;
+          const from=this.blastoiseFx.cannon(this.enemy.x,this.enemy.y,dir,barrel);
+          this.blastoiseFx.muzzle(from,dir,skill==='r');
+          this.projectile(from.x,from.y,dir,skill==='r'?405:505,
+            skill==='r'?25:11,'water','enemy',
+            skill==='r'?ability.damage:Math.round(ability.damage/2),
+            skill==='r'?1000:850,this.time.now,skill==='r'?78:0);
+        });
+      }
+    });
+  }
+
   private castFinalEnemy(skill:Skill,time:number){
     if(!this.canCast('enemy',skill,time))return;
     const ability=skills[this.enemySpecies][skill];
@@ -1640,7 +1735,8 @@ export class ArenaScene extends Phaser.Scene {
     const range=Phaser.Math.Distance.Between(this.enemy.x,this.enemy.y,this.player.x,this.player.y);
     if(ability.damage===0){
       if(this.enemySpecies==='blastoise'){
-        this.starterFx.shell(origin);this.changeBattleStat('enemy','defense',1);
+        this.shellGuardUntil.enemy=Math.max(this.shellGuardUntil.enemy,time+3000);
+        this.blastoiseFx.guardCast({x:this.enemy.x,y:this.enemy.y});
       }else{
         this.starterFx.growl(origin,{x:this.player.x,y:this.player.y});
         if(range<360)this.changeBattleStat('player','attack',-1);
@@ -1843,6 +1939,7 @@ export class ArenaScene extends Phaser.Scene {
     if(!this.canCast('enemy',selection,time))selection='q';
     if(this.canCast('enemy',selection,time)){
       if(this.enemySpecies==='pikachu'||this.enemySpecies==='raichu')this.castPikachu(selection,time);
+      else if(this.enemySpecies==='blastoise')this.castBlastoiseEnemy(selection,time);
       else if(this.enemySpecies==='geodude'||this.enemySpecies==='onix')
         this.castRockPokemon(selection,time);
       else if(['venusaur','blastoise','charizard'].includes(this.enemySpecies))
@@ -2042,6 +2139,10 @@ export class ArenaScene extends Phaser.Scene {
     this.enemyDecision(time);
     this.updateProjectiles(time,dt);
     this.rockFx?.update(time);
+    this.blastoiseFx.renderGuards(time,[
+      {side:'player',x:this.player.x,y:this.player.y,until:this.shellGuardUntil.player},
+      {side:'enemy',x:this.enemy.x,y:this.enemy.y,until:this.shellGuardUntil.enemy}
+    ]);
     const playerVelocity=vector(this.player.x-oldPlayer.x,this.player.y-oldPlayer.y);
     const enemyVelocity=vector(this.enemy.x-oldEnemy.x,this.enemy.y-oldEnemy.y);
     if(this.playerMotion) {
