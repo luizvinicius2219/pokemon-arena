@@ -170,8 +170,55 @@ export class CombatFx {
     heavy=false
   ):void{
     ink.clear();
-    this.drawStream(ink,x,y,a,elapsed,duration,reach,blocked,
-      'water',heavy?1.03:0.64);
+    const length=Math.max(0,Math.min(beamReach(elapsed,duration,reach),blocked));
+    if(length<4)return;
+    const c=Math.cos(a),s=Math.sin(a),nx=-s,ny=c;
+    const cell=3;
+    const snap=(v:number)=>Math.round(v/cell)*cell;
+    const half=heavy?13:7;
+    const phase=elapsed*0.022;
+    // Occupied pixel cells build one continuous stream. Three solid layers,
+    // quantized ripples and travelling bright foam preserve pixel-art style.
+    const count=Math.ceil(length/6);
+    for(let i=0;i<=count;i++){
+      const d=Math.min(length,i*6);
+      const t=d/length;
+      const ramp=Math.min(1,d/20,(length-d+12)/22);
+      const wobble=Math.sin(phase+t*17)*2.4+Math.sin(phase*0.7+t*29)*1.6;
+      const px=x+c*d+nx*wobble,py=y+s*d+ny*wobble;
+      for(let lane=-half-3;lane<=half+3;lane+=cell){
+        const edge=Math.abs(lane);
+        const activeWidth=Math.max(3,half*ramp+2);
+        if(edge>activeWidth+4)continue;
+        const stagger=Math.sin(phase*1.5+t*24+lane*0.17)*2;
+        if(edge>activeWidth+stagger)continue;
+        const color=edge>activeWidth-3?0x16557e:
+          edge>activeWidth*0.58?0x2e8fc1:
+          edge>activeWidth*0.24?0x65c8e7:0xd3f8ff;
+        ink.fillStyle(color,1).fillRect(
+          snap(px+nx*lane),snap(py+ny*lane),6,6);
+      }
+      // Small intermittent highlights travel with the current.
+      if(i%5===0){
+        const foam=(elapsed*0.0018+i*0.27)%1;
+        const off=Math.sin(phase+i*1.5)*(half*0.45);
+        ink.fillStyle(0xecfeff,0.95).fillRect(
+          snap(px+nx*off+c*foam*8),snap(py+ny*off+s*foam*8),6,3);
+      }
+    }
+    // Square turbulent front instead of the circular flamethrower cap.
+    const tipX=x+c*length,tipY=y+s*length;
+    for(let i=-2;i<=2;i++){
+      const off=i*(heavy?7:4);
+      ink.fillStyle(i%2?0x58b6df:0xb7f0ff,1).fillRect(
+        snap(tipX+nx*off),snap(tipY+ny*off),i===0?9:6,i===0?9:6);
+    }
+    for(let i=0;i<(heavy?8:5);i++){
+      const travel=(i*17+elapsed*0.19)%(length+24);
+      const side=Math.sin(i*2.7+phase)*(half+5);
+      ink.fillStyle(i%2?0x66cce9:0xd5f9ff,0.95).fillRect(
+        snap(x+c*travel+nx*side),snap(y+s*travel+ny*side),3,3);
+    }
   }
 
   private drawStream(
