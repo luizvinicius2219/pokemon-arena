@@ -14,7 +14,8 @@ import { RockFx, RockMoves, type RockStatus } from './rockMoves';
 import { PokemonSwitchFx } from './pokemonSwitchFx';
 import { StarterFx } from './starterFx';
 import { BlastoiseFx } from './blastoiseFx';
-import { JET_SPECS,jetCollisionDistance,type JetType } from './waterJet';
+import { JET_SPECS,type JetType } from './waterJet';
+import { combatHurtboxes,circleIntersectsBody,sweptProjectileHitsBody,rayHitsBody } from './combatHitboxes';
 import { getActivePokemon, loadCollection } from './playerCollection';
 import { activeWildEncounter } from './encounters';
 import { createSafariBattlefield } from './safariBattlefield';
@@ -1079,7 +1080,7 @@ export class ArenaScene extends Phaser.Scene {
         const victimSide=side==='enemy'?'player':'enemy';
         const target=victimSide==='player'?this.player:this.enemy;
         const healthBefore=victimSide==='player'?this.playerHp:this.enemyHp;
-        if(Phaser.Math.Distance.Between(x,y,target.x,target.y)>=radius+target.radius)
+        if(!circleIntersectsBody({x,y},radius,this.combatBody(victimSide)))
           return false;
         this.damage(victimSide,damage,target.x,target.y,0xcbb18b,
           pokemonCatalog[species].skillSet[skill].element);
@@ -1210,7 +1211,7 @@ export class ArenaScene extends Phaser.Scene {
     this.blastoiseFx.splash(x,y,2.15);
     this.cameras.main.shake(140,0.0032);
     const target=side==='player'?this.enemy:this.player;
-    if(Phaser.Math.Distance.Between(x,y,target.x,target.y)<radius+target.radius)
+    if(circleIntersectsBody({x,y},radius,this.combatBody(side==='player'?'enemy':'player')))
       this.damage(side==='player'?'enemy':'player',damage,target.x,target.y,0x82dfff,'water','special');
   }
 
@@ -1637,9 +1638,16 @@ export class ArenaScene extends Phaser.Scene {
     void tint;
   }
 
+  private combatBody(side:Side){
+    const body=side==='player'?this.player:this.enemy;
+    const species=side==='player'?this.playerSpecies:this.enemySpecies;
+    return combatHurtboxes(species,{x:body.x,y:body.y},body.radius);
+  }
+
   private updateProjectiles(time:number,dt:number) {
     for(let i=this.projectiles.length-1;i>=0;i--){
       const shot=this.projectiles[i];
+      const previous={x:shot.body.x,y:shot.body.y};
       shot.body.x+=shot.velocity.x*dt;
       shot.body.y+=shot.velocity.y*dt;
       const x=shot.body.x,y=shot.body.y;
@@ -1651,7 +1659,8 @@ export class ArenaScene extends Phaser.Scene {
         }
       }
       const target=shot.side==='player'?this.enemy:this.player;
-      const hit=Phaser.Math.Distance.Between(x,y,target.x,target.y)<shot.body.radius+target.radius
+      const hit=sweptProjectileHitsBody(previous,{x,y},shot.body.radius,
+        this.combatBody(shot.side==='player'?'enemy':'player'))
         && !(shot.side==='player' && (this.storySwitching||this.enemyBurrowed));
       const rockHit=this.environment?.intercept(x,y,shot.body.radius,shot.damage)??false;
       const expired=time>=shot.expiry||x<30||x>W-30||y<30||y>H-30;
@@ -1708,8 +1717,8 @@ export class ArenaScene extends Phaser.Scene {
         const vx=this.enemy.x-x,vy=this.enemy.y-y;
         const along=vx*dir.x+vy*dir.y;
         const lateral=Math.abs(vx*dir.y-vy*dir.x);
-        if(!this.enemyBurrowed && along>=0
-          && along<=blocked+this.enemy.radius&&lateral<=27+this.enemy.radius){
+        if(!this.enemyBurrowed &&
+          rayHitsBody({x,y},dir,blocked,20,this.combatBody('enemy'))){
           this.damage('enemy',4,this.enemy.x,this.enemy.y,0xff9f41);
         }
         if(Math.random()<0.65){
@@ -1830,8 +1839,9 @@ export class ArenaScene extends Phaser.Scene {
       const origin=this.blastoiseFx.cannon(source.x,source.y,facing,-1);
       const ramp=beamReach(elapsed,spec.durationMs,spec.reach);
       const blocked=this.environment?.beam(origin.x,origin.y,facing.x,facing.y,ramp,0)??ramp;
-      const collision=jetCollisionDistance(origin,facing,target,blocked,
-        target.radius+spec.radius);
+      const victimSide=stream.side==='player'?'enemy':'player';
+      const collision=rayHitsBody(origin,facing,blocked,spec.radius,
+        this.combatBody(victimSide));
       this.blastoiseFx.drawJet(stream.ink,origin,facing,elapsed,
         spec.durationMs,spec.reach,blocked,stream.kind==='hydro');
       let secondHit=false;
@@ -1839,12 +1849,12 @@ export class ArenaScene extends Phaser.Scene {
         const right=this.blastoiseFx.cannon(source.x,source.y,facing,1);
         const secondBlocked=this.environment?.beam(right.x,right.y,
           facing.x,facing.y,ramp,0)??ramp;
-        secondHit=jetCollisionDistance(right,facing,target,
-          secondBlocked,target.radius+spec.radius*0.75)!==null;
+        secondHit=rayHitsBody(right,facing,secondBlocked,
+          spec.radius*0.75,this.combatBody(victimSide));
         this.blastoiseFx.drawJet(stream.secondInk,right,facing,elapsed,
           spec.durationMs,spec.reach,secondBlocked,true);
       }
-      if((collision!==null||secondHit)&&time>=stream.nextHitAt){
+      if((collision||secondHit)&&time>=stream.nextHitAt){
         stream.nextHitAt=time+spec.hitEveryMs;
         if(Math.floor(time/230)%2===0)
           this.blastoiseFx.splash(target.x,target.y,
@@ -2168,9 +2178,8 @@ export class ArenaScene extends Phaser.Scene {
         state.lastDustAt=time;
         this.fx.dashDust(source.x,source.y,state.direction,0.32);
       }
-      const close=Phaser.Math.Distance.Between(
-        source.x,source.y,target.x,target.y)<=
-        source.radius+target.radius+13;
+      const close=circleIntersectsBody({x:source.x,y:source.y-22},
+        source.radius+13,this.combatBody(side==='player'?'enemy':'player'));
       const inFront=(target.x-source.x)*state.direction.x+
         (target.y-source.y)*state.direction.y>0;
       if(!state.hit&&t>=0.25&&t<=0.74&&close&&inFront){
