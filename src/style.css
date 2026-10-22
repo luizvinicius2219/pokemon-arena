@@ -394,3 +394,25 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
 .arena-pokemon-option small{max-width:100%;text-align:center}
 #team-count{color:#f9dc95;font-weight:850;font-size:15px;min-height:20px}
 @media(max-width:650px){.arena-pokemon-thumb{width:64px;height:64px}}
+
+/* In-game controls remain in the fullscreen game-shell, independent of header. */
+.ingame-menu-button{position:absolute;top:12px;left:12px;z-index:77;
+  background:#142d36ee;border:2px solid #96c8c1;color:#f4fffa;
+  font-weight:900;padding:8px 12px;border-radius:8px;touch-action:manipulation}
+.ingame-pause[hidden]{display:none!important}
+.ingame-pause{position:absolute;inset:0;z-index:89;background:#06171de8;
+  display:grid;place-items:center;padding:18px;overflow:auto;overscroll-behavior:contain}
+.ingame-pause-card{display:flex;flex-direction:column;align-items:stretch;
+  width:min(420px,96%);padding:clamp(15px,3vw,28px);gap:10px;
+  background:#132f37;border:3px solid #8eb9aa;border-radius:13px;
+  box-shadow:0 16px 45px #000a;text-align:center}
+.ingame-pause-card h2{font-size:clamp(22px,4vw,36px);color:#ffdf9c;margin:0}
+.ingame-pause-card p{color:#cce5e2;margin:0 0 7px;font-size:13px}
+.ingame-pause-card button{font-weight:850;background:#235151;border:2px solid #8ec8ba}
+.ingame-pause-card button:hover,.ingame-pause-card button:focus-visible{background:#346f67}
+#game-shell:fullscreen #modal{position:fixed;z-index:100}
+#game-shell:fullscreen .ingame-menu-button{position:fixed;left:12px;top:12px}
+#game-shell:fullscreen .ingame-pause{position:fixed;inset:0}
+@media(max-width:650px){.ingame-menu-button{top:6px;left:6px;padding:5px 7px;font-size:11px}
+ .ingame-pause-card{gap:6px;padding:12px}
+ .ingame-pause-card button{padding:8px 12px}}
