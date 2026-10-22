@@ -16,6 +16,7 @@ const app = document.querySelector<HTMLDivElement>('#app')!;
 let bindings: Bindings = loadBindings();
 let capturing: Action | null = null;
 let menuOpen = false;
+let pauseOpen=false;
 let gameMode:GameMode='training';
 let battleKind:'quick'|'story'='quick';
 let chosenTrainer='brock';
@@ -49,6 +50,8 @@ app.innerHTML = `
   <div class="arena-column">
     <div id="game-shell">
       <div id="game" aria-label="Área do jogo"></div>
+      <button id="ingame-menu-button" class="ingame-menu-button" type="button" aria-label="Abrir menu de pausa">☰ Pausa</button>
+      <div id="ingame-pause" class="ingame-pause" hidden role="dialog" aria-modal="true" aria-label="Menu de pausa"><section class="ingame-pause-card"><h2>JOGO PAUSADO</h2><p>Retome, ajuste os controles ou volte ao menu sem sair da tela cheia.</p><button id="pause-resume" type="button">▶ Continuar</button><button id="pause-settings" type="button">⚙ Controles</button><button id="pause-fullscreen" type="button">⛶ Alternar tela cheia</button><button id="pause-quit" type="button">↩ Menu principal</button></section></div>
       <button id="toggle-fullscreen" class="game-fullscreen-button" type="button" aria-label="Entrar em tela cheia" title="Tela cheia (F)">⛶ Tela cheia</button>
       <div id="landing-menu" class="landing-menu" role="dialog" aria-modal="true" aria-label="Menu do jogo">
         <section class="landing-card" data-menu-panel="home">
@@ -132,6 +135,7 @@ app.innerHTML = `
 </div>`;
 
 const modal = document.querySelector<HTMLDivElement>('#modal')!;
+document.querySelector<HTMLElement>('#game-shell')!.append(modal);
 const bindingList = document.querySelector<HTMLDivElement>('#bindings')!;
 const error = document.querySelector<HTMLParagraphElement>('#error')!;
 const mobile = new MobileControls(document.querySelector<HTMLElement>('#mobile-controls')!);
@@ -202,6 +206,8 @@ function toggleSettings(open: boolean) {
   heldKeys.clear();
   mobile.clear();
   modal.classList.toggle('hidden', !open);
+  if(open)document.querySelector<HTMLElement>('#ingame-pause')!.hidden=true;
+  else if(pauseOpen)document.querySelector<HTMLElement>('#ingame-pause')!.hidden=false;
   error.textContent = '';
   renderBindings();
 }
@@ -227,6 +233,8 @@ window.addEventListener('keydown', event => {
     renderBindings(); return;
   }
   if (menuOpen) { if (event.code === 'Escape') toggleSettings(false); return; }
+  if(event.code==='Escape'&&!mainMenuOpen){event.preventDefault();setPaused(!pauseOpen);return;}
+  if(pauseOpen)return;
   if(mainMenuOpen)return;
   // In the overworld W is WALK UP, not battle ability #2. Phaser handles
   // WASD and the arrow keys; this listener only prevents page scrolling.
@@ -250,6 +258,7 @@ function showPanel(panel:'home'|'arena'){
 } // only battle first panels
 function openMainMenu(){
   mainMenuOpen=true;
+  setPaused(false);
   landing.hidden=false;
   mobile.clear();
   heldKeys.clear();
@@ -260,6 +269,7 @@ function openMainMenu(){
 }
 function startGameMode(nextMode:GameMode){
   mainMenuOpen=false;
+  setPaused(false);
   landing.hidden=true;
   gameMode=nextMode;
   heldKeys.clear();
@@ -283,12 +293,29 @@ const game=new Phaser.Game({
   scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},
   scene:[
     new WorldScene(mobile,mode=>startGameMode(mode),
-      ()=>mainMenuOpen||menuOpen),
+      ()=>mainMenuOpen||menuOpen||pauseOpen),
     new ArenaScene(
-      ()=>bindings,()=>heldKeys,()=>menuOpen,mobile,()=>gameMode
+      ()=>bindings,()=>heldKeys,()=>menuOpen||pauseOpen,mobile,()=>gameMode
     )
   ]
 });
+function setPaused(open:boolean){
+  pauseOpen=open&&!mainMenuOpen;
+  document.querySelector<HTMLElement>('#ingame-pause')!.hidden=!pauseOpen;
+  heldKeys.clear();mobile.clear();
+  if(pauseOpen){
+    if(game.scene.isActive('Arena'))game.scene.pause('Arena');
+    if(game.scene.isActive('World'))game.scene.pause('World');
+  }else if(!mainMenuOpen){
+    if(game.scene.isPaused('Arena'))game.scene.resume('Arena');
+    if(game.scene.isPaused('World'))game.scene.resume('World');
+  }
+}
+document.querySelector<HTMLButtonElement>('#ingame-menu-button')!.addEventListener('click',()=>setPaused(!pauseOpen));
+document.querySelector<HTMLButtonElement>('#pause-resume')!.addEventListener('click',()=>setPaused(false));
+document.querySelector<HTMLButtonElement>('#pause-settings')!.addEventListener('click',()=>toggleSettings(true));
+document.querySelector<HTMLButtonElement>('#pause-quit')!.addEventListener('click',()=>{clearMatch();openMainMenu();});
+document.querySelector<HTMLButtonElement>('#pause-fullscreen')!.addEventListener('click',()=>{void toggleFullscreen();});
 refreshActivePokemonInfo();
 showPanel('home');
 
