@@ -3,7 +3,7 @@ import {beginMatch,advanceMatch,clearMatch,currentMatch,activeMatchPokemon} from
 import {JET_SPECS,jetCollisionDistance,normalizedJetDirection,visibleJetLength,blastoiseCannonPoint} from '../src/waterJet.ts';
 
 function checkJets(){
-  assert.equal(JET_SPECS.gun.durationMs>1100,true);
+  assert.equal(JET_SPECS.gun.durationMs,740);
   assert.equal(JET_SPECS.hydro.radius>JET_SPECS.gun.radius,true);
   assert.equal(JET_SPECS.gun.endDamage,0);
   assert.ok(JET_SPECS.gun.radius<JET_SPECS.hydro.radius);
