@@ -290,6 +290,7 @@ export class CombatFx {
 
   trail(x:number,y:number,velocity:{x:number;y:number},kind:VfxKind,large=false) {
     const electric=kind==='spark';
+    const water=kind==='water';
     const rock=kind==='rock'||kind==='shard';
     const length=Math.hypot(velocity.x,velocity.y)||1;
     const backwardsX=-velocity.x/length, backwardsY=-velocity.y/length;
@@ -297,7 +298,8 @@ export class CombatFx {
     for(let i=0;i<count;i++) {
       const spread=(Math.random()-0.5)*(large?35:14);
       const drift=22+Math.random()*35;
-      const color=rock?[0xb6ac92,0x8f8e82,0x626a68][i%3]:electric
+      const color=rock?[0xb6ac92,0x8f8e82,0x626a68][i%3]:water
+        ? [0x58bfe9,0x9de9ff,0xd8fbff][i%3]:electric
         ? [0xfff6af,0xffdc52,0x8fe5ff][i%3]
         : [0xffec99,0xffb447,0xff6b30,0x874039][i%4];
       this.mote(x+spread*backwardsY,y-spread*backwardsX,color,
