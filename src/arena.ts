@@ -188,7 +188,10 @@ export class ArenaScene extends Phaser.Scene {
     const rival=currentMatch()?activeMatchPokemon().enemy:mode==='story'?'geodude':mode==='wild'
       ?activeWildEncounter().species:mode==='training'
         ?setup.rival:'pikachu';
-    const roster=[player,rival,...(mode==='story'?['onix']:[])] as Fighter[];
+    // Preload every team member once so KO substitutions never download sprites mid-round.
+    const match=currentMatch();
+    const roster=[...new Set([player,rival,...(match?.player??[]),...(match?.enemy??[]),
+      ...(mode==='story'?['onix' as Fighter]:[])])] as Fighter[];
     preloadOverworld(this,roster.filter(id=>!['venusaur','raichu'].includes(id)));
     if(mode==='story'||currentMatch()?.arena==='pewter')preloadPewter(this);
     const base='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
@@ -828,16 +831,6 @@ export class ArenaScene extends Phaser.Scene {
     }
     if(skill==='e'){
       this.startWaterStream('player','gun',time,dir);
-      return;
-      for(const barrel of [-1,1] as const){
-        this.time.delayedCall(barrel===-1?0:155,()=>{
-          if(!this.sys.isActive()||this.finished||this.playerHp<=0)return;
-          const from=this.blastoiseFx.cannon(this.player.x,this.player.y,dir,barrel);
-          this.blastoiseFx.muzzle(from,dir);
-          this.projectile(from.x,from.y,dir,530,11,'water','player',
-            Math.round(ability.damage/2),850,this.time.now);
-        });
-      }
       return;
     }
     this.startWaterStream('player','hydro',time,dir);
@@ -1856,18 +1849,6 @@ export class ArenaScene extends Phaser.Scene {
     this.time.delayedCall(delay,()=>{
       if(!this.sys.isActive()||this.finished||this.enemyHp<=0)return;
       this.startWaterStream('enemy',skill==='r'?'hydro':'gun',this.time.now,dir);
-      return;
-      for(const barrel of skill==='e'?([-1,1] as const):([-1] as const)){
-        this.time.delayedCall(skill==='e'&&barrel===1?150:0,()=>{
-          if(!this.sys.isActive()||this.finished||this.enemyHp<=0)return;
-          const from=this.blastoiseFx.cannon(this.enemy.x,this.enemy.y,dir,barrel);
-          this.blastoiseFx.muzzle(from,dir,skill==='r');
-          this.projectile(from.x,from.y,dir,skill==='r'?405:505,
-            skill==='r'?25:11,'water','enemy',
-            skill==='r'?ability.damage:Math.round(ability.damage/2),
-            skill==='r'?1000:850,this.time.now,skill==='r'?78:0);
-        });
-      }
     });
   }
 
