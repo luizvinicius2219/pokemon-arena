@@ -840,12 +840,15 @@ export class ArenaScene extends Phaser.Scene {
     // individual attacks and their existing hitboxes/dodge checks.
     const delay=species==='blastoise'?1110:species==='onix'?1350:
       species==='geodude'?1000:species==='raichu'||species==='pikachu'?1100:750;
+    const manualImpact=side==='player'
+      ?{x:this.input.activePointer.worldX,y:this.input.activePointer.worldY}
+      :{x:this.player.x,y:this.player.y};
     this.time.delayedCall(delay,()=>{
       if(!this.sys.isActive()||this.finished||this.switchingTeam||
         this.storySwitching||this.knockedOut[side]||
         (side==='player'?this.playerSpecies:this.enemySpecies)!==species)return;
-      const rival=side==='player'?this.enemy:this.player;
-      this.ultimateImpact(side,rival.x,rival.y,type);
+      const mark=side==='player'?manualImpact:{x:this.player.x,y:this.player.y};
+      this.ultimateImpact(side,mark.x,mark.y,type);
     });
   }
 
