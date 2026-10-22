@@ -202,12 +202,12 @@ function renderBindings() {
 }
 function toggleSettings(open: boolean) {
   menuOpen = open;
+  if(open&&pauseOpen)document.querySelector<HTMLElement>('#ingame-pause')!.hidden=true;
   capturing = null;
   heldKeys.clear();
   mobile.clear();
   modal.classList.toggle('hidden', !open);
-  if(open)document.querySelector<HTMLElement>('#ingame-pause')!.hidden=true;
-  else if(pauseOpen)document.querySelector<HTMLElement>('#ingame-pause')!.hidden=false;
+  if(!open&&pauseOpen)document.querySelector<HTMLElement>('#ingame-pause')!.hidden=false;
   error.textContent = '';
   renderBindings();
 }
@@ -257,8 +257,8 @@ function showPanel(panel:'home'|'arena'){
   panels.forEach(node=>node.hidden=node.dataset.menuPanel!==panel);
 } // only battle first panels
 function openMainMenu(){
-  mainMenuOpen=true;
   setPaused(false);
+  mainMenuOpen=true;
   landing.hidden=false;
   mobile.clear();
   heldKeys.clear();
@@ -268,8 +268,8 @@ function openMainMenu(){
   showPanel('home');
 }
 function startGameMode(nextMode:GameMode){
-  mainMenuOpen=false;
   setPaused(false);
+  mainMenuOpen=false;
   landing.hidden=true;
   gameMode=nextMode;
   heldKeys.clear();
@@ -302,6 +302,7 @@ const game=new Phaser.Game({
 function setPaused(open:boolean){
   pauseOpen=open&&!mainMenuOpen;
   document.querySelector<HTMLElement>('#ingame-pause')!.hidden=!pauseOpen;
+  if(!pauseOpen&&menuOpen)toggleSettings(false);
   heldKeys.clear();mobile.clear();
   if(pauseOpen){
     if(game.scene.isActive('Arena'))game.scene.pause('Arena');
