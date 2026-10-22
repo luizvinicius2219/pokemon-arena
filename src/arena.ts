@@ -5,6 +5,7 @@ import { currentGifFrame, hasGifClip, registerGifClip } from './gifAnimation';
 import { keyLabel } from './controls';
 import { CombatFx, beamReach, type VfxKind } from './combatFx';
 import { CinematicFx } from './cinematicFx';
+import { UltimateFx } from './ultimateFx';
 import { OverworldActor, preloadOverworld, releaseFrameMs } from './overworld';
 import type { MobileControls } from './mobileControls';
 import { StoryEnvironment, pewterGym, preloadPewter, type GameMode } from './story';
@@ -119,6 +120,8 @@ export class ArenaScene extends Phaser.Scene {
   private enemyActiveAt=0;
   private storyWaveText?:Phaser.GameObjects.Text;
   private cinematic!: CinematicFx;
+  private ultimateFx!:UltimateFx;
+  private lastUltimateImpact:Record<Side,number>={player:-10000,enemy:-10000};
   private stats!: BattleStats;
   private comboText!: Phaser.GameObjects.Text;
   private comboMeter!: Phaser.GameObjects.Graphics;
@@ -249,6 +252,8 @@ export class ArenaScene extends Phaser.Scene {
     this.lastAccuracyCueAt={player:-1000,enemy:-1000};
     this.lastMoveLockedCue=-3000;
     this.cinematic = new CinematicFx(this);
+    this.ultimateFx=new UltimateFx(this);
+    this.lastUltimateImpact={player:-10000,enemy:-10000};
     this.stats = new BattleStats(this.time.now);
     this.playerMotion = undefined;
     this.enemyMotion = undefined;
@@ -725,6 +730,7 @@ export class ArenaScene extends Phaser.Scene {
     if(!this.canCast('player',action,time))return;
     this.playerCastAt[action]=time;
     this.playerAttackAt=time;
+    if(action==='r')this.beginUltimate('player');
     const pointer=this.input.activePointer;
     // Touchscreen has no mouse cursor: attacks automatically aim at Pikachu.
     // Water cannons lock initially onto the opponent so their beam cannot
@@ -746,10 +752,10 @@ export class ArenaScene extends Phaser.Scene {
     this.playerMotion?.trigger(motion,time,dir,
       isBlastoise&&(action==='e'||action==='r')
         ?JET_SPECS[action==='e'?'gun':'hydro'].durationMs+
-          (action==='r'?410:releaseFrameMs(this.playerSpecies,motion))
+          (action==='r'?620:releaseFrameMs(this.playerSpecies,motion))
         :action==='w'&&this.playerSpecies==='charizard'?785:undefined);
     // Use the exact launch frame from PMD animations, not guessed timers.
-    const windupMs=isBlastoise&&action==='r'?410:this.playerMotion
+    const windupMs=isBlastoise&&action==='r'?620:this.playerMotion
       ? releaseFrameMs(this.playerSpecies,motion)
       : ({q:60,w:115,e:180,r:270} as Record<Skill,number>)[action];
     if(isBlastoise&&action==='r'){
@@ -822,6 +828,27 @@ export class ArenaScene extends Phaser.Scene {
       if(distance<330)this.damage('enemy',ability.damage,target.x,target.y,
         0xb5e9dc,profile.elements[0]);
     }
+  }
+
+  private beginUltimate(side:Side):void{
+    const fighter=side==='player'?this.player:this.enemy;
+    const species=side==='player'?this.playerSpecies:this.enemySpecies;
+    const type=skills[species].r.element;
+    const element=type==='water'?'water':type==='fire'?'fire':
+      type==='electric'?'electric':type==='grass'?'grass':
+      type==='ground'||type==='rock'?'rock':'normal';
+    this.ultimateFx.charge(fighter.x,fighter.y,element);
+    this.skillCallout(fighter.x,fighter.y-95,
+      'ULTIMATE · '+skills[species].r.name.toUpperCase(),0xffe7b7);
+  }
+
+  private ultimateImpact(side:Side,x:number,y:number,type:PokemonType):void{
+    if(this.time.now-this.lastUltimateImpact[side]<1000)return;
+    this.lastUltimateImpact[side]=this.time.now;
+    const element=type==='water'?'water':type==='fire'?'fire':
+      type==='electric'?'electric':type==='grass'?'grass':
+      type==='ground'||type==='rock'?'rock':'normal';
+    this.ultimateFx.impact(x,y,element,1);
   }
 
   private castBlastoise(skill:Skill,dir:Phaser.Math.Vector2,time:number):void{
@@ -1003,6 +1030,7 @@ export class ArenaScene extends Phaser.Scene {
     this.faceDirection('enemy',dir);
     const enemyMotion=skill==='r'?'Attack':skill==='w'||skill==='e'?'Charge':'Shoot';
     this.enemyMotion?.trigger(enemyMotion,time,dir);
+    if(skill==='r')this.beginUltimate('enemy');
     this.fx.charge(from.x,from.y-8,'electric',skill==='r'?1.8:1.1);
     if(skill==='e'||skill==='r') {
       this.cinematic.charge('enemy','electric',skill==='r'?2.7:1.45,time,
@@ -1861,6 +1889,8 @@ export class ArenaScene extends Phaser.Scene {
             stream.kind==='hydro'?0.58:0.42);
         this.damage(stream.side==='player'?'enemy':'player',
           spec.tickDamage,target.x,target.y,0x82dfff,'water','special');
+        if(stream.kind==='hydro'&&this.lastUltimateImpact[stream.side]<stream.startAt)
+          this.ultimateImpact(stream.side,target.x,target.y,'water');
       }
     }
   }
@@ -1874,7 +1904,7 @@ export class ArenaScene extends Phaser.Scene {
     this.faceDirection('enemy',dir);
     this.enemyMotion?.trigger(skill==='q'?'Attack':skill==='w'?'Charge':'Shoot',time,dir,
       skill==='e'||skill==='r'
-        ?JET_SPECS[skill==='e'?'gun':'hydro'].durationMs+(skill==='r'?410:170)
+        ?JET_SPECS[skill==='e'?'gun':'hydro'].durationMs+(skill==='r'?620:170)
         :undefined);
     if(skill==='w'){
       this.shellGuardUntil.enemy=Math.max(this.shellGuardUntil.enemy,time+3000);
@@ -1885,8 +1915,11 @@ export class ArenaScene extends Phaser.Scene {
       this.startTackle('enemy',ability.damage,'normal',time,dir);
       return;
     }
-    const delay=skill==='r'?410:170;
-    if(skill==='r')this.blastoiseFx.charge(this.enemy.x,this.enemy.y,dir,delay);
+    const delay=skill==='r'?620:170;
+    if(skill==='r'){
+      this.beginUltimate('enemy');
+      this.blastoiseFx.charge(this.enemy.x,this.enemy.y,dir,delay);
+    }
     this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+delay+320);
     this.time.delayedCall(delay,()=>{
       if(!this.sys.isActive()||this.finished||this.enemyHp<=0)return;
@@ -1902,6 +1935,7 @@ export class ArenaScene extends Phaser.Scene {
     const dir=this.directionTo(this.enemy,this.player.x,this.player.y,this.enemyFacing);
     this.faceDirection('enemy',dir);
     this.enemyMotion?.trigger(skill==='q'?'Attack':'Shoot',time,dir);
+    if(skill==='r')this.beginUltimate('enemy');
     const origin={x:this.enemy.x+dir.x*24,y:this.enemy.y-12+dir.y*16};
     const range=Phaser.Math.Distance.Between(this.enemy.x,this.enemy.y,this.player.x,this.player.y);
     if(ability.damage===0){
@@ -1959,6 +1993,7 @@ export class ArenaScene extends Phaser.Scene {
     const rat=species==='rattata'||species==='raticate';
     this.enemyMotion?.trigger(skill==='q'?'Attack':
       skill==='w'?'Charge':'Shoot',time,dir);
+    if(skill==='r')this.beginUltimate('enemy');
     this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+510);
 
     const snapshot={x:this.player.x,y:this.player.y};
