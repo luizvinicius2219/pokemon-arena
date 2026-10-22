@@ -15,7 +15,7 @@ export interface JetSpec {
 
 export const JET_SPECS:Readonly<Record<JetType,JetSpec>>={
   gun:{
-    durationMs:1400,
+    durationMs:740,
     reach:340,
     radius:9,
     hitEveryMs:240,
