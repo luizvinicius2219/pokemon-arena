@@ -1098,6 +1098,7 @@ export class ArenaScene extends Phaser.Scene {
     if(!this.rockMoves)return;
     this.enemyCastAt[skill]=time;
     this.enemyAttackAt=time;
+    if(skill==='r')this.beginUltimate('enemy');
     // Prevent AI strafing or casting a second attack during longer telegraphs.
     const lock=skill==='r'?1640:skill==='e'?990:
       skill==='w'&&species==='geodude'?1540:
