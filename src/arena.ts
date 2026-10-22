@@ -6,7 +6,6 @@ import { keyLabel } from './controls';
 import { CombatFx, beamReach, type VfxKind } from './combatFx';
 import { CinematicFx } from './cinematicFx';
 import { OverworldActor, preloadOverworld, releaseFrameMs } from './overworld';
-import { BlastoisePixelActor, BLASTOISE_SHEET } from './blastoisePixelActor';
 import type { MobileControls } from './mobileControls';
 import { StoryEnvironment, pewterGym, preloadPewter, type GameMode } from './story';
 import { pokemonCatalog, gymTeams, type PokemonEncounter, type PokemonType } from './pokemonCatalog';
@@ -121,8 +120,8 @@ export class ArenaScene extends Phaser.Scene {
   private hitStopUntil = -1000;
   private player!: Phaser.GameObjects.Arc;
   private enemy!: Phaser.GameObjects.Arc;
-  private playerMotion?: OverworldActor|BlastoisePixelActor;
-  private enemyMotion?: OverworldActor|BlastoisePixelActor;
+  private playerMotion?: OverworldActor;
+  private enemyMotion?: OverworldActor;
   private playerArt?: Phaser.GameObjects.Image;
   private enemyArt?: Phaser.GameObjects.Image;
   private playerShadow?: Phaser.GameObjects.Ellipse;
@@ -184,9 +183,7 @@ export class ArenaScene extends Phaser.Scene {
       ?activeWildEncounter().species:mode==='training'
         ?setup.rival:'pikachu';
     const roster=[player,rival,...(mode==='story'?['onix']:[])] as Fighter[];
-    preloadOverworld(this,roster.filter(id=>!['venusaur','blastoise','raichu'].includes(id)));
-    if(roster.includes('blastoise'))this.load.spritesheet(BLASTOISE_SHEET,
-      '/assets/pokemon/blastoise-frames.webp',{frameWidth:32,frameHeight:32});
+    preloadOverworld(this,roster.filter(id=>!['venusaur','raichu'].includes(id)));
     if(mode==='story'||currentMatch()?.arena==='pewter')preloadPewter(this);
     const base='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
     for(const species of roster){
@@ -313,10 +310,7 @@ export class ArenaScene extends Phaser.Scene {
       this.enemySpecies==='pikachu'?30:40,11,
       0x06181c,0.36).setDepth(1);
     const playerKey=this.playerSpecies;
-    if (playerKey==='blastoise' && this.textures.exists(BLASTOISE_SHEET)) {
-      this.playerMotion=new BlastoisePixelActor(this,'blastoise',playerSpawn.x,playerSpawn.y);
-      this.playerArt=this.playerMotion.image;
-    } else if (OverworldActor.available(this,playerKey)) {
+    if (OverworldActor.available(this,playerKey)) {
       this.playerMotion = new OverworldActor(this,playerKey,playerSpawn.x,playerSpawn.y);
       this.playerArt = this.playerMotion.image;
     } else if(this.textures.exists(playerKey)) {
@@ -434,10 +428,7 @@ export class ArenaScene extends Phaser.Scene {
     this.enemy.setVisible(false);
     this.enemyMotion=undefined;
     this.enemyArt=undefined;
-    if(id==='blastoise' && this.textures.exists(BLASTOISE_SHEET)){
-      this.enemyMotion=new BlastoisePixelActor(this,'blastoise',x,y);
-      this.enemyArt=this.enemyMotion.image;
-    }else if(OverworldActor.available(this,id)){
+    if(OverworldActor.available(this,id)){
       this.enemyMotion=new OverworldActor(this,id,x,y);
       this.enemyArt=this.enemyMotion.image;
     }else if(this.textures.exists(id)){
