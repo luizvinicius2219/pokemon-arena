@@ -840,6 +840,17 @@ export class ArenaScene extends Phaser.Scene {
     this.ultimateFx.charge(fighter.x,fighter.y,element);
     this.skillCallout(fighter.x,fighter.y-95,
       'ULTIMATE · '+skills[species].r.name.toUpperCase(),0xffe7b7);
+    // Environmental shock is visual-only; combat damage remains governed by
+    // individual attacks and their existing hitboxes/dodge checks.
+    const delay=species==='blastoise'?1110:species==='onix'?1350:
+      species==='geodude'?1000:species==='raichu'||species==='pikachu'?1100:750;
+    this.time.delayedCall(delay,()=>{
+      if(!this.sys.isActive()||this.finished||this.switchingTeam||
+        this.storySwitching||this.knockedOut[side]||
+        (side==='player'?this.playerSpecies:this.enemySpecies)!==species)return;
+      const rival=side==='player'?this.enemy:this.player;
+      this.ultimateImpact(side,rival.x,rival.y,type);
+    });
   }
 
   private ultimateImpact(side:Side,x:number,y:number,type:PokemonType):void{
