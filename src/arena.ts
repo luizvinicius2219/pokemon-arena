@@ -14,6 +14,7 @@ import { RockFx, RockMoves, type RockStatus } from './rockMoves';
 import { PokemonSwitchFx } from './pokemonSwitchFx';
 import { StarterFx } from './starterFx';
 import { BlastoiseFx } from './blastoiseFx';
+import { JET_SPECS,jetCollisionDistance,visibleJetLength,type JetType } from './waterJet';
 import { getActivePokemon, loadCollection } from './playerCollection';
 import { activeWildEncounter } from './encounters';
 import { createSafariBattlefield } from './safariBattlefield';
@@ -144,6 +145,8 @@ export class ArenaScene extends Phaser.Scene {
   private knockedOut:Record<Side,boolean>={player:false,enemy:false};
   private projectiles: Projectile[] = [];
   private flameStreams: FlameStream[] = [];
+  private waterStreams:Array<{side:Side;kind:JetType;startAt:number;nextHitAt:number;dir:Phaser.Math.Vector2;ink:Phaser.GameObjects.Graphics}> = [];
+  private switchingTeam=false;
   private dash?: DashState;
   private tackles:Record<Side,TackleState|null>={player:null,enemy:null};
   private reactions: Record<Side,HitReaction|null> = {player:null,enemy:null};
@@ -261,6 +264,8 @@ export class ArenaScene extends Phaser.Scene {
     this.knockedOut={player:false,enemy:false};
     this.projectiles = [];
     this.flameStreams = [];
+    this.waterStreams = [];
+    this.switchingTeam=false;
     this.dash = undefined;
     this.tackles={player:null,enemy:null};
     this.reactions={player:null,enemy:null};
@@ -712,7 +717,7 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     // Dodge locks other casts briefly so the Hop frames play clearly.
-    if(this.dash||this.tackles.player)return;
+    if(this.dash||this.tackles.player||this.switchingTeam||this.waterStreams.some(stream=>stream.side==='player'))return;
     if(!this.canCast('player',action,time))return;
     this.playerCastAt[action]=time;
     this.playerAttackAt=time;
@@ -725,7 +730,7 @@ export class ArenaScene extends Phaser.Scene {
     const isBlastoise=this.playerSpecies==='blastoise';
     const isBase=this.playerSpecies!=='charizard';
     const motion=isBlastoise
-      ?action==='q'?'Attack':action==='w'?'Charge':action==='e'?'Shoot':'Charge'
+      ?action==='q'?'Attack':action==='w'?'Charge':'Shoot'
       :isBase
         ?action==='q'?'Attack':action==='w'?'Charge':
           action==='e'?'Shoot':'Charge'
@@ -733,7 +738,7 @@ export class ArenaScene extends Phaser.Scene {
     this.playerMotion?.trigger(motion,time,dir,
       action==='w'&&this.playerSpecies==='charizard'?785:undefined);
     // Use the exact launch frame from PMD animations, not guessed timers.
-    const windupMs=isBlastoise&&action==='r'?580:this.playerMotion
+    const windupMs=isBlastoise&&action==='r'?410:this.playerMotion
       ? releaseFrameMs(this.playerSpecies,motion)
       : ({q:60,w:115,e:180,r:270} as Record<Skill,number>)[action];
     if(isBlastoise&&action==='r'){
@@ -822,6 +827,8 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     if(skill==='e'){
+      this.startWaterStream('player','gun',time,dir);
+      return;
       for(const barrel of [-1,1] as const){
         this.time.delayedCall(barrel===-1?0:155,()=>{
           if(!this.sys.isActive()||this.finished||this.playerHp<=0)return;
@@ -833,11 +840,7 @@ export class ArenaScene extends Phaser.Scene {
       }
       return;
     }
-    const from=this.blastoiseFx.cannon(this.player.x,this.player.y,dir,-1);
-    this.blastoiseFx.muzzle(from,dir,true);
-    const power=ability.damage;
-    this.projectile(from.x,from.y,dir,405,25,'water','player',
-      power,1000,time,78);
+    this.startWaterStream('player','hydro',time,dir);
   }
 
   private castCharmander(skill:Skill,dir:Phaser.Math.Vector2,time:number){
@@ -1340,17 +1343,106 @@ export class ArenaScene extends Phaser.Scene {
     this.tweens.add({targets:label,y:victim.y-(heavy?83:63),alpha:0,scaleX:heavy?1.2:1.05,
       scaleY:heavy?1.2:1.05,duration:heavy?570:460,onComplete:()=>label.destroy()});
     if(currentMatch()&&(this.playerHp<=0||this.enemyHp<=0)){
-      const status=advanceMatch(this.playerHp<=0?'player':'enemy');
-      if(status==='next'){
-        this.finished=true;
-        this.showKnockout(this.playerHp<=0?'player':'enemy');
-        this.time.delayedCall(1350,()=>{if(this.sys.isActive())this.scene.restart();});
-      }else this.endBattle();
+      const loser=this.playerHp<=0?'player':'enemy';
+      const status=advanceMatch(loser);
+      if(status==='next')this.transitionTeamPokemon(loser);
+      else this.endBattle();
     }else if(this.playerHp<=0)this.endBattle();
     else if(this.enemyHp<=0){
       if(this.mode==='story')this.nextStoryPokemon();
       else this.endBattle();
     }
+  }
+
+  /** Replace exactly one knocked-out team member without restarting Phaser.
+   * This avoids re-entering preload and leaves the arena, HUD and controls alive.
+   */
+  private transitionTeamPokemon(loser:Side):void{
+    if(this.switchingTeam||this.finished)return;
+    this.switchingTeam=true;
+    this.showKnockout(loser);
+    this.stopWaterStreams();
+    this.flameStreams=[];
+    this.tackles={player:null,enemy:null};
+    this.dash=undefined;
+    for(const shot of this.projectiles)shot.body.destroy();
+    this.projectiles=[];
+    this.fx.drawShots([],this.time.now);
+    const start=this.time.now;
+    this.time.delayedCall(1450,()=>{
+      if(!this.sys.isActive())return;
+      const next=activeMatchPokemon();
+      const isPlayer=loser==='player';
+      const species=isPlayer?next.player:next.enemy;
+      const profile=pokemonCatalog[species];
+      const body=isPlayer?this.player:this.enemy;
+      const oldArt=isPlayer?this.playerArt:this.enemyArt;
+      const oldMotion=isPlayer?this.playerMotion:this.enemyMotion;
+      if(oldArt?.active)oldArt.destroy();
+      void oldMotion;
+      const maxHp=profile.maxHp;
+      body.radius=profile.radius;
+      if(isPlayer){
+        this.playerSpecies=species;
+        this.playerMaxHp=maxHp;this.playerHp=maxHp;
+        this.shownHp.player=maxHp;
+        this.playerFacing.set(1,0);
+        this.playerSlowUntil=0;this.playerBindUntil=0;
+        this.playerCastAt={
+          q:start-skills[species].q.cooldown,
+          w:start-skills[species].w.cooldown,
+          e:start-skills[species].e.cooldown,
+          r:start-skills[species].r.cooldown,
+          dodge:start-dodge.cooldown
+        };
+        this.playerMotion=undefined;this.playerArt=undefined;
+        if(OverworldActor.available(this,species)){
+          this.playerMotion=new OverworldActor(this,species,body.x,body.y);
+          this.playerArt=this.playerMotion.image;
+        }else if(this.textures.exists(species)){
+          this.playerArt=this.add.image(body.x,body.y-8,species).setDisplaySize(88,88).setDepth(3);
+        }else body.setVisible(true);
+        this.playerLabel.setText(profile.name.toUpperCase()).setVisible(true);
+        this.playerShadow?.setVisible(true).setAlpha(0.35).setScale(1);
+        this.mobile.setAbilityNames(species);
+        this.destination.set(body.x,body.y);
+      }else{
+        this.enemySpecies=species;
+        this.enemyMaxHp=maxHp;this.enemyHp=maxHp;
+        this.shownHp.enemy=maxHp;
+        this.enemyFacing.set(-1,0);
+        this.enemySlowUntil=0;this.enemyBindUntil=0;
+        this.enemyCastAt=this.enemyReadyAt(this.time.now);
+        this.enemyActionIndex=0;
+        this.enemyMotion=undefined;this.enemyArt=undefined;
+        this.createEnemyArt(body.x,body.y);
+        this.enemyLabel.setText(profile.name.toUpperCase()).setVisible(true);
+        this.enemyShadow?.setVisible(true).setAlpha(0.36).setScale(1);
+      }
+      this.knockedOut[loser]=false;
+      this.reactions[loser]=null;
+      this.battleStages[loser]=makeStatStages();
+      this.shellGuardUntil[loser]=0;
+      this.lastHitAt[loser]=-1000;
+      const sprite=isPlayer?this.playerArt:this.enemyArt;
+      if(sprite?.active){
+        const sx=sprite.scaleX,sy=sprite.scaleY;
+        sprite.setAlpha(0).setScale(0.15);
+        this.tweens.add({targets:sprite,alpha:1,scaleX:sx,scaleY:sy,
+          duration:480,ease:'Back.easeOut'});
+      }
+      this.blastoiseFx.splash(body.x,body.y,0.88);
+      this.skillCallout(body.x,body.y-90,profile.name.toUpperCase()+' ENTRA!',0xa9f6ff);
+      this.enemyActiveAt=this.time.now+850;
+      this.nextEnemyDecision=this.enemyActiveAt;
+      this.updateHp();this.updateStageHud();this.drawHealthBars(0);
+      this.storyWaveText?.setText(matchProgress());
+      this.time.delayedCall(570,()=>{
+        if(!this.sys.isActive())return;
+        this.stats.excludeTime(this.time.now-start);
+        this.switchingTeam=false;
+      });
+    });
   }
 
   /** Show the real fallen Pokémon before any score card or changeover.
@@ -1416,6 +1508,7 @@ export class ArenaScene extends Phaser.Scene {
     this.comboMeter.clear();
     this.tackles={player:null,enemy:null};
     this.flameStreams=[];
+    this.stopWaterStreams();
     const loser:Side=this.playerHp<=0?'player':'enemy';
     this.showKnockout(loser);
     for(const shot of this.projectiles)shot.body.destroy();
@@ -1687,6 +1780,59 @@ export class ArenaScene extends Phaser.Scene {
     return true;
   }
 
+  private stopWaterStreams():void{
+    for(const stream of this.waterStreams)stream.ink.destroy();
+    this.waterStreams=[];
+  }
+
+  private startWaterStream(side:Side,kind:JetType,time:number,dir:Phaser.Math.Vector2):void{
+    if(this.finished||this.switchingTeam)return;
+    const entity=side==='player'?this.player:this.enemy;
+    if((side==='player'?this.playerHp:this.enemyHp)<=0)return;
+    this.waterStreams=this.waterStreams.filter(stream=>{
+      if(stream.side!==side)return true;
+      stream.ink.destroy();return false;
+    });
+    const nozzle=this.blastoiseFx.cannon(entity.x,entity.y,dir,-1);
+    this.blastoiseFx.muzzle(nozzle,dir,kind==='hydro');
+    this.waterStreams.push({side,kind,startAt:time,nextHitAt:time+95,
+      dir:dir.clone().normalize(),ink:this.add.graphics().setDepth(13)});
+    this.enemyCastLockUntil=side==='enemy'
+      ?Math.max(this.enemyCastLockUntil,time+JET_SPECS[kind].durationMs+220)
+      :this.enemyCastLockUntil;
+  }
+
+  private updateWaterStreams(time:number):void{
+    if(this.finished||this.switchingTeam){this.stopWaterStreams();return;}
+    for(let i=this.waterStreams.length-1;i>=0;i--){
+      const stream=this.waterStreams[i],spec=JET_SPECS[stream.kind];
+      const source=stream.side==='player'?this.player:this.enemy;
+      const target=stream.side==='player'?this.enemy:this.player;
+      const defeated=(stream.side==='player'?this.playerHp:this.enemyHp)<=0;
+      const elapsed=time-stream.startAt;
+      if(defeated||elapsed>=spec.durationMs){
+        stream.ink.destroy();this.waterStreams.splice(i,1);continue;
+      }
+      const facing=stream.dir;
+      const origin=this.blastoiseFx.cannon(source.x,source.y,facing,-1);
+      const targetCollision=jetCollisionDistance(origin,facing,target,
+        spec.reach,target.radius+spec.radius);
+      const wallCollision=this.environment?.intercept(
+        origin.x+facing.x*spec.reach,origin.y+facing.y*spec.reach,spec.radius,0)??false;
+      const length=wallCollision?Math.min(220,spec.reach):
+        visibleJetLength(spec.reach,targetCollision);
+      this.blastoiseFx.drawJet(stream.ink,origin,facing,length,
+        spec.radius,time,stream.kind==='hydro');
+      if(targetCollision!==null&&!wallCollision&&time>=stream.nextHitAt){
+        stream.nextHitAt=time+spec.hitEveryMs;
+        this.blastoiseFx.splash(target.x,target.y,
+          stream.kind==='hydro'?0.88:0.48);
+        this.damage(stream.side==='player'?'enemy':'player',
+          spec.tickDamage,target.x,target.y,0x82dfff,'water','special');
+      }
+    }
+  }
+
   private castBlastoiseEnemy(skill:Skill,time:number):void{
     if(!this.canCast('enemy',skill,time))return;
     const ability=skills.blastoise[skill];
@@ -1704,11 +1850,13 @@ export class ArenaScene extends Phaser.Scene {
       this.startTackle('enemy',ability.damage,'normal',time,dir);
       return;
     }
-    const delay=skill==='r'?580:170;
+    const delay=skill==='r'?410:170;
     if(skill==='r')this.blastoiseFx.charge(this.enemy.x,this.enemy.y,dir,delay);
     this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+delay+320);
     this.time.delayedCall(delay,()=>{
       if(!this.sys.isActive()||this.finished||this.enemyHp<=0)return;
+      this.startWaterStream('enemy',skill==='r'?'hydro':'gun',this.time.now,dir);
+      return;
       for(const barrel of skill==='e'?([-1,1] as const):([-1] as const)){
         this.time.delayedCall(skill==='e'&&barrel===1?150:0,()=>{
           if(!this.sys.isActive()||this.finished||this.enemyHp<=0)return;
@@ -2059,7 +2207,7 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     if(this.settingsOpen()||this.finished)return;
-    if((this.mode==='story'&&time<this.storyIntroUntil)||this.storySwitching){
+    if((this.mode==='story'&&time<this.storyIntroUntil)||this.storySwitching||this.switchingTeam){
       // The VS card and Poké Ball switch are deliberate non-combat moments.
       // Effects and Phaser tweens can finish, but no unseen projectiles land.
       this.rockFx?.update(time);
@@ -2138,6 +2286,7 @@ export class ArenaScene extends Phaser.Scene {
     }
     this.enemyDecision(time);
     this.updateProjectiles(time,dt);
+    this.updateWaterStreams(time);
     this.rockFx?.update(time);
     this.blastoiseFx.renderGuards(time,[
       {side:'player',x:this.player.x,y:this.player.y,until:this.shellGuardUntil.player},
