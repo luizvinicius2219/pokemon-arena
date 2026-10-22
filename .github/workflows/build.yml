@@ -2,7 +2,7 @@ name: Build check
 
 on:
   push:
-    branches: [main, 'fix/blastoise-water-pixel-art-aim']
+    branches: [main, 'fix/visual-hurtboxes-and-swept-hits']
   workflow_dispatch:
 
 jobs:
