@@ -726,9 +726,13 @@ export class ArenaScene extends Phaser.Scene {
     this.playerAttackAt=time;
     const pointer=this.input.activePointer;
     // Touchscreen has no mouse cursor: attacks automatically aim at Pikachu.
-    const dir=this.mobile.active
-      ? this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing)
-      : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
+    // Water cannons lock initially onto the opponent so their beam cannot
+    // fire away from battle when a mobile touch/cursor has an old position.
+    const dir=this.playerSpecies==='blastoise'&&(action==='e'||action==='r')
+      ?this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing)
+      :this.mobile.active
+        ?this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing)
+        :this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
     this.faceDirection('player',dir);
     const isBlastoise=this.playerSpecies==='blastoise';
     const isBase=this.playerSpecies!=='charizard';
@@ -1812,9 +1816,16 @@ export class ArenaScene extends Phaser.Scene {
         stream.ink.destroy();stream.secondInk?.destroy();this.waterStreams.splice(i,1);continue;
       }
       const facing=stream.dir;
-      if(stream.side==='player'&&this.mobile.active){
+      if(stream.side==='player'){
+        // Use the same gradual steering as Flamethrower while keeping the
+        // moving target under the spray, even after mobile touch ends.
         const intended=this.directionTo(this.player,this.enemy.x,this.enemy.y,stream.dir);
-        stream.dir.lerp(intended,0.12).normalize();
+        const current=Math.atan2(stream.dir.y,stream.dir.x);
+        const next=Math.atan2(intended.y,intended.x);
+        const turn=Phaser.Math.Clamp(Phaser.Math.Angle.Wrap(next-current),-0.065,0.065);
+        stream.dir.set(Math.cos(current+turn),Math.sin(current+turn));
+        this.playerFacing.copy(stream.dir);
+        this.playerMotion?.face(stream.dir);
       }
       const origin=this.blastoiseFx.cannon(source.x,source.y,facing,-1);
       const ramp=beamReach(elapsed,spec.durationMs,spec.reach);
@@ -1835,8 +1846,9 @@ export class ArenaScene extends Phaser.Scene {
       }
       if((collision!==null||secondHit)&&time>=stream.nextHitAt){
         stream.nextHitAt=time+spec.hitEveryMs;
-        this.fx.breath(target.x,target.y,Math.atan2(facing.y,facing.x),
-          stream.kind==='hydro'?0.33:0.20,'water');
+        if(Math.floor(time/230)%2===0)
+          this.blastoiseFx.splash(target.x,target.y,
+            stream.kind==='hydro'?0.58:0.42);
         this.damage(stream.side==='player'?'enemy':'player',
           spec.tickDamage,target.x,target.y,0x82dfff,'water','special');
       }
@@ -2221,7 +2233,9 @@ export class ArenaScene extends Phaser.Scene {
     const oldEnemy=vector(this.enemy.x,this.enemy.y);
     const staggeredPlayer=this.reactions.player!==null
       && time-this.reactions.player.startAt<105;
-    const channeling=this.flameStreams.some(stream=>time-stream.startAt<stream.duration);
+    const channeling=this.flameStreams.some(stream=>time-stream.startAt<stream.duration)
+      ||this.waterStreams.some(stream=>stream.side==='player'&&
+        time-stream.startAt<JET_SPECS[stream.kind].durationMs);
     const slowed=time<this.playerSlowUntil?0.64:1;
     const bound=time<this.playerBindUntil?0.52:1;
     const moveFactor=(channeling?0.72:1)*Math.min(slowed,bound)*
