@@ -12,14 +12,14 @@ export interface VfxShot {
   velocity: { x: number; y: number };
   kind: VfxKind;
 }
-type Element = 'fire' | 'electric';
+type Element = 'fire' | 'electric' | 'water';
 
 /** Common collision/render geometry for the Flamethrower beam. */
-export function beamReach(elapsed:number,duration:number): number {
+export function beamReach(elapsed:number,duration:number,maxDistance=385): number {
   if(elapsed<0||elapsed>=duration)return 0;
   const extend=Phaser.Math.Clamp(elapsed/135,0,1);
   const retract=Phaser.Math.Clamp((duration-elapsed)/115,0,1);
-  return 385*Math.min(extend,retract);
+  return maxDistance*Math.min(extend,retract);
 }
 
 export class CombatFx {
@@ -153,24 +153,41 @@ export class CombatFx {
   }
 
   /**
-   * A single cohesive, animated ribbon visually links Charizard's muzzle
-   * to the far end of Flamethrower. Collision stays with existing hitboxes.
+   * Flamethrower and both water cannons use ONE fluid ribbon renderer:
+   * identical layered geometry, moving edges, coherent leading cap and
+   * longitudinal particles. Only the color palette and width vary.
    */
-  /**
-   * A long, nearly parallel fire-beam: broad orange haze, turbulent edges,
-   * tightly connected golden core and an incandescent end cap.
-   * This is rendered once per frame and does not spawn individual bullets.
+  drawFlamethrower(x:number,y:number,a:number,elapsed:number,duration=740,maxReach?:number){
+    this.drawStream(this.ink,x,y,a,elapsed,duration,385,maxReach??Infinity,'fire',1);
+  }
+
+  /** A sustained Water Gun or twin Hydro Pump beam, not disconnected bullets.
+   * A dedicated Graphics instance per jet lets both cannons render safely.
    */
-  drawFlamethrower(x:number,y:number,a:number,elapsed:number,duration=740,maxReach?:number) {
-    const length=Math.min(beamReach(elapsed,duration),maxReach??Infinity);
+  drawWaterStream(
+    ink:Phaser.GameObjects.Graphics,x:number,y:number,a:number,
+    elapsed:number,duration:number,reach:number,blocked:number,
+    heavy=false
+  ):void{
+    ink.clear();
+    this.drawStream(ink,x,y,a,elapsed,duration,reach,blocked,
+      'water',heavy?1.03:0.64);
+  }
+
+  private drawStream(
+    g:Phaser.GameObjects.Graphics,x:number,y:number,a:number,
+    elapsed:number,duration:number,range:number,blocked:number,
+    element:'fire'|'water',widthScale:number
+  ):void{
+    const length=Math.min(beamReach(elapsed,duration,range),blocked);
     if(length<=1)return;
+    const water=element==='water';
     const phase=elapsed*0.030;
-    const g=this.ink;
     const c=Math.cos(a),s=Math.sin(a);
     const normalX=-s,normalY=c;
     const progress=Math.min(1,length/150);
 
-    const ribbon=(halfWidth:number,color:number,alpha:number,frequency:number)=>{
+    const ribbon=(halfWidth:number,color:number,alpha:number)=>{
       const left:{x:number;y:number}[]=[];
       const right:{x:number;y:number}[]=[];
       const slices=24;
@@ -179,35 +196,47 @@ export class CombatFx {
         const travel=t*length;
         const entry=Phaser.Math.Clamp(travel/26,0,1);
         const end=Phaser.Math.Clamp((length-travel)/14,0.2,1);
-        const turbulence=(Math.sin(phase*1.2+t*27)+Math.sin(phase*0.72+t*46))*halfWidth*0.12*entry;
+        // The same turbulence as Charizard's Flamethrower: continuous,
+        // smoothly pulsing shape instead of rigid beams and disconnected dots.
+        const turbulence=(Math.sin(phase*1.2+t*27)+
+          Math.sin(phase*0.72+t*46))*halfWidth*0.12*entry;
         const bend=Math.sin(phase*0.66+t*11)*halfWidth*0.12*t;
         const centerX=x+c*travel+normalX*bend;
         const centerY=y+s*travel+normalY*bend;
         const width=(5+halfWidth*entry*progress)*end;
-        left.push({x:centerX+normalX*(width+turbulence),y:centerY+normalY*(width+turbulence)});
-        right.push({x:centerX-normalX*(width-turbulence),y:centerY-normalY*(width-turbulence)});
+        left.push({x:centerX+normalX*(width+turbulence),
+          y:centerY+normalY*(width+turbulence)});
+        right.push({x:centerX-normalX*(width-turbulence),
+          y:centerY-normalY*(width-turbulence)});
       }
       g.fillStyle(color,alpha);
       g.fillPoints([...left,...right.reverse()],true);
     };
 
-    // Four ribbons with moving edges and a straight, brilliant center.
-    ribbon(38,0x9d3520,0.22,0.7);
-    ribbon(29,0xe34b20,0.84,1.1);
-    ribbon(20,0xff902f,0.95,1.5);
-    ribbon(10,0xffdf7b,1,1.9);
-    ribbon(3,0xfff8ce,0.95,2.2);
+    const layers=water
+      ?([[38,0x123f72,0.25],[29,0x226fa7,0.84],
+         [20,0x42b4da,0.96],[10,0x95e5f8,1],[3,0xe8fcff,0.97]] as const)
+      :([[38,0x9d3520,0.22],[29,0xe34b20,0.84],
+         [20,0xff902f,0.95],[10,0xffdf7b,1],[3,0xfff8ce,0.95]] as const);
+    for(const [width,color,alpha] of layers)
+      ribbon(width*widthScale,color,alpha);
+
     const endX=x+c*length,endY=y+s*length;
-    g.fillStyle(0xff8a30,0.70).fillCircle(endX,endY,24*progress);
-    g.fillStyle(0xffd86b,0.94).fillCircle(endX,endY,14*progress);
-    g.fillStyle(0xfff8d4,0.95).fillCircle(endX,endY,6*progress);
-    // Individual flares move along the fire beam instead of appearing as bullets.
+    g.fillStyle(water?0x2a88c0:0xff8a30,0.70)
+      .fillCircle(endX,endY,24*progress*widthScale);
+    g.fillStyle(water?0x83d7f2:0xffd86b,0.94)
+      .fillCircle(endX,endY,14*progress*widthScale);
+    g.fillStyle(water?0xe9ffff:0xfff8d4,0.95)
+      .fillCircle(endX,endY,6*progress*widthScale);
+
+    // Particle movement travels along the SAME beam for both elements.
     for(let i=0;i<10;i++){
       const t=(i/10+elapsed*0.0023)%1;
-      const px=x+c*length*t+normalX*Math.sin(phase+t*17)*20*progress;
-      const py=y+s*length*t+normalY*Math.sin(phase+t*17)*20*progress;
-      g.fillStyle(i%2?0xffd668:0xff682b,0.7)
-       .fillCircle(px,py,2+3*Math.sin(Math.PI*t));
+      const px=x+c*length*t+normalX*Math.sin(phase+t*17)*20*progress*widthScale;
+      const py=y+s*length*t+normalY*Math.sin(phase+t*17)*20*progress*widthScale;
+      g.fillStyle(water?(i%2?0x9be8f6:0x2c95c8):
+        (i%2?0xffd668:0xff682b),0.70)
+        .fillCircle(px,py,Math.max(1.1,(2+3*Math.sin(Math.PI*t))*widthScale));
     }
   }
 
@@ -311,7 +340,8 @@ export class CombatFx {
   }
 
   charge(x:number,y:number,element:Element,power=1) {
-    const electric=element==='electric', color=electric?0xffe784:0xff8b3c;
+    const electric=element==='electric',water=element==='water';
+    const color=electric?0xffe784:water?0x64c6ed:0xff8b3c;
     const circle=this.scene.add.circle(x,y,12*power,color,0.10).setStrokeStyle(2,color,0.85).setDepth(5);
     this.scene.tweens.add({
       targets:circle,alpha:0,scaleX:2.5,scaleY:2.5,duration:220+power*45,
@@ -321,18 +351,21 @@ export class CombatFx {
       const a=Math.PI*2*i/Math.round(6*power)+Math.random()*0.28;
       const d=14+Math.random()*20*power;
       this.mote(x+Math.cos(a)*d,y+Math.sin(a)*d,
-        electric?(i%2?0xffffff:0xffeb75):(i%2?0xffdd68:0xff7638),
+        electric?(i%2?0xffffff:0xffeb75):
+          water?(i%2?0xd8f9ff:0x43a9d5):(i%2?0xffdd68:0xff7638),
         2+Math.random()*4,-Math.cos(a)*d*0.5,-Math.sin(a)*d*0.5,180+Math.random()*110);
     }
   }
 
-  breath(x:number,y:number,angle:number,scale=1) {
+  breath(x:number,y:number,angle:number,scale=1,element:'fire'|'water'='fire') {
     // Each tongue has independent lifetime/trajectory so it reads as flowing flame.
     for(let i=0;i<7;i++) {
       const spread=(Math.random()-0.5)*0.58;
       const a=angle+spread;
       const d=48+Math.random()*100*scale;
-      const c=[0xff4e22,0xff8b2d,0xffcd4c,0xfff2a2][i%4];
+      const c=(element==='water'
+        ?[0x257bad,0x40add8,0x83ddf2,0xe3fbff]
+        :[0xff4e22,0xff8b2d,0xffcd4c,0xfff2a2])[i%4];
       this.mote(x+Math.cos(a)*14,y+Math.sin(a)*14,c,6+Math.random()*12,
         Math.cos(a)*d,Math.sin(a)*d,(230+Math.random()*180)*scale,0.95);
     }
@@ -367,9 +400,9 @@ export class CombatFx {
   /** Directional strike marks so the impact is not just a bright circle. */
   hitAccent(x:number,y:number,angle:number,element:Element,power=1) {
     const g=this.scene.add.graphics().setPosition(x,y).setDepth(11);
-    const electric=element==='electric';
-    const core=electric?0xffffc8:0xffedbb;
-    const rim=electric?0xffd45a:0xff793d;
+    const electric=element==='electric',water=element==='water';
+    const core=electric?0xffffc8:water?0xd9faff:0xffedbb;
+    const rim=electric?0xffd45a:water?0x48aeda:0xff793d;
     for(let i=-2;i<=2;i++){
       const a=angle+Math.PI+i*0.33;
       const dx=Math.cos(a),dy=Math.sin(a);
@@ -380,7 +413,7 @@ export class CombatFx {
         .lineBetween(dx*7,dy*7,dx*29*power+side*dy,dy*29*power-side*dx);
     }
     const ground=this.scene.add.ellipse(x,y+15,27*power,8*power,
-      electric?0xffe077:0xf67c45,0.38).setDepth(2);
+      electric?0xffe077:water?0x49afe0:0xf67c45,0.38).setDepth(2);
     this.scene.tweens.add({targets:ground,alpha:0,scaleX:2.1,scaleY:1.7,duration:260,
       onComplete:()=>ground.destroy()});
     this.scene.tweens.add({targets:g,alpha:0,scaleX:1.2,scaleY:1.2,
@@ -388,26 +421,29 @@ export class CombatFx {
   }
 
   impact(x:number,y:number,element:Element,power=1) {
-    const electric=element==='electric';
-    const base=electric?0xffee81:0xffa14c;
+    const electric=element==='electric',water=element==='water';
+    const base=electric?0xffee81:water?0x67cde9:0xffa14c;
     const ring=this.scene.add.circle(x,y,12*power,base,0.14).setStrokeStyle(4,base,0.9).setDepth(8);
     this.scene.tweens.add({targets:ring,alpha:0,scaleX:3.8,scaleY:3.8,duration:340,
       onComplete:()=>ring.destroy()});
-    const flash=this.scene.add.circle(x,y,10*power,electric?0xffffff:0xffe2a1,0.92).setDepth(9);
+    const flash=this.scene.add.circle(x,y,10*power,
+      electric?0xffffff:water?0xe1fcff:0xffe2a1,0.92).setDepth(9);
     this.scene.tweens.add({targets:flash,alpha:0,scaleX:2.4,scaleY:2.4,duration:180,
       onComplete:()=>flash.destroy()});
     const count=Math.min(30,Math.round(10*power));
     for(let i=0;i<count;i++){
       const a=i/count*Math.PI*2+Math.random()*0.22;
       const dist=(28+Math.random()*65)*power;
-      const color=electric?[0xfff5a5,0x9cddff,0xffffff][i%3]:[0xff6126,0xffad46,0xffe48a][i%3];
+      const color=electric?[0xfff5a5,0x9cddff,0xffffff][i%3]:
+        water?[0x348dbc,0x82d8f0,0xe4fcff][i%3]:
+        [0xff6126,0xffad46,0xffe48a][i%3];
       this.mote(x,y,color,2+Math.random()*7*power,
         Math.cos(a)*dist,Math.sin(a)*dist,220+Math.random()*240);
     }
   }
 
   telegraph(x:number,y:number,radius:number,element:Element,duration:number) {
-    const color=element==='electric'?0xffea77:0xff9d57;
+    const color=element==='electric'?0xffea77:element==='water'?0x69c9eb:0xff9d57;
     const ring=this.scene.add.circle(x,y,radius,color,0.10)
       .setStrokeStyle(3,color,0.88).setDepth(2);
     const center=this.scene.add.circle(x,y,4,color,0.7).setDepth(2);
