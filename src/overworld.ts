@@ -276,7 +276,7 @@ const blastoiseLocal='/assets/pokemon/blastoise/';
 function spriteSize(creature:Creature):number {
   switch(creature){
     case 'venusaur':return 1.9;
-    case 'blastoise':return 1.9;
+    case 'blastoise':return 2.45;
     case 'raichu':return 1.9;
     case 'charmander':return 2.55;
     case 'charmeleon':return 2.12;
