@@ -16,16 +16,16 @@ export interface JetSpec {
 export const JET_SPECS:Readonly<Record<JetType,JetSpec>>={
   gun:{
     durationMs:1400,
-    reach:410,
-    radius:13,
+    reach:340,
+    radius:9,
     hitEveryMs:240,
     tickDamage:4,
     endDamage:0
   },
   hydro:{
     durationMs:1550,
-    reach:520,
-    radius:30,
+    reach:440,
+    radius:18,
     hitEveryMs:280,
     tickDamage:6,
     endDamage:8
@@ -43,6 +43,18 @@ export function normalizedJetDirection(direction:JetPoint):JetPoint{
  * Exact ray/circle collision prevents a continuous jet from hitting targets
  * behind the nozzle or off the beam axis.
  */
+/** Place the nozzle near the shoulder-cannon lip, not at Blastoise's feet.
+ * The position rotates with the facing and mirrors correctly left/right.
+ * Render size: native 48x56 Shoot frame at 2.45x, feet anchored at 0.8.
+ */
+export function blastoiseCannonPoint(x:number,y:number,direction:JetPoint,barrel:-1|1):JetPoint{
+  const d=normalizedJetDirection(direction);
+  return {
+    x:Math.round(x+d.x*45-d.y*barrel*15),
+    y:Math.round(y-61+d.y*21+d.x*barrel*13)
+  };
+}
+
 export function jetCollisionDistance(
   nozzle:JetPoint,direction:JetPoint,target:JetPoint,
   reach:number,targetRadius:number
