@@ -695,7 +695,7 @@ export class ArenaScene extends Phaser.Scene {
       const dir=this.mobile.active
         ? (Math.hypot(stick.x,stick.y)>0.12
           ? vector(stick.x,stick.y).normalize()
-          : this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing))
+          : this.playerFacing.clone())
         : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
       const start=vector(this.player.x,this.player.y);
       const raw=vector(clampX(start.x+dir.x*DODGE_DISTANCE),
@@ -732,14 +732,8 @@ export class ArenaScene extends Phaser.Scene {
     this.playerAttackAt=time;
     if(action==='r')this.beginUltimate('player');
     const pointer=this.input.activePointer;
-    // Touchscreen has no mouse cursor: attacks automatically aim at Pikachu.
-    // Water cannons lock initially onto the opponent so their beam cannot
-    // fire away from battle when a mobile touch/cursor has an old position.
-    const dir=this.playerSpecies==='blastoise'&&(action==='e'||action==='r')
-      ?this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing)
-      :this.mobile.active
-        ?this.directionTo(this.player,this.enemy.x,this.enemy.y,this.playerFacing)
-        :this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
+    // All player attacks aim at the player's pointer, never at the enemy.
+    const dir=this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
     this.faceDirection('player',dir);
     const isBlastoise=this.playerSpecies==='blastoise';
     const isBase=this.playerSpecies!=='charizard';
@@ -936,8 +930,7 @@ export class ArenaScene extends Phaser.Scene {
     if(skill==='q'){
       // Player skill follows the mouse direction at the actual hit frame,
       // not an auto-aim vector to the enemy. On touch, use aim assist.
-      const aim=this.mobile.active?dir:
-        this.directionTo(this.player,this.input.activePointer.worldX,
+      const aim=this.directionTo(this.player,this.input.activePointer.worldX,
           this.input.activePointer.worldY,dir);
       this.startTackle('player',move.damage,move.element,time,aim);
     }else if(skill==='w'){
@@ -1735,9 +1728,7 @@ export class ArenaScene extends Phaser.Scene {
       const elapsed=time-stream.startAt;
       const pointer=this.input.activePointer;
       // The beam rotates gradually, so the player can sweep the fire while moving.
-      const aim=this.mobile.active
-        ? this.directionTo(this.player,this.enemy.x,this.enemy.y,stream.direction)
-        : this.directionTo(this.player,pointer.worldX,pointer.worldY,stream.direction);
+      const aim=this.directionTo(this.player,pointer.worldX,pointer.worldY,stream.direction);
       const currentAngle=Math.atan2(stream.direction.y,stream.direction.x);
       const desiredAngle=Math.atan2(aim.y,aim.x);
       const difference=Phaser.Math.Angle.Wrap(desiredAngle-currentAngle);
@@ -1866,9 +1857,9 @@ export class ArenaScene extends Phaser.Scene {
       }
       const facing=stream.dir;
       if(stream.side==='player'){
-        // Use the same gradual steering as Flamethrower while keeping the
-        // moving target under the spray, even after mobile touch ends.
-        const intended=this.directionTo(this.player,this.enemy.x,this.enemy.y,stream.dir);
+        // Steering follows cursor position only, not the opponent.
+        const pointer=this.input.activePointer;
+        const intended=this.directionTo(this.player,pointer.worldX,pointer.worldY,stream.dir);
         const current=Math.atan2(stream.dir.y,stream.dir.x);
         const next=Math.atan2(intended.y,intended.x);
         const turn=Phaser.Math.Clamp(Phaser.Math.Angle.Wrap(next-current),-0.065,0.065);
