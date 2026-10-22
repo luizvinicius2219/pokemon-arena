@@ -100,6 +100,35 @@ export class BlastoiseFx {
     }
   }
 
+  /** Repaint one continuous water column per frame. The Graphics is reusable
+   * and is not recreated every tick, keeping mobile GPU work bounded. */
+  drawJet(g:Phaser.GameObjects.Graphics,origin:Point,dir:Point,length:number,
+    radius:number,time:number,heavy=false):void{
+    g.clear();
+    const n=Math.hypot(dir.x,dir.y)||1,dx=dir.x/n,dy=dir.y/n;
+    const nx=-dy,ny=dx;
+    const x1=origin.x+dx*length,y1=origin.y+dy*length;
+    const angle=Math.atan2(dy,dx);
+    const width=radius*(heavy?2.1:1.65);
+    g.lineStyle(width+10,0x1a78b7,0.20).lineBetween(origin.x,origin.y,x1,y1);
+    g.lineStyle(width+5,0x237fba,0.94).lineBetween(origin.x,origin.y,x1,y1);
+    g.lineStyle(width,0x61c7ed,0.96).lineBetween(origin.x,origin.y,x1,y1);
+    g.lineStyle(Math.max(3,width*0.48),0xd3faff,0.98)
+      .lineBetween(origin.x,origin.y,x1,y1);
+    const count=Math.min(19,Math.max(6,Math.ceil(length/35)));
+    for(let i=0;i<count;i++){
+      const step=((i/count+time*0.00085)%1)*length;
+      const spread=Math.sin(i*2.2+time*0.014)*radius*(i%3===0?0.95:0.6);
+      const px=origin.x+dx*step+nx*spread,py=origin.y+dy*step+ny*spread;
+      g.fillStyle(i%3===0?0xffffff:i%2?0x75dafa:0xa7eafa,0.90)
+        .fillRect(Math.round(px)-3,Math.round(py)-3,
+          heavy&&i%3===0?8:5,heavy&&i%3===0?8:5);
+    }
+    g.fillStyle(0xe8ffff,0.94).fillCircle(x1,y1,radius*0.64);
+    g.lineStyle(2,0x86ecff,0.82).strokeEllipse(x1,y1,radius*2.4,radius*1.5);
+    void angle;
+  }
+
   /** Crisp cyan droplets, white foam, ground ring and a brief expanding shock. */
   splash(x:number,y:number,power=1):void{
     const amount=Math.min(17,Math.max(6,Math.round(9*power)));
