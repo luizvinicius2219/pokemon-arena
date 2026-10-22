@@ -1,11 +1,17 @@
 import assert from 'node:assert/strict';
 import {beginMatch,advanceMatch,clearMatch,currentMatch,activeMatchPokemon} from '../src/battleSetup.ts';
-import {JET_SPECS,jetCollisionDistance,normalizedJetDirection,visibleJetLength} from '../src/waterJet.ts';
+import {JET_SPECS,jetCollisionDistance,normalizedJetDirection,visibleJetLength,blastoiseCannonPoint} from '../src/waterJet.ts';
 
 function checkJets(){
   assert.equal(JET_SPECS.gun.durationMs>1100,true);
   assert.equal(JET_SPECS.hydro.radius>JET_SPECS.gun.radius,true);
   assert.equal(JET_SPECS.gun.endDamage,0);
+  assert.ok(JET_SPECS.gun.radius<JET_SPECS.hydro.radius);
+  assert.ok(JET_SPECS.hydro.radius<=18);
+  const right=blastoiseCannonPoint(210,288,{x:1,y:0},-1);
+  const left=blastoiseCannonPoint(210,288,{x:-1,y:0},-1);
+  assert.ok(right.x>210&&left.x<210);
+  assert.ok(right.y<288&&left.y<288);
   assert.deepEqual(normalizedJetDirection({x:0,y:0}),{x:1,y:0});
   assert.equal(jetCollisionDistance({x:0,y:0},{x:1,y:0},{x:160,y:0},400,25),135);
   assert.equal(jetCollisionDistance({x:0,y:0},{x:1,y:0},{x:-160,y:0},400,25),null);
