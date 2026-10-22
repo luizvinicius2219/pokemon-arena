@@ -2,7 +2,7 @@ name: Build check
 
 on:
   push:
-    branches: [main, 'fix/visual-hurtboxes-and-swept-hits']
+    branches: [main, 'feature/ultimates-arena-hydro-timing']
   workflow_dispatch:
 
 jobs:
