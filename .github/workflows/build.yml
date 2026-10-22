@@ -2,7 +2,7 @@ name: Build check
 
 on:
   push:
-    branches: [main, 'fix/blastoise-selecao-finais']
+    branches: [main, 'feature/blastoise-pmd-game-ready']
   workflow_dispatch:
 
 jobs:
