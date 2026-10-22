@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { CombatFx } from './combatFx';
 
 type Point=Readonly<{x:number;y:number}>;
 type Side='player'|'enemy';
@@ -11,7 +12,7 @@ type Side='player'|'enemy';
 export class BlastoiseFx {
   private readonly shieldInk:Phaser.GameObjects.Graphics;
 
-  constructor(private readonly scene:Phaser.Scene){
+  constructor(private readonly scene:Phaser.Scene,private readonly fx:CombatFx){
     this.shieldInk=scene.add.graphics().setDepth(4);
   }
 
@@ -100,33 +101,11 @@ export class BlastoiseFx {
     }
   }
 
-  /** Repaint one continuous water column per frame. The Graphics is reusable
-   * and is not recreated every tick, keeping mobile GPU work bounded. */
-  drawJet(g:Phaser.GameObjects.Graphics,origin:Point,dir:Point,length:number,
-    radius:number,time:number,heavy=false):void{
-    g.clear();
-    const n=Math.hypot(dir.x,dir.y)||1,dx=dir.x/n,dy=dir.y/n;
-    const nx=-dy,ny=dx;
-    const x1=origin.x+dx*length,y1=origin.y+dy*length;
-    const angle=Math.atan2(dy,dx);
-    const width=radius*(heavy?2.1:1.65);
-    g.lineStyle(width+10,0x1a78b7,0.20).lineBetween(origin.x,origin.y,x1,y1);
-    g.lineStyle(width+5,0x237fba,0.94).lineBetween(origin.x,origin.y,x1,y1);
-    g.lineStyle(width,0x61c7ed,0.96).lineBetween(origin.x,origin.y,x1,y1);
-    g.lineStyle(Math.max(3,width*0.48),0xd3faff,0.98)
-      .lineBetween(origin.x,origin.y,x1,y1);
-    const count=Math.min(19,Math.max(6,Math.ceil(length/35)));
-    for(let i=0;i<count;i++){
-      const step=((i/count+time*0.00085)%1)*length;
-      const spread=Math.sin(i*2.2+time*0.014)*radius*(i%3===0?0.95:0.6);
-      const px=origin.x+dx*step+nx*spread,py=origin.y+dy*step+ny*spread;
-      g.fillStyle(i%3===0?0xffffff:i%2?0x75dafa:0xa7eafa,0.90)
-        .fillRect(Math.round(px)-3,Math.round(py)-3,
-          heavy&&i%3===0?8:5,heavy&&i%3===0?8:5);
-    }
-    g.fillStyle(0xe8ffff,0.94).fillCircle(x1,y1,radius*0.64);
-    g.lineStyle(2,0x86ecff,0.82).strokeEllipse(x1,y1,radius*2.4,radius*1.5);
-    void angle;
+  /** Uses exactly the Flamethrower's layered geometry, with a water palette. */
+  drawJet(g:Phaser.GameObjects.Graphics,origin:Point,dir:Point,
+    elapsed:number,duration:number,reach:number,blocked:number,heavy=false):void{
+    this.fx.drawWaterStream(g,origin.x,origin.y,Math.atan2(dir.y,dir.x),
+      elapsed,duration,reach,blocked,heavy);
   }
 
   /** Crisp cyan droplets, white foam, ground ring and a brief expanding shock. */
