@@ -2,7 +2,7 @@ name: Build check
 
 on:
   push:
-    branches: [main, 'feature/ultimates-arena-hydro-timing']
+    branches: [main, 'feat/ingame-pause-manual-aim-pixel-cracks']
   workflow_dispatch:
 
 jobs:
