@@ -50,7 +50,7 @@ app.innerHTML = `
   <div class="arena-column">
     <div id="game-shell">
       <div id="game" aria-label="Área do jogo"></div>
-      <button id="ingame-menu-button" class="ingame-menu-button" type="button" aria-label="Abrir menu de pausa">☰ Pausa</button>
+      <button id="ingame-menu-button" class="ingame-menu-button" type="button" hidden aria-label="Abrir menu de pausa">☰ Pausa</button>
       <div id="ingame-pause" class="ingame-pause" hidden role="dialog" aria-modal="true" aria-label="Menu de pausa"><section class="ingame-pause-card"><h2>JOGO PAUSADO</h2><p>Retome, ajuste os controles ou volte ao menu sem sair da tela cheia.</p><button id="pause-resume" type="button">▶ Continuar</button><button id="pause-settings" type="button">⚙ Controles</button><button id="pause-fullscreen" type="button">⛶ Alternar tela cheia</button><button id="pause-quit" type="button">↩ Menu principal</button></section></div>
       <button id="toggle-fullscreen" class="game-fullscreen-button" type="button" aria-label="Entrar em tela cheia" title="Tela cheia (F)">⛶ Tela cheia</button>
       <div id="landing-menu" class="landing-menu" role="dialog" aria-modal="true" aria-label="Menu do jogo">
@@ -233,7 +233,7 @@ window.addEventListener('keydown', event => {
     renderBindings(); return;
   }
   if (menuOpen) { if (event.code === 'Escape') toggleSettings(false); return; }
-  if(event.code==='Escape'&&!mainMenuOpen){event.preventDefault();setPaused(!pauseOpen);return;}
+  if((event.code==='Escape'||event.code==='KeyM')&&!mainMenuOpen){event.preventDefault();setPaused(!pauseOpen);return;}
   if(pauseOpen)return;
   if(mainMenuOpen)return;
   // In the overworld W is WALK UP, not battle ability #2. Phaser handles
@@ -259,6 +259,7 @@ function showPanel(panel:'home'|'arena'){
 function openMainMenu(){
   setPaused(false);
   mainMenuOpen=true;
+  document.querySelector<HTMLElement>('#ingame-menu-button')!.hidden=true;
   landing.hidden=false;
   mobile.clear();
   heldKeys.clear();
@@ -270,6 +271,7 @@ function openMainMenu(){
 function startGameMode(nextMode:GameMode){
   setPaused(false);
   mainMenuOpen=false;
+  document.querySelector<HTMLElement>('#ingame-menu-button')!.hidden=false;
   landing.hidden=true;
   gameMode=nextMode;
   heldKeys.clear();
