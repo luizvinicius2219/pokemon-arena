@@ -22,6 +22,9 @@ export class UltimateFx {
    this.scene.tweens.add({targets:ring,alpha:0,scaleX:0.72,scaleY:0.72,
      duration:630,ease:'Cubic.easeIn',onComplete:()=>ring.destroy()});
  }
+ terrainImpact(x:number,y:number,force=0.55):void{
+   this.cracks.stamp(x,y,65,force);
+ }
  impact(x:number,y:number,element:Element,force=1):void{
    const tint=this.color(element);
    this.cracks.stamp(x,y,115,force);
