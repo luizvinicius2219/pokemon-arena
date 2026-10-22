@@ -137,10 +137,10 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
     r:{name:'Raio Solar',description:'Ataque especial concentrado com alto dano.',icon:'☀️',cooldown:7500,damage:27,element:'grass'}
   },
   blastoise: {
-    q:{name:'Investida',description:'Avanço rápido para atingir o alvo.',icon:'💨',cooldown:930,damage:14,element:'normal'},
-    w:{name:'Defesa de Casco',description:'Aumenta a defesa temporariamente.',icon:'🛡️',cooldown:4600,damage:0,element:'water'},
-    e:{name:'Jato de Água',description:'Projétil rápido de água.',icon:'💧',cooldown:1650,damage:18,element:'water'},
-    r:{name:'Hidro Bomba',description:'Ataque forte de água de longo alcance.',icon:'🌊',cooldown:7400,damage:30,element:'water'}
+    q:{name:'Investida de Casco',description:'Investida pesada de contato, com impacto físico e recuo visual.',icon:'🐢',cooldown:1180,damage:15,element:'normal'},
+    w:{name:'Defesa de Casco',description:'Barreira aquática que reduz o dano recebido por 3 segundos.',icon:'🛡️',cooldown:9500,damage:0,element:'water'},
+    e:{name:'Jato de Água',description:'Dois disparos alternados dos canhões, com dano dividido por acerto.',icon:'💦',cooldown:2550,damage:20,element:'water'},
+    r:{name:'Hidro Bomba',description:'Carrega ambos os canhões e libera um disparo pesado com explosão de água em área.',icon:'🌊',cooldown:9300,damage:32,element:'water'}
   },
   raichu: {
     q:{name:'Choque do Trovão',description:'Faísca elétrica rápida.',icon:'⚡',cooldown:720,damage:11,element:'electric'},
