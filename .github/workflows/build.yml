@@ -2,7 +2,7 @@ name: Build check
 
 on:
   push:
-    branches: [main, 'fix/ko-switch-water-stream']
+    branches: [main, 'feature/agua-refino-lanca-chamas']
   workflow_dispatch:
 
 jobs:
