@@ -807,8 +807,10 @@ export class ArenaScene extends Phaser.Scene {
     }
     const elemental=profile.attackStyle;
     if(elemental==='grass'){
-      this.starterFx.vines(origin,target);
-      if(distance<320)this.damage('enemy',ability.damage,target.x,target.y,0x9ddd90,'grass','special');
+      const aim={x:origin.x+dir.x*300,y:origin.y+dir.y*300};
+      this.starterFx.vines(origin,aim);
+      if(rayHitsBody(origin,dir,Math.min(320,distance+40),18,this.combatBody('enemy')))
+        this.damage('enemy',ability.damage,target.x,target.y,0x9ddd90,'grass','special');
     }else if(elemental==='water'){
       this.starterFx.water(origin,dir);
       this.projectile(origin.x,origin.y,dir,skill==='r'?490:425,skill==='r'?23:15,
@@ -1357,6 +1359,8 @@ export class ArenaScene extends Phaser.Scene {
       this.enemyMotion?.hurt(now);
     }
     this.updateHp();
+    if(heavy&&physical&&now-this.lastUltimateImpact[attacker]>420)
+      this.ultimateFx.terrainImpact(victim.x,victim.y,0.75);
     this.hitStopUntil=now+(heavy?48:24);
     this.cameras.main.shake(heavy?115:64,heavy?0.0038:0.0017);
     const electric=[0xffec7c,0xffe36a,0xffee7a].includes(color);
