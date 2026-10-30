@@ -131,10 +131,10 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
     r: { name: 'Rajada de Fogo', description: 'Explosão poderosa com fragmentos flamejantes.', icon: '☄️', cooldown: 15500, damage: 29, element: 'fire' }
   },
   venusaur: {
-    q:{name:'Chicote de Vinha',description:'Golpe rápido de planta a curta distância.',icon:'🌿',cooldown:900,damage:13,element:'grass'},
-    w:{name:'Pólen Protetor',description:'Reduz o ataque do adversário.',icon:'🌸',cooldown:4300,damage:0,element:'grass'},
-    e:{name:'Folha Navalha',description:'Golpe vegetal concentrado de médio alcance.',icon:'🍃',cooldown:1900,damage:19,element:'grass'},
-    r:{name:'Raio Solar',description:'Ataque especial concentrado com alto dano.',icon:'☀️',cooldown:15500,damage:27,element:'grass'}
+    q:{name:'Folha Navalha',description:'Razor Leaf: três lâminas de folhas em um disparo direcionado.',icon:'🍃',cooldown:880,damage:14,element:'grass'},
+    w:{name:'Chicote de Vinha',description:'Vine Whip: duas vinhas físicas estalam na direção apontada.',icon:'🌿',cooldown:1550,damage:19,element:'grass'},
+    e:{name:'Bomba de Sementes',description:'Seed Bomb: projétil vegetal pesado que explode em área.',icon:'🌰',cooldown:3400,damage:26,element:'grass'},
+    r:{name:'Raio Solar',description:'Solar Beam: canalização solar de 1,85 segundo, seguida de um feixe devastador em linha reta. Pode ser interrompido.',icon:'☀️',cooldown:18500,damage:46,element:'grass'}
   },
   blastoise: {
     q:{name:'Investida de Casco',description:'Investida pesada de contato, com impacto físico e recuo visual.',icon:'🐢',cooldown:1180,damage:15,element:'normal'},

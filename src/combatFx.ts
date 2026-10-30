@@ -6,7 +6,7 @@ import Phaser from 'phaser';
  * The persistent graphics layer renders projectiles, while short-lived
  * particles are capped to avoid performance degradation on long battles.
  */
-export type VfxKind = 'ember' | 'flame' | 'fireball' | 'fireburst' | 'spark' | 'rock' | 'shard' | 'water';
+export type VfxKind = 'ember' | 'flame' | 'fireball' | 'fireburst' | 'spark' | 'rock' | 'shard' | 'water' | 'leaf' | 'seed';
 export interface VfxShot {
   body: { x: number; y: number; radius: number };
   velocity: { x: number; y: number };
@@ -66,6 +66,8 @@ export class CombatFx {
     const g=this.ink;
     g.clear();
     for(const shot of shots){
+      // Venusaur projectiles render on their own strict pixel grid.
+      if(shot.kind==='leaf'||shot.kind==='seed')continue;
       const {x,y,radius:r}=shot.body;
       const a=Math.atan2(shot.velocity.y,shot.velocity.x);
       const phase=time*0.018+x*0.02+y*0.01;
@@ -365,6 +367,7 @@ export class CombatFx {
   }
 
   trail(x:number,y:number,velocity:{x:number;y:number},kind:VfxKind,large=false) {
+    if(kind==='leaf'||kind==='seed')return;
     const electric=kind==='spark';
     const water=kind==='water';
     const rock=kind==='rock'||kind==='shard';

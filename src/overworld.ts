@@ -404,6 +404,12 @@ export class OverworldActor {
       .setDepth(3);
   }
 
+  cancelAction():void {
+    this.action=null;
+    this.actionExpiresAt=-1;
+    this.actionDuration=0;
+  }
+
   trigger(motion: 'Shoot' | 'Attack' | 'Charge' | 'Hop', time: number, dir: Phaser.Math.Vector2, duration?: number) {
     if (!this.scene.textures.exists(key(this.creature, motion))) return;
     this.action = motion;
@@ -495,8 +501,11 @@ export class OverworldActor {
       ? elapsed * totalMs(info) / this.actionDuration : elapsed;
     const sustainedShoot = actionActive && next === 'Shoot'
       && this.actionDuration > totalMs(info)+50;
+    // Repeat Venusaur's real Charge frames during Solar Beam's long windup.
+    const solarChannel = actionActive && next === 'Charge'
+      && this.creature === 'venusaur';
     const index = Math.min(currentFrame(info, Math.max(0,elapsedFrames),
-      next === 'Walk' || next === 'Idle' || sustainedShoot),columns-1);
+      next === 'Walk' || next === 'Idle' || sustainedShoot || solarChannel),columns-1);
     const frame = row * columns + index;
 
     if (spriteKey !== this.lastTexture) {

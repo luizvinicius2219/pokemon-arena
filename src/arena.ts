@@ -15,6 +15,7 @@ import { RockFx, RockMoves, type RockStatus } from './rockMoves';
 import { PokemonSwitchFx } from './pokemonSwitchFx';
 import { StarterFx } from './starterFx';
 import { BlastoiseFx } from './blastoiseFx';
+import { VenusaurFx, type SolarVisual } from './venusaurFx';
 import { JET_SPECS,type JetType } from './waterJet';
 import { combatHurtboxes,circleIntersectsBody,sweptProjectileHitsBody,rayHitsBody } from './combatHitboxes';
 import { getActivePokemon, loadCollection } from './playerCollection';
@@ -73,6 +74,13 @@ interface DashState {
   duration:number;
   lastTrailAt:number;
 }
+interface SolarState extends SolarVisual {
+  hit:boolean;
+}
+const SOLAR_CHARGE_MS=1850;
+const SOLAR_BEAM_MS=760;
+const SOLAR_MAX_RANGE=740;
+
 interface HitReaction {
   startAt:number;
   duration:number;
@@ -88,6 +96,8 @@ export class ArenaScene extends Phaser.Scene {
   private fx!: CombatFx;
   private starterFx!:StarterFx;
   private blastoiseFx!:BlastoiseFx;
+  private venusaurFx!:VenusaurFx;
+  private solarChannels:Record<Side,SolarState|null>={player:null,enemy:null};
   private shellGuardUntil:Record<Side,number>={player:0,enemy:0};
   private battleStages:Record<Side,StatStages>={
     player:makeStatStages(),enemy:makeStatStages()
@@ -245,6 +255,8 @@ export class ArenaScene extends Phaser.Scene {
     this.fx = new CombatFx(this);
     this.starterFx = new StarterFx(this);
     this.blastoiseFx = new BlastoiseFx(this,this.fx);
+    this.venusaurFx = new VenusaurFx(this);
+    this.solarChannels={player:null,enemy:null};
     this.shellGuardUntil={player:0,enemy:0};
     this.battleStages={player:makeStatStages(),enemy:makeStatStages()};
     this.playerStageText=undefined;
@@ -476,6 +488,8 @@ export class ArenaScene extends Phaser.Scene {
       return;
     }
     this.storySwitching=true;
+    this.solarChannels={player:null,enemy:null};
+    this.venusaurFx.clear();
     this.showKnockout('enemy');
     const switchStartedAt=this.time.now;
     this.enemyActiveAt=Infinity;
@@ -687,6 +701,8 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private playerCast(action:Action,time:number) {
+    // No movement, dodge or secondary spell while absorbing sunlight.
+    if(this.solarChannels.player)return;
     if(action==='dodge') {
       if(this.dash||this.tackles.player||
       time-this.playerCastAt.dodge<dodge.cooldown)return;
@@ -730,14 +746,21 @@ export class ArenaScene extends Phaser.Scene {
     if(!this.canCast('player',action,time))return;
     this.playerCastAt[action]=time;
     this.playerAttackAt=time;
-    if(action==='r')this.beginUltimate('player');
+    if(action==='r'&&this.playerSpecies!=='venusaur')this.beginUltimate('player');
     const pointer=this.input.activePointer;
     // All player attacks aim at the player's pointer, never at the enemy.
     const dir=this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
     this.faceDirection('player',dir);
+    const isVenusaur=this.playerSpecies==='venusaur';
+    if(isVenusaur&&action==='r'){
+      this.startSolar('player',time,dir);
+      return;
+    }
     const isBlastoise=this.playerSpecies==='blastoise';
     const isBase=this.playerSpecies!=='charizard';
-    const motion=isBlastoise
+    const motion=isVenusaur
+      ?action==='w'?'Attack':'Shoot'
+      :isBlastoise
       ?action==='q'?'Attack':action==='w'?'Charge':'Shoot'
       :isBase
         ?action==='q'?'Attack':action==='w'?'Charge':
@@ -771,9 +794,13 @@ export class ArenaScene extends Phaser.Scene {
         'RAJADA DE FOGO',0xffcf87);
     }
     // Intentional short wind-up: the body anticipates before the projectile releases.
+    const castingSpecies=this.playerSpecies;
     this.time.delayedCall(windupMs,()=>{
-      if(this.finished)return;
-      if(this.playerSpecies==='blastoise')
+      if(!this.sys.isActive()||this.finished||this.switchingTeam||this.storySwitching||
+        this.playerSpecies!==castingSpecies)return;
+      if(this.playerSpecies==='venusaur')
+        this.castVenusaur(action,'player',dir,this.time.now);
+      else if(this.playerSpecies==='blastoise')
         this.castBlastoise(action,dir,this.time.now);
       else if(this.playerSpecies==='charizard')
         this.castCharizard(action,dir,this.time.now);
@@ -782,6 +809,166 @@ export class ArenaScene extends Phaser.Scene {
       else if(['venusaur','blastoise','raichu','fearow','raticate'].includes(this.playerSpecies))
         this.castFinalPokemon(action,dir,this.time.now);
       else this.castOtherStarter(action,dir,this.time.now);
+    });
+  }
+
+
+  /** Prevent both Solar Beam and vines from passing through arena boundaries. */
+  private venusaurRange(origin:{x:number;y:number},
+    dir:{x:number;y:number},limit:number):number{
+    const xLimit=dir.x>0?(bounds.maxX-origin.x)/dir.x:
+      dir.x<0?(bounds.minX-origin.x)/dir.x:Infinity;
+    const yLimit=dir.y>0?(bounds.maxY-origin.y)/dir.y:
+      dir.y<0?(bounds.minY-origin.y)/dir.y:Infinity;
+    const max=Math.max(0,Math.min(limit,xLimit,yLimit));
+    if(!this.environment)return max;
+    for(let d=16;d<=max;d+=16){
+      const x=origin.x+dir.x*d,y=origin.y+dir.y*d;
+      const safe=this.environment.resolve(x,y,5);
+      if(Math.hypot(safe.x-x,safe.y-y)>8)return Math.max(0,d-16);
+    }
+    return max;
+  }
+
+  /** Fixed direction sampled on button press: never homes in on the target. */
+  private startSolar(side:Side,time:number,dir:Phaser.Math.Vector2):void{
+    const caster=side==='player'?this.player:this.enemy;
+    const origin={x:caster.x+dir.x*15,y:caster.y-39+dir.y*8};
+    this.solarChannels[side]={
+      side,origin,direction:{x:dir.x,y:dir.y},
+      startAt:time,releaseAt:time+SOLAR_CHARGE_MS,
+      endAt:time+SOLAR_CHARGE_MS+SOLAR_BEAM_MS,
+      reach:this.venusaurRange(origin,dir,SOLAR_MAX_RANGE),
+      fired:false,hit:false
+    };
+    const actor=side==='player'?this.playerMotion:this.enemyMotion;
+    actor?.trigger('Charge',time,dir,SOLAR_CHARGE_MS);
+    if(side==='player')this.destination.set(caster.x,caster.y);
+    else this.enemyCastLockUntil=Math.max(
+      this.enemyCastLockUntil,time+SOLAR_CHARGE_MS+SOLAR_BEAM_MS+160);
+    this.skillCallout(caster.x,caster.y-105,'ABSORVENDO ENERGIA SOLAR',0xf3ff9b);
+  }
+
+  /** Interrupt charging on genuine damage; after release the beam persists. */
+  private updateSolar(time:number):void{
+    for(const side of ['player','enemy'] as Side[]){
+      const state=this.solarChannels[side];
+      if(!state)continue;
+      const species=side==='player'?this.playerSpecies:this.enemySpecies;
+      const hp=side==='player'?this.playerHp:this.enemyHp;
+      if(this.finished||this.switchingTeam||this.storySwitching||
+        species!=='venusaur'||this.knockedOut[side]||hp<=0){
+        this.solarChannels[side]=null;
+        continue;
+      }
+      if(!state.fired&&this.lastHitAt[side]>state.startAt){
+        this.venusaurFx.impact(state.origin.x,state.origin.y,time,'fizzle');
+        const actor=side==='player'?this.playerMotion:this.enemyMotion;
+        actor?.cancelAction();
+        const caster=side==='player'?this.player:this.enemy;
+        this.skillCallout(caster.x,caster.y-95,'CANALIZAÇÃO INTERROMPIDA!',0xe2ff9d);
+        this.solarChannels[side]=null;
+        continue;
+      }
+      if(!state.fired&&time>=state.releaseAt){
+        state.fired=true;
+        const actor=side==='player'?this.playerMotion:this.enemyMotion;
+        actor?.trigger('Shoot',time,vector(state.direction.x,state.direction.y),
+          SOLAR_BEAM_MS);
+        const caster=side==='player'?this.player:this.enemy;
+        this.skillCallout(caster.x,caster.y-101,'RAIO SOLAR!',0xfff2a1);
+        const reduceMotion=typeof window!=='undefined'&&
+          typeof window.matchMedia==='function'&&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if(!reduceMotion)this.cameras.main.shake(145,0.003);
+      }
+      if(state.fired&&time<state.endAt&&!state.hit){
+        const traveled=beamReach(time-state.releaseAt,SOLAR_BEAM_MS,state.reach);
+        const target:Side=side==='player'?'enemy':'player';
+        if(traveled>0&&rayHitsBody(state.origin,state.direction,traveled,29,
+          this.combatBody(target))){
+          state.hit=true; // one collision per cast, not one damage tick per frame
+          const body=target==='player'?this.player:this.enemy;
+          this.venusaurFx.impact(body.x,body.y,time,'solar');
+          this.damage(target,skills.venusaur.r.damage,body.x,body.y,
+            0xeaff83,'grass','special');
+        }
+      }
+      if(time>=state.endAt)this.solarChannels[side]=null;
+      if(this.finished||this.switchingTeam||this.storySwitching)break;
+    }
+    const visible=[this.solarChannels.player,this.solarChannels.enemy]
+      .filter((state):state is SolarState=>state!==null);
+    this.venusaurFx.render(time,visible,this.projectiles);
+  }
+
+  /** Actual Venusaur move geometry, using separate pixel VFX for every move. */
+  private castVenusaur(skill:Skill,side:Side,dir:Phaser.Math.Vector2,
+    time:number):void{
+    const species=side==='player'?this.playerSpecies:this.enemySpecies;
+    if(species!=='venusaur'||this.finished||this.switchingTeam||
+      this.storySwitching)return;
+    const caster=side==='player'?this.player:this.enemy;
+    const body=side==='player'?this.enemy:this.player;
+    const target:Side=side==='player'?'enemy':'player';
+    const origin={x:caster.x+dir.x*19,y:caster.y-33+dir.y*10};
+    const ability=skills.venusaur[skill];
+    if(skill==='q'){
+      // Three visible leaves share ONE physical hitbox and damage event.
+      this.projectile(origin.x,origin.y,dir,610,10,'leaf',side,
+        ability.damage,1050,time);
+      return;
+    }
+    if(skill==='w'){
+      this.venusaurFx.whip(origin,dir,time);
+      this.time.delayedCall(130,()=>{
+        if(!this.sys.isActive()||this.finished||this.switchingTeam||
+          this.storySwitching||this.knockedOut[side]||
+          (side==='player'?this.playerSpecies:this.enemySpecies)!=='venusaur')return;
+        if(rayHitsBody(origin,dir,this.venusaurRange(origin,dir,178),29,
+          this.combatBody(target))){
+          this.venusaurFx.impact(body.x,body.y,this.time.now,'vine');
+          this.damage(target,ability.damage,body.x,body.y,
+            0x91e271,'grass','physical');
+        }
+      });
+      return;
+    }
+    if(skill==='e'){
+      this.projectile(origin.x,origin.y,dir,375,15,'seed',side,
+        ability.damage,1450,time,67);
+    }
+  }
+
+  private seedExplosion(x:number,y:number,radius:number,
+    damage:number,side:Side,time:number):void{
+    this.venusaurFx.impact(x,y,time,'seed');
+    const target:Side=side==='player'?'enemy':'player';
+    const victim=target==='player'?this.player:this.enemy;
+    if(circleIntersectsBody({x,y},radius,this.combatBody(target))){
+      this.damage(target,damage,victim.x,victim.y,0xa0e885,'grass','physical');
+    }
+  }
+
+  /** Enemy channel is visible long enough to dodge, and its aim is fixed. */
+  private castVenusaurEnemy(skill:Skill,time:number):void{
+    if(!this.canCast('enemy',skill,time)||this.solarChannels.enemy)return;
+    this.enemyCastAt[skill]=time;
+    this.enemyAttackAt=time;
+    const dir=this.directionTo(this.enemy,this.player.x,this.player.y,this.enemyFacing);
+    this.faceDirection('enemy',dir);
+    if(skill==='r'){
+      this.startSolar('enemy',time,dir);
+      return;
+    }
+    const motion=skill==='w'?'Attack':'Shoot';
+    const windup=releaseFrameMs('venusaur',motion);
+    this.enemyMotion?.trigger(motion,time,dir);
+    this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+windup+160);
+    this.time.delayedCall(windup,()=>{
+      if(!this.sys.isActive()||this.finished||this.storySwitching||
+        this.switchingTeam||this.enemyHp<=0||this.enemySpecies!=='venusaur')return;
+      this.castVenusaur(skill,'enemy',dir,this.time.now);
     });
   }
 
@@ -1362,7 +1549,7 @@ export class ArenaScene extends Phaser.Scene {
       this.enemyMotion?.hurt(now);
     }
     this.updateHp();
-    if(heavy&&physical&&now-this.lastUltimateImpact[attacker]>420)
+    if(heavy&&physical&&elemental!=='grass'&&now-this.lastUltimateImpact[attacker]>420)
       this.ultimateFx.terrainImpact(victim.x,victim.y,0.75);
     this.hitStopUntil=now+(heavy?48:24);
     this.cameras.main.shake(heavy?115:64,heavy?0.0038:0.0017);
@@ -1371,14 +1558,15 @@ export class ArenaScene extends Phaser.Scene {
     const element=electric?'electric':attackType==='water'?'water':'fire';
     if(rock){
       this.rockFx?.burst(x,y,heavy?42:24,now,'slam');
-    }else{
+    }else if(elemental!=='grass'){
+      // Grass uses VenusaurFx pixel tiles; never recolor a flame to green.
       this.fx.impact(x,y,element,heavy?1.18:0.72);
       this.fx.hitAccent(x,y,Math.atan2(direction.y,direction.x),element,heavy?1.35:0.85);
     }
-    this.flash(x,y,color,heavy?21:13);
+    if(elemental!=='grass')this.flash(x,y,color,heavy?21:13);
     const label=this.add.text(victim.x,victim.y-36,'-'+amount,{
       fontSize:heavy?'24px':'18px',fontStyle:'bold',
-      color:electric?'#fff5aa':rock?'#f0dfc1':attackType==='water'?'#c7f5ff':'#ffe6c9',
+      color:electric?'#fff5aa':rock?'#f0dfc1':elemental==='grass'?'#e2ff9f':attackType==='water'?'#c7f5ff':'#ffe6c9',
       stroke:'#16222e',strokeThickness:3
     }).setOrigin(0.5).setDepth(15);
     this.tweens.add({targets:label,y:victim.y-(heavy?83:63),alpha:0,scaleX:heavy?1.2:1.05,
@@ -1401,6 +1589,8 @@ export class ArenaScene extends Phaser.Scene {
   private transitionTeamPokemon(loser:Side):void{
     if(this.switchingTeam||this.finished)return;
     this.switchingTeam=true;
+    this.solarChannels={player:null,enemy:null};
+    this.venusaurFx.clear();
     this.showKnockout(loser);
     this.stopWaterStreams();
     this.flameStreams=[];
@@ -1494,6 +1684,7 @@ export class ArenaScene extends Phaser.Scene {
   private showKnockout(side:Side):void{
     if(this.knockedOut[side])return;
     this.knockedOut[side]=true;
+    this.solarChannels[side]=null;
     this.tackles[side]=null;
     const body=side==='player'?this.player:this.enemy;
     const actor=side==='player'?this.playerMotion:this.enemyMotion;
@@ -1546,6 +1737,8 @@ export class ArenaScene extends Phaser.Scene {
     // The combat stops immediately, but the score panel must wait until
     // the losing Pokémon has visibly dropped onto the battlefield.
     this.finished=true;
+    this.solarChannels={player:null,enemy:null};
+    this.venusaurFx.clear();
     this.comboText.setVisible(false);
     this.comboMeter.clear();
     this.tackles={player:null,enemy:null};
@@ -1711,12 +1904,19 @@ export class ArenaScene extends Phaser.Scene {
         if(shot.kind==='rock'||shot.kind==='shard')
           this.rockFx?.burst(x,y,19,time,'slam');
         else if(shot.kind==='water')this.blastoiseFx.splash(x,y,0.65);
+        else if(shot.kind==='seed'||shot.kind==='leaf')
+          this.venusaurFx.impact(x,y,time,shot.kind);
         else this.fx.impact(x,y,'fire',0.55);
       } else if(shot.blastRadius>0) {
         if(shot.kind==='water')this.waterExplosion(x,y,shot.blastRadius,shot.damage,shot.side);
+        else if(shot.kind==='seed')this.seedExplosion(x,y,shot.blastRadius,shot.damage,shot.side,time);
         else this.explode(x,y,shot.blastRadius,shot.damage,shot.side,shot.kind==='fireburst');
       } else if(hit) {
-        this.damage(shot.side==='player'?'enemy':'player',shot.damage,target.x,target.y,
+        if(shot.kind==='leaf'){
+          this.venusaurFx.impact(x,y,time,'leaf');
+          this.damage(shot.side==='player'?'enemy':'player',shot.damage,
+            target.x,target.y,0xb0e978,'grass','physical');
+        }else this.damage(shot.side==='player'?'enemy':'player',shot.damage,target.x,target.y,
           shot.kind==='spark'?0xffee7a:
           shot.kind==='rock'||shot.kind==='shard'?0xcbb18b:
             shot.kind==='water'?0x82dfff:0xff8b40,
@@ -1726,6 +1926,8 @@ export class ArenaScene extends Phaser.Scene {
         if(shot.kind==='rock'||shot.kind==='shard')
           this.rockFx?.burst(x,y,15,time,'slam');
         else if(shot.kind==='water')this.blastoiseFx.splash(x,y,0.45);
+        else if(shot.kind==='leaf'||shot.kind==='seed')
+          this.venusaurFx.impact(x,y,time,shot.kind);
         else this.fx.impact(x,y,shot.kind==='spark'?'electric':'fire',0.4);
       }
     }
@@ -2156,9 +2358,10 @@ export class ArenaScene extends Phaser.Scene {
     if(this.canCast('enemy',selection,time)){
       if(this.enemySpecies==='pikachu'||this.enemySpecies==='raichu')this.castPikachu(selection,time);
       else if(this.enemySpecies==='blastoise')this.castBlastoiseEnemy(selection,time);
+      else if(this.enemySpecies==='venusaur')this.castVenusaurEnemy(selection,time);
       else if(this.enemySpecies==='geodude'||this.enemySpecies==='onix')
         this.castRockPokemon(selection,time);
-      else if(['venusaur','blastoise','charizard'].includes(this.enemySpecies))
+      else if(['charizard'].includes(this.enemySpecies))
         this.castFinalEnemy(selection,time);
       else this.castSafariMove(selection,time);
     }
@@ -2296,6 +2499,9 @@ export class ArenaScene extends Phaser.Scene {
       stageMultiplier(this.battleStages.player.speed);
     if(this.dash){
       this.animateDash(time);
+    } else if(this.solarChannels.player){
+      // Rooted in place for the entire real Solar Beam charge and release.
+      this.destination.set(this.player.x,this.player.y);
     } else if(this.tackles.player){
       // Current animation owns the hitbox.
     } else if(staggeredPlayer){
@@ -2356,6 +2562,7 @@ export class ArenaScene extends Phaser.Scene {
     this.enemyDecision(time);
     this.updateProjectiles(time,dt);
     this.updateWaterStreams(time);
+    this.updateSolar(time);
     this.rockFx?.update(time);
     this.blastoiseFx.renderGuards(time,[
       {side:'player',x:this.player.x,y:this.player.y,until:this.shellGuardUntil.player},
