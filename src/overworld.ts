@@ -24,7 +24,7 @@ interface SheetInfo {
 type SheetRegistry = Record<Creature, Record<Motion, SheetInfo>>;
 
 const registry: SheetRegistry = {
-  venusaur: {Walk:{width:40,height:48,ticks:[8,10,8,10]},Idle:{width:40,height:48,ticks:[15,15,15,15]},Shoot:{width:56,height:56,ticks:[4,6,2,2]},Attack:{width:80,height:88,ticks:[2,2,2,2]},Charge:{width:48,height:48,ticks:[2,2,2,2]},Hurt:{width:64,height:64,ticks:[2,8]},Hop:{width:48,height:96,ticks:[2,2,2,2]}},
+  venusaur: {Walk:{width:32,height:32,ticks:[8,16,8,16]},Idle:{width:32,height:32,ticks:[30,16,12,16]},Shoot:{width:40,height:40,ticks:[12,4,4,4,2,2]},Attack:{width:72,height:72,ticks:[4,2,4,2,2,2,2,2,2,2,4]},Charge:{width:32,height:40,ticks:[2,2,2,2,2,2,2,2,2,2]},Hurt:{width:48,height:48,ticks:[2,8]},Hop:{width:40,height:80,ticks:[2,1,2,3,4,4,3,2,1,2]}},
   blastoise: {Walk:{width:32,height:40,ticks:[8,14,8,14]},Idle:{width:40,height:40,ticks:[32,12,4,4,4,4,4,8]},Shoot:{width:48,height:56,ticks:[4,2,6,2,2,4]},Attack:{width:64,height:72,ticks:[2,2,2,2,2,2,2,1,1,1,2,2,4]},Charge:{width:40,height:40,ticks:[2,2,2,2,2,2,2,2,2,2]},Hurt:{width:40,height:40,ticks:[2,8]},Hop:{width:32,height:88,ticks:[2,1,2,3,4,4,3,2,1,2]}},
   raichu: {Walk:{width:40,height:48,ticks:[8,10,8,10]},Idle:{width:40,height:48,ticks:[15,15,15,15]},Shoot:{width:56,height:56,ticks:[4,6,2,2]},Attack:{width:80,height:88,ticks:[2,2,2,2]},Charge:{width:48,height:48,ticks:[2,2,2,2]},Hurt:{width:64,height:64,ticks:[2,8]},Hop:{width:48,height:96,ticks:[2,2,2,2]}},
   charmander: {
@@ -225,7 +225,7 @@ const registry: SheetRegistry = {
  */
 export function releaseFrameMs(creature: Creature, motion: 'Shoot'|'Attack'|'Charge'): number {
   const frames: Record<Creature, Record<'Shoot'|'Attack'|'Charge',number>> = {
-    venusaur:{Shoot:2,Attack:2,Charge:2},
+    venusaur:{Shoot:2,Attack:5,Charge:5},
     blastoise:{Shoot:2,Attack:2,Charge:2},
     raichu:{Shoot:2,Attack:2,Charge:2},
     charmander: { Shoot: 5, Attack: 5, Charge: 5 },
@@ -272,6 +272,7 @@ const ids: Record<Creature,string> = {
 const motions: Motion[] = ['Walk', 'Idle', 'Shoot', 'Attack', 'Charge', 'Hurt', 'Hop'];
 const base = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/';
 const blastoiseLocal='/assets/pokemon/blastoise/';
+const venusaurLocal='/assets/pokemon/venusaur/';
 
 function spriteSize(creature:Creature):number {
   switch(creature){
@@ -346,6 +347,7 @@ export function preloadOverworld(scene: Phaser.Scene, roster: readonly Creature[
       const spriteMotion=(creature==='charmander'||creature==='kakuna')&&motion==='Shoot'?'Charge':motion;
       scene.load.spritesheet(key(creature, motion), creature==='blastoise'
         ? blastoiseLocal+spriteMotion+'-Anim.png'
+        : creature==='venusaur' ? venusaurLocal+spriteMotion+'-Anim.png'
         : base + ids[creature] + '/' + spriteMotion + '-Anim.png', {
         frameWidth: info.width,
         frameHeight: info.height

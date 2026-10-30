@@ -103,3 +103,8 @@ O atlas improvisado de 32x32 foi descontinuado e nao deve ser usado.
 A origem tem sua propria politica de licenciamento; e necessario manter os
 creditos, restringir o uso a fins nao comerciais e respeitar os direitos
 dos titulares de Pokemon.
+
+
+## Venusaur (#0003) - animações locais PMDCollab
+
+Sprites PMD originais de Venusaur preservados sem redimensionamento, com 12 animações e os arquivos de alinhamento/sombra em `public/assets/pokemon/venusaur/`. Origem fixada em [SpriteCollab](https://github.com/PMDCollab/SpriteCollab/tree/42a63b0757b3d55ebca29b27e62cd444cd29047b/sprite/0003). O arquivo `AnimData.xml` é a fonte das dimensões e tempos dos quadros; orientação das linhas: S, SE, E, NE, N, NW, W, SW. Créditos de origem: **CHUNSOFT**, conforme `credits.txt`. Artes e Pokémon pertencem aos titulares; utilização somente para protótipo experimental não comercial, sujeito às condições da fonte.

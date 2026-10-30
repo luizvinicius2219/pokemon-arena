@@ -37,7 +37,8 @@ const PARTNER:Record<string,{
   bulbasaur:{number:'0001',idle:[32,40],walk:[40,40]},
   ivysaur:{number:'0002',idle:[32,32],walk:[32,32]},
   squirtle:{number:'0007',idle:[32,32],walk:[32,32]},
-  wartortle:{number:'0008',idle:[24,40],walk:[32,40]}
+  wartortle:{number:'0008',idle:[24,40],walk:[32,40]},
+  venusaur:{number:'0003',idle:[32,32],walk:[32,32]}
 };
 
 /**
@@ -109,8 +110,10 @@ export class WorldScene extends Phaser.Scene{
       for(const motion of ['idle','walk'] as const){
         const [width,height]=texture[motion];
         this.load.spritesheet('world-'+motion+'-'+this.species,
-          'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/'+
-            texture.number+'/'+(motion==='idle'?'Idle':'Walk')+'-Anim.png',
+          (this.species==='venusaur'
+            ?'/assets/pokemon/venusaur/'
+            :'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/sprite/'+texture.number+'/')+
+              (motion==='idle'?'Idle':'Walk')+'-Anim.png',
           {frameWidth:width,frameHeight:height});
       }
     }

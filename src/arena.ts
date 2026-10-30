@@ -196,7 +196,7 @@ export class ArenaScene extends Phaser.Scene {
     const match=currentMatch();
     const roster=[...new Set([player,rival,...(match?.player??[]),...(match?.enemy??[]),
       ...(mode==='story'?['onix' as Fighter]:[])])] as Fighter[];
-    preloadOverworld(this,roster.filter(id=>!['venusaur','raichu'].includes(id)));
+    preloadOverworld(this,roster.filter(id=>id!=='raichu'));
     if(mode==='story'||currentMatch()?.arena==='pewter')preloadPewter(this);
     const base='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/';
     for(const species of roster){
