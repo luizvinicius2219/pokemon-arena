@@ -293,21 +293,22 @@ export class VenusaurFx {
       this.drawSeedImpact(cue,time);
       return;
     }
+    // 'seed' has already been handled above, so it cannot enter these branches.
     const age=time-cue.time;
-    const life=cue.kind==='solar'?580:cue.kind==='seed'?440:310;
+    const big=cue.kind==='solar';
+    const life=big?580:310;
     const p=clamp(age/life,0,1);
-    const big=cue.kind==='solar',seed=cue.kind==='seed';
-    const main=big?SUN_YELLOW:seed?0xd6c076:cue.kind==='fizzle'?0xa9dc85:LEAF_LIGHT;
-    this.ring(cue.x,cue.y,(13+(big?90:seed?52:30)*p),
+    const main=big?SUN_YELLOW:cue.kind==='fizzle'?0xa9dc85:LEAF_LIGHT;
+    this.ring(cue.x,cue.y,13+(big?90:30)*p,
       p>0.65?LEAF:main,big?36:20);
     if(big)this.ring(cue.x,cue.y,25+65*p,SUN_GREEN,30);
-    for(let i=0;i<(big?36:seed?24:13);i++){
+    for(let i=0;i<(big?36:13);i++){
       const a=i*2.39996+cue.time*0.001;
-      const r=(12+(i%6)*6)*(0.5+p*(big?3:seed?2.3:1.6));
+      const radius=(12+(i%6)*6)*(0.5+p*(big?3:1.6));
       const color=big?[SUN,SUN_GREEN,LEAF_LIGHT][i%3]:
-        seed?[0x806743,0xb69952,LEAF,LEAF_LIGHT][i%4]:
         [LEAF,LEAF_LIGHT,0xf1ffc6][i%3];
-      this.tile(cue.x+Math.cos(a)*r,cue.y+Math.sin(a)*r*0.79,color,i%3===0?8:4,1-p*0.35);
+      this.tile(cue.x+Math.cos(a)*radius,cue.y+Math.sin(a)*radius*0.79,
+        color,i%3===0?8:4,1-p*0.35);
     }
   }
 
