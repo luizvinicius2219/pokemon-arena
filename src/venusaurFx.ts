@@ -26,6 +26,12 @@ interface VineCue {
 interface ImpactCue {
   x:number;y:number;time:number;kind:'leaf'|'vine'|'seed'|'solar'|'fizzle';
 }
+interface SeedCue {
+  origin:{x:number;y:number};
+  dir:{x:number;y:number};
+  startAt:number;
+  releaseAt:number;
+}
 const GRID=4;
 const clamp=(v:number,a:number,b:number)=>Math.max(a,Math.min(b,v));
 const snap=(v:number)=>Math.round(v/GRID)*GRID;
@@ -38,6 +44,7 @@ export class VenusaurFx {
   private readonly reduceMotion:boolean;
   private vines:VineCue[]=[];
   private impacts:ImpactCue[]=[];
+  private seeds:SeedCue[]=[];
 
   constructor(private readonly scene:Phaser.Scene){
     this.ink=scene.add.graphics().setDepth(11);
@@ -47,12 +54,13 @@ export class VenusaurFx {
       typeof window.matchMedia==='function'&&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>{
-      this.ink.destroy();this.screen.destroy();this.vines=[];this.impacts=[];
+      this.ink.destroy();this.screen.destroy();
+      this.vines=[];this.impacts=[];this.seeds=[];
     });
   }
 
   clear():void{
-    this.vines=[];this.impacts=[];
+    this.vines=[];this.impacts=[];this.seeds=[];
     this.ink.clear();this.screen.setAlpha(0);
   }
 
@@ -64,6 +72,24 @@ export class VenusaurFx {
   impact(x:number,y:number,time:number,kind:ImpactCue['kind']):void{
     this.impacts.push({x,y,time,kind});
     if(this.impacts.length>12)this.impacts.shift();
+  }
+
+  /** Seed Bomb grows as a cluster of hard-shelled seeds during PMD windup. */
+  primeSeed(origin:{x:number;y:number},dir:{x:number;y:number},
+    time:number,windupMs:number):void{
+    this.seeds.push({
+      origin:{...origin},dir:{...dir},
+      startAt:time,releaseAt:time+Math.max(90,windupMs)
+    });
+    if(this.seeds.length>6)this.seeds.shift();
+  }
+
+  /** Purely visual burst: HP draining is exclusive to Leech Seed/Giga Drain. */
+  seedBurst(x:number,y:number,time:number,power=1):void{
+    this.impact(x,y,time,'seed');
+    if(!this.reduceMotion&&power>=0.85){
+      this.scene.cameras.main.shake(105,0.0016);
+    }
   }
 
   private tile(x:number,y:number,color:number,size=GRID,alpha=1):void{
@@ -116,6 +142,64 @@ export class VenusaurFx {
     }
   }
 
+  /** Eight-bit hard seed shell with a pointed top and leaf cap. */
+  private seedKernel(x:number,y:number,dx:number,dy:number,scale=1):void{
+    const nx=-dy,ny=dx;
+    for(let u=-3;u<=3;u++){
+      for(let v=-3;v<=3;v++){
+        const border=Math.abs(u)*0.70+Math.abs(v)*0.82;
+        if(border>4.3)continue;
+        const tone=border>3.1?0x32563a:
+          v<=-1&&u<=0?0xbadd78:
+          u>=2?0x5c783d:
+          (u+v)%3===0?0xc0a971:0x9b8958;
+        this.tile(x+dx*u*GRID*scale+nx*v*GRID*scale,
+          y+dy*u*GRID*scale+ny*v*GRID*scale,tone,
+          Math.max(4,Math.round(GRID*scale)));
+      }
+    }
+    for(let i=-1;i<=1;i++){
+      this.tile(x+dx*15*scale+nx*i*5*scale,
+        y+dy*15*scale+ny*i*5*scale,i===0?LEAF_LIGHT:LEAF,5);
+    }
+  }
+
+  private drawSeedPrime(cue:SeedCue,time:number):void{
+    const p=clamp((time-cue.startAt)/
+      Math.max(1,cue.releaseAt-cue.startAt),0,1);
+    const elapsed=time-cue.releaseAt;
+    const {x,y}=cue.origin;
+    const dx=cue.dir.x,dy=cue.dir.y,nx=-dy,ny=dx;
+    if(elapsed<0){
+      // Seeds assemble and orbit in pixel-snapped arcs around the flower.
+      for(let i=0;i<15;i++){
+        const a=time*0.006+i*Math.PI*2/15;
+        const orbit=29*(1-p)+9;
+        const px=x+dx*12+Math.cos(a)*orbit;
+        const py=y+dy*12+Math.sin(a)*orbit*0.72;
+        this.tile(px,py,i%3===0?0xf1e7a6:i%2?LEAF_LIGHT:LEAF,
+          i%5===0?8:4,0.92);
+      }
+      if(p>0.38)this.seedKernel(x+dx*13,y+dy*13,dx,dy,
+        0.45+0.42*p);
+      this.ring(x+dx*12,y+dy*12,18+12*p,LEAF_LIGHT,16);
+      return;
+    }
+    if(elapsed>170)return;
+    // The shell snaps forward and releases a crisp fan of loose leaves.
+    const release=1-elapsed/170;
+    for(let i=-5;i<=5;i++){
+      const spread=i*9*release;
+      const front=15+70*(1-release);
+      const px=x+dx*front+nx*spread;
+      const py=y+dy*front+ny*spread;
+      this.tile(px,py,i%3===0?0xfff2b2:i%2?LEAF_LIGHT:LEAF,
+        i%2===0?8:4,Math.max(0.15,release));
+    }
+    this.ring(x+dx*20,y+dy*20,16+24*(1-release),
+      release>0.4?0xf7e7a1:LEAF_LIGHT,16);
+  }
+
   private drawShot(shot:VfxShot,time:number):void{
     if(shot.kind!=='leaf'&&shot.kind!=='seed')return;
     const {x,y}=shot.body;
@@ -132,22 +216,83 @@ export class VenusaurFx {
           y-dy*(28+i*12)+ny*(i%2?6:-6),i%2?LEAF_LIGHT:LEAF,4,0.8);
       return;
     }
-    // Seed Bomb: olive-brown shell with angular green highlights and leaf trail.
-    for(let row=-2;row<=2;row++){
-      const half=row===-2||row===2?1:2;
-      for(let col=-half;col<=half;col++){
-        const c=row===-2||col===-half?0x4c6f35:
-          row===0&&col===0?0xf5eb8d:col>0?0xb9a065:0x8b774b;
-        this.tile(x+col*5,y+row*5,c,5);
+    // Three seeds whirl around a single legitimate projectile hitbox.
+    // No bonus damage or hidden homing from the decorative side pods.
+    const spin=Math.sin(time*0.021+x*0.02);
+    this.seedKernel(x,y,dx,dy,1.05);
+    this.seedKernel(x-dx*17+nx*(17+spin*6),
+      y-dy*17+ny*(17+spin*6),dx,dy,0.65);
+    this.seedKernel(x-dx*23-nx*(16-spin*5),
+      y-dy*23-ny*(16-spin*5),dx,dy,0.57);
+    for(let i=0;i<6;i++){
+      const px=x-dx*(18+i*12)+nx*(i%2?8:-8);
+      const py=y-dy*(18+i*12)+ny*(i%2?8:-8);
+      this.tile(px,py,i%3===0?0xf4eab7:i%2?LEAF_LIGHT:LEAF,
+        i%3===0?6:4,Math.max(0.25,0.95-i*0.12));
+      if(i%2===0)this.tile(px-nx*8,py-ny*8,LEAF_DARK,4,0.75);
+    }
+  }
+
+  /** Multi-phase shell crack, dust bloom and ballistic plant fragments. */
+  private drawSeedImpact(cue:ImpactCue,time:number):void{
+    const p=clamp((time-cue.time)/520,0,1);
+    const x=cue.x,y=cue.y;
+    const burst=clamp((p-0.06)/0.38,0,1);
+    // Dense opening sparkle, then a two-layer polygonal blast wave.
+    if(p<0.21){
+      const t=1-p/0.21;
+      this.ring(x,y,11+26*(1-t),t>0.5?0xfff1bb:LEAF_LIGHT,18);
+      for(let i=0;i<14;i++){
+        const a=i*Math.PI*2/14;
+        const reach=(12+33*(1-t))*(i%2===0?1:0.72);
+        this.tile(x+Math.cos(a)*reach,y+Math.sin(a)*reach,
+          i%2?0xd9e99b:0xfff5be,i%3===0?8:5,t);
+      }
+      for(let q=-2;q<=2;q++)
+        this.tile(x+q*8,y+(q%2)*4,
+          q%2===0?0xfdf2b5:LEAF_LIGHT,8,t);
+    }
+    this.ring(x,y,17+49*burst,
+      p<0.27?0xf4d48d:p<0.57?LEAF_LIGHT:LEAF,24);
+    if(p<0.68)this.ring(x,y,9+29*p/0.68,0x8a743d,15);
+    // Deterministic fragments and shell chunks fly out, then fall.
+    // Gravity deliberately offsets falling debris toward screen-space Y.
+    for(let i=0;i<36;i++){
+      const angle=i*2.39996+cue.time*0.0008;
+      const speed=33+(i%7)*9;
+      const distance=speed*p*2.05;
+      const drop=(p*p)*((i%4)*13+29);
+      const px=x+Math.cos(angle)*distance;
+      const py=y+Math.sin(angle)*distance*0.72+drop;
+      const shell=i%3===0;
+      const color=shell?[0x554b30,0xa48b50,0xe0bc75][Math.floor(i/3)%3]:
+        [LEAF_DARK,LEAF,LEAF_LIGHT,0xeef8af][i%4];
+      const alpha=clamp((1-p)*1.8,0,1);
+      this.tile(px,py,color,shell?8:i%5===0?7:4,alpha);
+      if(i%9===0&&p<0.78){
+        const dx=Math.cos(angle),dy=Math.sin(angle);
+        this.leaf(px+dx*7,py+dy*7,dx,dy,0.42);
+      }
+      if(shell&&i%6===0&&p<0.5)
+        this.tile(px-8,py-5,0xf4e5a1,4,alpha);
+    }
+    // Ground contact: small angular dust blocks, not glowing spheres.
+    if(p>0.11&&p<0.86){
+      const dust=clamp((0.86-p)/0.75,0,1);
+      for(let i=-6;i<=6;i++){
+        const spread=i*(7+p*5);
+        const py=y+19+Math.abs(i%3)*4-(1-p)*7;
+        this.tile(x+spread,py,i%2===0?0xb9ad80:0x6c8060,
+          i%3===0?9:5,dust*0.85);
       }
     }
-    this.tile(x-7,y-9,LEAF_LIGHT,6);
-    for(let i=0;i<3;i++)
-      this.tile(x-dx*(19+i*13)+nx*(i%2?8:-8),
-        y-dy*(19+i*13)+ny*(i%2?8:-8),i%2?LEAF:LEAF_LIGHT,5);
   }
 
   private drawImpact(cue:ImpactCue,time:number):void{
+    if(cue.kind==='seed'){
+      this.drawSeedImpact(cue,time);
+      return;
+    }
     const age=time-cue.time;
     const life=cue.kind==='solar'?580:cue.kind==='seed'?440:310;
     const p=clamp(age/life,0,1);
@@ -251,12 +396,20 @@ export class VenusaurFx {
     shots:ReadonlyArray<VfxShot>):void{
     this.ink.clear();
     this.vines=this.vines.filter(c=>time-c.startAt<400);
+    this.seeds=this.seeds.filter(c=>time-c.startAt<800&&time-c.releaseAt<170);
     this.impacts=this.impacts.filter(c=>time-c.time<
-      (c.kind==='solar'?580:c.kind==='seed'?440:310));
+      (c.kind==='solar'?580:c.kind==='seed'?520:310));
+    for(const cue of this.seeds)this.drawSeedPrime(cue,time);
     for(const shot of shots)this.drawShot(shot,time);
     for(const vine of this.vines)this.drawVine(vine,time);
     for(const impact of this.impacts)this.drawImpact(impact,time);
     let flash=0;
+    for(const impact of this.impacts){
+      if(impact.kind!=='seed')continue;
+      const elapsed=time-impact.time;
+      if(elapsed>=0&&elapsed<125&&!this.reduceMotion)
+        flash=Math.max(flash,0.11*(1-elapsed/125));
+    }
     for(const cue of channels){
       flash=Math.max(flash,cue.fired?
         this.drawSolarBeam(cue,time):this.drawSolarCharge(cue,time));

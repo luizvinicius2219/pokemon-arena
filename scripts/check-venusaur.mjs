@@ -41,6 +41,24 @@ for(const [name,condition] of [
   ['Venusaur PMD local',overworld.includes("const venusaurLocal='/assets/pokemon/venusaur/'")],
   ['Venusaur ativo nas batalhas',arena.includes("preloadOverworld(this,roster.filter(id=>id!=='raichu'))")],
   ['Raio Solar canalizado',arena.includes("SOLAR_CHARGE_MS=1850")],
+  ['Dano comum não interrompe Raio Solar',
+    !arena.includes("this.lastHitAt[side]>state.startAt")&&
+    !arena.includes('CANALIZAÇÃO INTERROMPIDA!')],
+  ['Canalização cancelada apenas com nocaute/troca/fim',
+    arena.includes("species!=='venusaur'||this.knockedOut[side]||hp<=0")&&
+    arena.includes('this.solarChannels={player:null,enemy:null}')],
+  ['Raio Solar segue posição após recuo',
+    arena.includes("state.origin=origin;")&&
+    arena.includes("state.reach=this.venusaurRange(origin")],
+  ['Pose de canalização preservada sob dano',
+    overworld.includes("this.action==='Charge'")],
+  ['Efeitos exclusivos de Bomba de Sementes',
+    fx.includes('primeSeed(')&&fx.includes('drawSeedPrime(')&&
+    fx.includes('drawSeedImpact(')&&fx.includes('seedBurst(')&&
+    arena.includes('this.venusaurFx.seedBurst(')],
+  ['Bomba de Sementes sem drenagem de HP',
+    abilities.includes('sem drenar HP.')&&
+    arena.includes("this.damage(target,damage,victim.x,victim.y")],
   ['Folha Navalha',abilities.includes("q:{name:'Folha Navalha'")],
   ['Chicote de Vinha',abilities.includes("w:{name:'Chicote de Vinha'")],
   ['Bomba de Sementes',abilities.includes("e:{name:'Bomba de Sementes'")],

@@ -775,6 +775,11 @@ export class ArenaScene extends Phaser.Scene {
     const windupMs=isBlastoise&&action==='r'?620:this.playerMotion
       ? releaseFrameMs(this.playerSpecies,motion)
       : ({q:60,w:115,e:180,r:270} as Record<Skill,number>)[action];
+    if(isVenusaur&&action==='e'){
+      this.venusaurFx.primeSeed(
+        {x:this.player.x+dir.x*19,y:this.player.y-33+dir.y*10},
+        dir,time,windupMs);
+    }
     if(isBlastoise&&action==='r'){
       this.blastoiseFx.charge(this.player.x,this.player.y,dir,windupMs);
       this.skillCallout(this.player.x,this.player.y-92,'HIDRO BOMBA',0x8fe8ff);
@@ -849,7 +854,7 @@ export class ArenaScene extends Phaser.Scene {
     this.skillCallout(caster.x,caster.y-105,'ABSORVENDO ENERGIA SOLAR',0xf3ff9b);
   }
 
-  /** Interrupt charging on genuine damage; after release the beam persists. */
+  /** Damage never interrupts Solar Beam; only fainting, substitution or battle end can cancel it. */
   private updateSolar(time:number):void{
     for(const side of ['player','enemy'] as Side[]){
       const state=this.solarChannels[side];
@@ -861,14 +866,14 @@ export class ArenaScene extends Phaser.Scene {
         this.solarChannels[side]=null;
         continue;
       }
-      if(!state.fired&&this.lastHitAt[side]>state.startAt){
-        this.venusaurFx.impact(state.origin.x,state.origin.y,time,'fizzle');
-        const actor=side==='player'?this.playerMotion:this.enemyMotion;
-        actor?.cancelAction();
-        const caster=side==='player'?this.player:this.enemy;
-        this.skillCallout(caster.x,caster.y-95,'CANALIZAÇÃO INTERROMPIDA!',0xe2ff9d);
-        this.solarChannels[side]=null;
-        continue;
+      // If damage knocks Venusaur backward, the charge and beam must stay
+      // attached to its flower while preserving the original aim direction.
+      const caster=side==='player'?this.player:this.enemy;
+      const origin={x:caster.x+state.direction.x*15,
+        y:caster.y-39+state.direction.y*8};
+      if(Math.hypot(origin.x-state.origin.x,origin.y-state.origin.y)>0.5){
+        state.origin=origin;
+        state.reach=this.venusaurRange(origin,state.direction,SOLAR_MAX_RANGE);
       }
       if(!state.fired&&time>=state.releaseAt){
         state.fired=true;
@@ -942,7 +947,7 @@ export class ArenaScene extends Phaser.Scene {
 
   private seedExplosion(x:number,y:number,radius:number,
     damage:number,side:Side,time:number):void{
-    this.venusaurFx.impact(x,y,time,'seed');
+    this.venusaurFx.seedBurst(x,y,time);
     const target:Side=side==='player'?'enemy':'player';
     const victim=target==='player'?this.player:this.enemy;
     if(circleIntersectsBody({x,y},radius,this.combatBody(target))){
@@ -964,6 +969,11 @@ export class ArenaScene extends Phaser.Scene {
     const motion=skill==='w'?'Attack':'Shoot';
     const windup=releaseFrameMs('venusaur',motion);
     this.enemyMotion?.trigger(motion,time,dir);
+    if(skill==='e'){
+      this.venusaurFx.primeSeed(
+        {x:this.enemy.x+dir.x*19,y:this.enemy.y-33+dir.y*10},
+        dir,time,windup);
+    }
     this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+windup+160);
     this.time.delayedCall(windup,()=>{
       if(!this.sys.isActive()||this.finished||this.storySwitching||
@@ -1904,8 +1914,8 @@ export class ArenaScene extends Phaser.Scene {
         if(shot.kind==='rock'||shot.kind==='shard')
           this.rockFx?.burst(x,y,19,time,'slam');
         else if(shot.kind==='water')this.blastoiseFx.splash(x,y,0.65);
-        else if(shot.kind==='seed'||shot.kind==='leaf')
-          this.venusaurFx.impact(x,y,time,shot.kind);
+        else if(shot.kind==='seed')this.venusaurFx.seedBurst(x,y,time,0.65);
+        else if(shot.kind==='leaf')this.venusaurFx.impact(x,y,time,'leaf');
         else this.fx.impact(x,y,'fire',0.55);
       } else if(shot.blastRadius>0) {
         if(shot.kind==='water')this.waterExplosion(x,y,shot.blastRadius,shot.damage,shot.side);
@@ -1926,8 +1936,8 @@ export class ArenaScene extends Phaser.Scene {
         if(shot.kind==='rock'||shot.kind==='shard')
           this.rockFx?.burst(x,y,15,time,'slam');
         else if(shot.kind==='water')this.blastoiseFx.splash(x,y,0.45);
-        else if(shot.kind==='leaf'||shot.kind==='seed')
-          this.venusaurFx.impact(x,y,time,shot.kind);
+        else if(shot.kind==='seed')this.venusaurFx.seedBurst(x,y,time,0.65);
+        else if(shot.kind==='leaf')this.venusaurFx.impact(x,y,time,'leaf');
         else this.fx.impact(x,y,shot.kind==='spark'?'electric':'fire',0.4);
       }
     }

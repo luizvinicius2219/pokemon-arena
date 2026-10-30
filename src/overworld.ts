@@ -472,7 +472,9 @@ export class OverworldActor {
 
     let next: Motion = moving ? 'Walk' : 'Idle';
     if (actionActive && this.action) next = this.action;
-    if (hurtActive) next = 'Hurt';
+    // Solar Beam absorbs hits without losing Venusaur's charging pose.
+    if (hurtActive && !(this.creature==='venusaur' && actionActive &&
+      this.action==='Charge')) next = 'Hurt';
 
     // Graceful fallback if a particular remote sheet could not be loaded.
     if (!this.scene.textures.exists(key(this.creature, next))) {
