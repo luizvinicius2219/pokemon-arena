@@ -4,10 +4,8 @@
  */
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {
-  flowerCenter,flowerMuzzle,vineRoot,aimAtPoint,boomerangWingOffset,
-  RAZOR_VOLLEY_BLADE_COUNT,razorVolleyBlade
-} from '../src/venusaurGeometry.ts';
+import {flowerCenter,flowerMuzzle,vineRoot,aimAtPoint,boomerangWingOffset}
+  from '../src/venusaurGeometry.ts';
 
 const epsilon=1e-9;
 const vectors=[
@@ -40,38 +38,6 @@ for(const [x,y] of vectors){
   assert.ok(Math.hypot(rightTip.x-spun.x,rightTip.y-spun.y)>15,
     'Boomerang is not spinning');
 }
-// One blade appears first at the muzzle, then eight following blades emerge.
-assert.equal(RAZOR_VOLLEY_BLADE_COUNT,9,
-  'Razor Leaf should render nine individually spinning boomerangs');
-const newborn=Array.from({length:RAZOR_VOLLEY_BLADE_COUNT},
-  (_,i)=>razorVolleyBlade(i,0,0));
-const spread=Array.from({length:RAZOR_VOLLEY_BLADE_COUNT},
-  (_,i)=>razorVolleyBlade(i,100,180));
-assert.equal(newborn.filter(b=>b.visible).length,1,
-  'Volley should start at the flower, without blades appearing behind it');
-assert.equal(spread.filter(b=>b.visible).length,9,
-  'All nine blades should be visible after the short launch');
-assert.ok(spread.every(b=>b.forward<=0&&b.scale<=0.78),
-  'Every visual blade must trail the single forward-moving collision box');
-assert.ok(spread[0].lateral<0&&spread[2].lateral>0,
-  'Razor Leaf should spread into narrow left/right lanes');
-assert.notEqual(razorVolleyBlade(1,100,100).spin,
-  razorVolleyBlade(1,100,280).spin,
-  'Each blade should rotate during flight');
-for(const [x,y] of vectors){
-  const magnitude=Math.hypot(x,y);
-  const dir={x:x/magnitude,y:y/magnitude};
-  const side={x:-dir.y,y:dir.x};
-  for(const blade of spread){
-    const position={
-      x:dir.x*blade.forward+side.x*blade.lateral,
-      y:dir.y*blade.forward+side.y*blade.lateral
-    };
-    const along=position.x*dir.x+position.y*dir.y;
-    assert.ok(Math.abs(along-blade.forward)<epsilon,
-      'Blade must move in the mouse-aimed direction without auto-tracking');
-  }
-}
 assert.deepEqual(vineRoot(feet),{x:250,y:269},
   'Vine must emerge inside the shoulders of the character');
 feet.x+=22;feet.y-=13;
@@ -102,10 +68,8 @@ for(const [name,ok] of [
   ['same vine origin for damage check',
     arena.includes('const root=vineRoot(caster);')&&
     arena.includes('rayHitsBody(root,dir')],
-  ['nine slender boomerang leaves in a staggered volley',
-    fx.includes('for(let i=0;i<RAZOR_VOLLEY_BLADE_COUNT;i++)')&&
-    fx.includes('this.boomerang(px,py,dx,dy,blade.spin,blade.scale)')&&
-    arena.includes("this.projectile(origin.x,origin.y,dir,610,19,'leaf'")],
+  ['boomerang-shaped rotating leaves',
+    fx.includes('this.boomerang(x,y,dx,dy,spin,1.0)')],
   ['solar charge and shoot resist hurt animation',
     motion.includes('const uninterruptibleSolar=')&&
     motion.includes("this.actionDuration>=700")],
@@ -114,4 +78,4 @@ for(const [name,ok] of [
 ]){
   assert.ok(ok,'VENUSAUR GEOMETRY: '+name);
 }
-console.log('VENUSAUR GEOMETRY OK: 8 directions, cursor ray, 9 thin boomerang blades, and live vine anchors.');
+console.log('VENUSAUR GEOMETRY OK: 8 directions, cursor ray, boomerang shape and live vine anchors.');

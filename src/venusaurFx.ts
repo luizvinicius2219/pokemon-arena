@@ -1,9 +1,6 @@
 import Phaser from 'phaser';
 import type { VfxShot } from './combatFx';
-import {
-  boomerangWingOffset, vineRoot,
-  RAZOR_VOLLEY_BLADE_COUNT, razorVolleyBlade
-} from './venusaurGeometry';
+import { boomerangWingOffset, vineRoot } from './venusaurGeometry';
 
 /**
  * Pixel-only, sprite-independent Venusaur moves. All marks are snapped to a
@@ -126,25 +123,23 @@ export class VenusaurFx {
     spin:number,scale=1):void{
     const dir={x:dx,y:dy};
     for(const wing of [-1,1] as const){
-      for(let i=0;i<=10;i++){
-        const t=i/10;
+      for(let i=0;i<=9;i++){
+        const t=i/9;
         const offset=boomerangWingOffset(dir,spin,wing,t,scale);
         const px=x+offset.x,py=y+offset.y;
-        // Slender, sharp-edged pixel blade: 4-5px outline and 2-3px
-        // highlight instead of the old thick 8-10px filled branches.
-        const outline=Math.max(3,Math.round((t>0.86?4:5)*scale+1));
-        const highlight=Math.max(2,outline-2);
-        this.tile(px,py,LEAF_DARK,outline);
-        this.tile(px+1,py+1,i%4===0?0xdbffa0:LEAF,highlight);
-        if(i%4===2&&t>0.12&&t<0.88)
-          this.tile(px-dy*2.4*scale,py+dx*2.4*scale,
-            LEAF_LIGHT,2);
+        const radius=t>0.81?5:t<0.23?8:7;
+        this.tile(px,py,LEAF_DARK,Math.max(4,Math.round(radius*scale+2)));
+        this.tile(px-2,py-2,i%4===0?LEAF_LIGHT:LEAF,
+          Math.max(4,Math.round((radius-2)*scale+2)));
+        if(i%3===1&&t>0.3&&t<0.86)
+          this.tile(px-dy*5*scale,py+dx*5*scale,
+            0xb2e66c,Math.max(4,Math.round(4*scale)));
       }
       const tip=boomerangWingOffset(dir,spin,wing,1,scale);
-      this.tile(x+tip.x,y+tip.y,0xe0ffae,2);
+      this.tile(x+tip.x,y+tip.y,0xe2f7ac,4);
     }
     const nose=boomerangWingOffset(dir,spin,1,0,scale);
-    this.tile(x+nose.x,y+nose.y,0xe4ffb5,3);
+    this.tile(x+nose.x,y+nose.y,0xe4ffac,Math.max(4,Math.round(5*scale)));
   }
 
   private ring(x:number,y:number,r:number,color:number,step=24):void{
@@ -164,26 +159,28 @@ export class VenusaurFx {
     const sweep=(t:number,side:-1|1):number=>
       side*(7*t+14*t*t)+Math.sin(t*10+age*0.019+side)*9*t;
     // The joint begins inside the leaf canopy; both arms share this base.
-    this.tile(root.x-3,root.y-3,LEAF_DARK,12);
-    this.tile(root.x,root.y,LEAF_LIGHT,6);
+    this.tile(root.x-3,root.y-3,LEAF_DARK,10);
+    this.tile(root.x,root.y,LEAF_LIGHT,5);
     for(const side of [-1,1] as const){
       for(let i=0;i<=28;i++){
         const t=i/28;
         const sideways=sweep(t,side);
         const px=root.x+dx*length*t+nx*sideways;
         const py=root.y+dy*length*t+ny*sideways;
-        this.tile(px,py,LEAF_DARK,t<0.16?10:8);
-        this.tile(px-2,py-2,i%4===0?LEAF_LIGHT:LEAF,5);
+        // Keep the original curved twin-vine silhouette; trim its width
+        // slightly so it reads as a flexible whip rather than a thick rope.
+        this.tile(px,py,LEAF_DARK,t<0.16?9:7);
+        this.tile(px-2,py-2,i%4===0?LEAF_LIGHT:LEAF,4);
         if(i>4&&i<25&&i%5===0){
           const leafX=px+nx*(side*10),leafY=py+ny*(side*10);
-          this.tile(leafX,leafY,LEAF,8);
-          this.tile(leafX+dx*4,leafY+dy*4,LEAF_LIGHT,5);
+          this.tile(leafX,leafY,LEAF,7);
+          this.tile(leafX+dx*4,leafY+dy*4,LEAF_LIGHT,4);
         }
       }
       const bend=sweep(1,side);
       const tipX=root.x+dx*length+nx*bend;
       const tipY=root.y+dy*length+ny*bend;
-      this.leaf(tipX,tipY,dx,dy,0.64);
+      this.leaf(tipX,tipY,dx,dy,0.60);
     }
   }
 
@@ -252,32 +249,21 @@ export class VenusaurFx {
     const dx=shot.velocity.x/length,dy=shot.velocity.y/length;
     const nx=-dy,ny=dx;
     if(shot.kind==='leaf'){
-      // Nine distinct, thin spinning boomerangs emerge successively in
-      // three tight lanes. The whole volley still deals ONE balanced hit;
-      // nothing homes in on the enemy after the mouse-selected launch.
-      const elapsed=Math.max(0,time-(shot.spawnedAt??time));
-      const travelled=length*elapsed/1000;
-      for(let i=0;i<RAZOR_VOLLEY_BLADE_COUNT;i++){
-        const blade=razorVolleyBlade(i,travelled,elapsed);
-        if(!blade.visible)continue;
-        const px=x+dx*blade.forward+nx*blade.lateral;
-        const py=y+dy*blade.forward+ny*blade.lateral;
-        this.boomerang(px,py,dx,dy,blade.spin,blade.scale);
-        if(i%2===0){
-          this.tile(px-dx*12,py-dy*12,
-            i%3===0?0xe1ffb3:LEAF_LIGHT,3,0.76);
-        }
-      }
-      // Restrained directional streaks emphasize the burst without
-      // covering the slim V silhouettes or looking like green fireballs.
+      // Three rotating boomerang blades share one real hitbox.
+      const spin=time*0.022+x*0.006+y*0.003;
+      const sway=Math.sin(spin*1.4)*6;
+      this.boomerang(x,y,dx,dy,spin,1.0);
+      this.boomerang(x-dx*21+nx*(11+sway),
+        y-dy*21+ny*(11+sway),dx,dy,-spin*0.86+1.3,0.68);
+      this.boomerang(x-dx*25-nx*(11-sway),
+        y-dy*25-ny*(11-sway),dx,dy,spin*1.06+2.4,0.64);
       for(let i=0;i<5;i++){
-        const back=19+i*14;
-        if(travelled<back)continue;
-        const offset=(i%2?1:-1)*(5+i*2);
-        this.tile(x-dx*back+nx*offset,
-          y-dy*back+ny*offset,
-          i%2?LEAF:LEAF_LIGHT,2,
-          Math.max(0.25,0.72-i*0.1));
+        const d=30+i*12;
+        const offset=(i%2===0?1:-1)*(6+i*2);
+        this.tile(x-dx*d+nx*offset,
+          y-dy*d+ny*offset,
+          i%3===0?0xecf9c0:i%2===0?LEAF_LIGHT:LEAF,
+          i%2===0?5:4,Math.max(0.25,0.88-i*0.15));
       }
       return;
     }

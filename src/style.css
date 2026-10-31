@@ -331,11 +331,18 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
 .game-fullscreen-button:hover{background:#285464}
 #fullscreen-header{border-radius:9px;padding:10px 12px;font-size:12px;
   font-weight:800;background:#214b50;border-color:#779fa3}
+/* Prevent scrolling, overscroll/back-swipe and stray clicks through the
+   letterbox gutters when the fixed 5:3 arena occupies a widescreen display. */
+html:has(#game-shell:fullscreen),
+body:has(#game-shell:fullscreen){
+  width:100%;height:100%;overflow:hidden;overscroll-behavior:none
+}
 #game-shell:fullscreen,#game-shell:-webkit-full-screen{
   width:100vw!important;height:100dvh!important;min-height:100dvh;
   max-width:none!important;margin:0;padding:0;background:#081a1c;
   display:flex;align-items:center;justify-content:center;
-  overflow:hidden;border:0;border-radius:0
+  overflow:hidden;overscroll-behavior:none;border:0;border-radius:0;
+  -webkit-user-select:none;user-select:none
 }
 #game-shell:fullscreen #game,#game-shell:-webkit-full-screen #game{
   flex:none;width:min(100vw, calc(100dvh * 5 / 3))!important;
@@ -344,6 +351,12 @@ aside a{color:#8ce5ff;text-decoration:underline;text-decoration-color:#4fa1ac}as
 }
 #game-shell:fullscreen .game-fullscreen-button{position:fixed;
   right:16px;top:14px;z-index:76}
+/* The top-right exit control was an accidental escape hotspot in battle.
+   Pause or the F key can still exit fullscreen intentionally. */
+#game-shell:fullscreen:has(#landing-menu[hidden]):has(#ingame-pause[hidden])
+  .game-fullscreen-button{
+  visibility:hidden;pointer-events:none
+}
 #game-shell:fullscreen .landing-menu{position:fixed;inset:0}
 #game-shell:fullscreen #mobile-controls{
   position:absolute;bottom:0;left:0;right:0;z-index:35;

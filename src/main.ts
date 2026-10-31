@@ -325,6 +325,35 @@ showPanel('home');
 // Fullscreen applies to the entire game shell, so the scene, encounter menus
 // and touch controls all remain visible. The canvas keeps its 5:3 aspect ratio.
 const gameShell=document.querySelector<HTMLElement>('#game-shell')!;
+
+/**
+ * Keep browser interaction out of the entire play surface, including the
+ * letterbox bars that surround the 5:3 canvas on widescreen monitors.
+ * Right click still reaches Phaser so deliberate right-click movement works.
+ */
+gameShell.addEventListener('contextmenu',event=>{
+  event.preventDefault();
+},{capture:true});
+gameShell.addEventListener('mousedown',event=>{
+  if(event.button===2)event.preventDefault();
+  // Mouse thumb buttons can trigger back/forward navigation in browsers.
+  // Cancel their DOM defaults while interacting with the game shell.
+  if(event.button===3||event.button===4){
+    event.preventDefault();
+    event.stopPropagation();
+  }
+},{capture:true});
+gameShell.addEventListener('auxclick',event=>{
+  if(event.button!==0){
+    event.preventDefault();
+    event.stopPropagation();
+  }
+},{capture:true});
+// A horizontal wheel/trackpad gesture must not scroll the page out of the
+// immersive play surface. Do not touch normal page scrolling outside it.
+gameShell.addEventListener('wheel',event=>{
+  if(document.fullscreenElement===gameShell)event.preventDefault();
+},{passive:false,capture:true});
 const fullscreenButtons=[
   document.querySelector<HTMLButtonElement>('#toggle-fullscreen')!,
   document.querySelector<HTMLButtonElement>('#fullscreen-header')!
@@ -346,6 +375,9 @@ document.addEventListener('fullscreenchange',()=>{
     button.setAttribute('aria-pressed',String(active));
   });
   game.scale.refresh();
+});
+window.addEventListener('resize',()=>{
+  if(document.fullscreenElement===gameShell)game.scale.refresh();
 });
 window.addEventListener('keydown',event=>{
   if(event.code==='KeyF'&&!event.repeat&&!capturing&&!menuOpen

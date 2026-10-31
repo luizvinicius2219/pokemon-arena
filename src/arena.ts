@@ -42,7 +42,6 @@ interface Projectile {
   kind: ProjectileKind;
   damage: number;
   expiry: number;
-  spawnedAt:number;
   lastTrail: number;
   blastRadius: number;
 }
@@ -391,18 +390,17 @@ export class ArenaScene extends Phaser.Scene {
     this.drawHealthBars(0);
     this.destination.set(this.player.x,this.player.y);
     this.input.mouse?.disableContextMenu();
-    this.input.on('pointerdown',(p: Phaser.Input.Pointer) => {
-      if(p.rightButtonDown() && !this.settingsOpen() && !this.finished) {
-        const safe=this.environment?.resolve(p.x,p.y,this.player.radius);
-        this.destination.set(safe?.x??clampX(p.x),safe?.y??clampY(p.y));
-      }
-    });
-    this.input.on('pointermove',(p: Phaser.Input.Pointer) => {
-      if(p.rightButtonDown() && !this.settingsOpen() && !this.finished) {
-        const safe=this.environment?.resolve(p.x,p.y,this.player.radius);
-        this.destination.set(safe?.x??clampX(p.x),safe?.y??clampY(p.y));
-      }
-    });
+    // Right-click movement is valid only inside the 960x576 canvas. Do not
+    // clamp a drag that wandered into fullscreen gutters to a screen edge.
+    const rightClickMove=(p:Phaser.Input.Pointer)=>{
+      if(!p.rightButtonDown()||!p.withinGame||this.settingsOpen()||this.finished||
+        !Number.isFinite(p.x)||!Number.isFinite(p.y)||
+        p.x<0||p.x>W||p.y<0||p.y>H)return;
+      const safe=this.environment?.resolve(p.x,p.y,this.player.radius);
+      this.destination.set(safe?.x??clampX(p.x),safe?.y??clampY(p.y));
+    };
+    this.input.on('pointerdown',rightClickMove);
+    this.input.on('pointermove',rightClickMove);
     this.input.keyboard?.on('keydown-ENTER',() => {
       if(this.finished)this.restartOrReturn();
     });
@@ -958,8 +956,8 @@ export class ArenaScene extends Phaser.Scene {
     const origin=flowerMuzzle(caster,dir);
     const ability=skills.venusaur[skill];
     if(skill==='q'){
-      // Nine staggered, slender blades share ONE hitbox and damage event.
-      // Direction remains the manual aim, not the moving enemy position.
+      // Restore the previous, readable three-blade boomerang formation.
+      // One real hitbox and one damage event; no auto-aim.
       this.projectile(origin.x,origin.y,dir,610,19,'leaf',side,
         ability.damage,1050,time);
       return;
@@ -1439,8 +1437,7 @@ export class ArenaScene extends Phaser.Scene {
   ) {
     // Invisible hitbox: VFX draws angular flames/lightning over it every frame.
     const body=this.add.circle(x,y,radius,0xffffff,0).setVisible(false);
-    this.projectiles.push({body,velocity:dir.clone().scale(speed),side,kind,damage,
-      expiry:time+lifetime,spawnedAt:time,lastTrail:-1000,blastRadius});
+    this.projectiles.push({body,velocity:dir.clone().scale(speed),side,kind,damage,expiry:time+lifetime,lastTrail:-1000,blastRadius});
   }
 
   private flash(x:number,y:number,color:number,radius:number) {

@@ -61,11 +61,9 @@ for(const [name,condition] of [
   ['Chicote de Vinha conectado ao corpo do Venusaur',
     arena.includes("this.venusaurFx.whip(caster,dir,time")&&
     arena.includes('rayHitsBody(root,dir')&&fx.includes('const root=vineRoot(cue.body)')],
-  ['Folha Navalha em nove bumerangues finos e progressivos',
-    fx.includes('for(let i=0;i<RAZOR_VOLLEY_BLADE_COUNT;i++)')&&
-    fx.includes('this.boomerang(px,py,dx,dy,blade.spin,blade.scale)')&&
-    fx.includes('const outline=Math.max(3,Math.round(')&&
-    fx.includes('if(!blade.visible)continue;')],
+  ['Folha Navalha em bumerangue giratório',
+    fx.includes('this.boomerang(x,y,dx,dy,spin,1.0)')&&
+    fx.includes('boomerangWingOffset(')],
   ['Efeitos exclusivos de Bomba de Sementes',
     fx.includes('primeSeed(')&&fx.includes('drawSeedPrime(')&&
     fx.includes('drawSeedImpact(')&&fx.includes('seedBurst(')&&

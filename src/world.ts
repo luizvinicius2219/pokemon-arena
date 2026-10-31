@@ -164,6 +164,11 @@ export class WorldScene extends Phaser.Scene{
     // instead of walking into a wall and appearing unresponsive.
     this.input.mouse?.disableContextMenu();
     const steer=(pointer:Phaser.Input.Pointer)=>{
+      // Prevent route clicks in black fullscreen letterbox bars or outside
+      // the canvas from being clamped to the edge of the overworld.
+      if(!pointer.withinGame||!Number.isFinite(pointer.x)||
+        !Number.isFinite(pointer.y)||pointer.x<0||pointer.x>960||
+        pointer.y<0||pointer.y>576)return;
       const now=this.time.now;
       if(now-this.lastPathAt<90)return;
       const destination={
