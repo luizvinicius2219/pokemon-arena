@@ -42,6 +42,7 @@ interface Projectile {
   kind: ProjectileKind;
   damage: number;
   expiry: number;
+  spawnedAt:number;
   lastTrail: number;
   blastRadius: number;
 }
@@ -957,7 +958,8 @@ export class ArenaScene extends Phaser.Scene {
     const origin=flowerMuzzle(caster,dir);
     const ability=skills.venusaur[skill];
     if(skill==='q'){
-      // Three visible leaves share ONE physical hitbox and damage event.
+      // Nine staggered, slender blades share ONE hitbox and damage event.
+      // Direction remains the manual aim, not the moving enemy position.
       this.projectile(origin.x,origin.y,dir,610,19,'leaf',side,
         ability.damage,1050,time);
       return;
@@ -1437,7 +1439,8 @@ export class ArenaScene extends Phaser.Scene {
   ) {
     // Invisible hitbox: VFX draws angular flames/lightning over it every frame.
     const body=this.add.circle(x,y,radius,0xffffff,0).setVisible(false);
-    this.projectiles.push({body,velocity:dir.clone().scale(speed),side,kind,damage,expiry:time+lifetime,lastTrail:-1000,blastRadius});
+    this.projectiles.push({body,velocity:dir.clone().scale(speed),side,kind,damage,
+      expiry:time+lifetime,spawnedAt:time,lastTrail:-1000,blastRadius});
   }
 
   private flash(x:number,y:number,color:number,radius:number) {

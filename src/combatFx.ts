@@ -11,6 +11,8 @@ export interface VfxShot {
   body: { x: number; y: number; radius: number };
   velocity: { x: number; y: number };
   kind: VfxKind;
+  /** Used to progressively reveal a leaf volley as it leaves Venusaur. */
+  spawnedAt?:number;
 }
 type Element = 'fire' | 'electric' | 'water';
 

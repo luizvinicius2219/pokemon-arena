@@ -45,3 +45,34 @@ export function boomerangWingOffset(
   const side=wing*(2+25*t-2*t*t)*scale;
   return {x:ca*forward-sa*side,y:sa*forward+ca*side};
 }
+
+
+/**
+ * A nine-blade razor-leaf volley: three narrow lanes and three staggered
+ * waves. All blades travel in the manually aimed direction; there is NO
+ * enemy tracking and the entire formation shares one damage hitbox.
+ */
+export const RAZOR_VOLLEY_BLADE_COUNT=9;
+export interface RazorVolleyBlade {
+  forward:number;
+  lateral:number;
+  visible:boolean;
+  scale:number;
+  spin:number;
+}
+export function razorVolleyBlade(
+  index:number,travelled:number,elapsedMs:number
+):RazorVolleyBlade {
+  const wave=Math.floor(index/3);
+  const lane=index%3-1;
+  const lag=wave*31+(lane===0?0:9);
+  const lateral=lane*(11+wave*2)+
+    Math.sin(elapsedMs*0.017+index*1.87)*3.0;
+  return {
+    forward:-lag,
+    lateral,
+    visible:travelled+3>=lag,
+    scale:wave===0?0.78:wave===1?0.69:0.60,
+    spin:elapsedMs*(index%2?0.025:-0.029)+index*1.33
+  };
+}
