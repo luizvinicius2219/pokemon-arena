@@ -2,6 +2,7 @@
 // intentional right-click movement, restored Razor Leaf and thinner Vine Whip.
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {insideGameCanvas} from '../src/pointerBounds.ts';
 const read=path=>readFileSync(path,'utf8');
 const main=read('src/main.ts');
 const css=read('src/style.css');
@@ -36,12 +37,11 @@ for(const [name,condition] of [
   ['pause menu retains fullscreen control',
     main.includes("'#pause-fullscreen'")&&main.includes('toggleFullscreen()')],
   ['arena ignores right-click moves beyond canvas',
-    arena.includes('!p.rightButtonDown()||!p.withinGame')&&
-    arena.includes('p.x<0||p.x>W||p.y<0||p.y>H')],
+    arena.includes('insideGameCanvas(p.x,p.y,mouse.clientX,mouse.clientY')&&
+    arena.includes('this.game.canvas.getBoundingClientRect(),W,H')],
   ['world ignores right-click routes beyond canvas',
-    world.includes('!pointer.withinGame')&&
-    world.includes('pointer.x<0||pointer.x>960')&&
-    world.includes('pointer.y<0||pointer.y>576')],
+    world.includes('insideGameCanvas(pointer.x,pointer.y,')&&
+    world.includes('this.game.canvas.getBoundingClientRect()')],
   ['Razor Leaf restored to the prior three-boomerang version',
     fx.includes('this.boomerang(x,y,dx,dy,spin,1.0)')&&
     fx.includes('this.boomerang(x-dx*21+nx*(11+sway)')&&
@@ -56,4 +56,23 @@ for(const [name,condition] of [
 ]){
   assert.ok(condition,'Regression failed: '+name);
 }
-console.log('Fullscreen input, right-click limits, restored Razor Leaf and thin Vine Whip: OK');
+// The fullscreen gutters are outside the CSS canvas even if Phaser retains
+// a stale/clamped world coordinate while the right mouse button is held.
+const rect={left:60,top:20,right:1860,bottom:1100};
+for(const [x,y,cx,cy,inside] of [
+  [480,288,900,560,true],
+  [0,0,60,20,true],
+  [960,576,1860,1100,true],
+  [480,288,59,560,false],
+  [480,288,1861,560,false],
+  [480,288,900,19,false],
+  [480,288,900,1101,false],
+  [-1,288,900,560,false],
+  [961,288,900,560,false],
+  [480,577,900,560,false],
+  [480,288,NaN,560,false]
+]){
+  assert.equal(insideGameCanvas(x,y,cx,cy,rect),inside,
+    'Game canvas bounds regression at '+[x,y,cx,cy]);
+}
+console.log('Fullscreen input, right-click canvas limits, restored Razor Leaf and thin Vine Whip: OK');

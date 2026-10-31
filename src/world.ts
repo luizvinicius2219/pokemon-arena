@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { paintKantoTown } from './kantoTownArt';
 import { PEWTER_CITY, pewterCityBlocked, inPewterGrass } from './pewterCityLayout';
 import { findWalkingPath } from './worldNavigation';
+import { insideGameCanvas } from './pointerBounds';
 import type { MobileControls } from './mobileControls';
 import {
   getActivePokemon,loadCollection
@@ -166,9 +167,10 @@ export class WorldScene extends Phaser.Scene{
     const steer=(pointer:Phaser.Input.Pointer)=>{
       // Prevent route clicks in black fullscreen letterbox bars or outside
       // the canvas from being clamped to the edge of the overworld.
-      if(!pointer.withinGame||!Number.isFinite(pointer.x)||
-        !Number.isFinite(pointer.y)||pointer.x<0||pointer.x>960||
-        pointer.y<0||pointer.y>576)return;
+      const mouse=pointer.event as MouseEvent|undefined;
+      if(!mouse||!insideGameCanvas(pointer.x,pointer.y,
+        mouse.clientX,mouse.clientY,
+        this.game.canvas.getBoundingClientRect()))return;
       const now=this.time.now;
       if(now-this.lastPathAt<90)return;
       const destination={

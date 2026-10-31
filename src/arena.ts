@@ -16,6 +16,7 @@ import { PokemonSwitchFx } from './pokemonSwitchFx';
 import { StarterFx } from './starterFx';
 import { BlastoiseFx } from './blastoiseFx';
 import { VenusaurFx, type SolarVisual } from './venusaurFx';
+import { insideGameCanvas } from './pointerBounds';
 import { aimAtPoint, flowerCenter, flowerMuzzle, vineRoot } from './venusaurGeometry';
 import { JET_SPECS,type JetType } from './waterJet';
 import { combatHurtboxes,circleIntersectsBody,sweptProjectileHitsBody,rayHitsBody } from './combatHitboxes';
@@ -393,9 +394,10 @@ export class ArenaScene extends Phaser.Scene {
     // Right-click movement is valid only inside the 960x576 canvas. Do not
     // clamp a drag that wandered into fullscreen gutters to a screen edge.
     const rightClickMove=(p:Phaser.Input.Pointer)=>{
-      if(!p.rightButtonDown()||!p.withinGame||this.settingsOpen()||this.finished||
-        !Number.isFinite(p.x)||!Number.isFinite(p.y)||
-        p.x<0||p.x>W||p.y<0||p.y>H)return;
+      const mouse=p.event as MouseEvent|undefined;
+      if(!p.rightButtonDown()||this.settingsOpen()||this.finished||
+        !mouse||!insideGameCanvas(p.x,p.y,mouse.clientX,mouse.clientY,
+          this.game.canvas.getBoundingClientRect(),W,H))return;
       const safe=this.environment?.resolve(p.x,p.y,this.player.radius);
       this.destination.set(safe?.x??clampX(p.x),safe?.y??clampY(p.y));
     };

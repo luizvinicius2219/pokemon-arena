@@ -15,7 +15,7 @@
     "check:assets": "node scripts/verify-art.mjs",
     "check:venusaur": "node scripts/check-venusaur.mjs",
     "check:venusaur-geometry": "node --experimental-strip-types scripts/check-venusaur-geometry.mjs",
-    "check:fullscreen": "node scripts/check-fullscreen.mjs"
+    "check:fullscreen": "node --experimental-strip-types scripts/check-fullscreen.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0",
