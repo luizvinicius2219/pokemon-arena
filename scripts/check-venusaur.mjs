@@ -51,7 +51,19 @@ for(const [name,condition] of [
     arena.includes("state.origin=origin;")&&
     arena.includes("state.reach=this.venusaurRange(origin")],
   ['Pose de canalização preservada sob dano',
-    overworld.includes("this.action==='Charge'")],
+    overworld.includes('const uninterruptibleSolar=')&&
+    overworld.includes("this.actionDuration>=700")],
+  ['Raio Solar mira no cursor durante a canalização',
+    arena.includes("nextDir=aimAtPoint(flowerCenter(caster)")&&
+    arena.includes("this.faceDirection(side,vector(nextDir.x,nextDir.y))")],
+  ['Raio Solar com guia pixelado e alvo projetado',
+    fx.includes('private drawSolarGuide(')&&fx.includes('const projection=')],
+  ['Chicote de Vinha conectado ao corpo do Venusaur',
+    arena.includes("this.venusaurFx.whip(caster,dir,time")&&
+    arena.includes('rayHitsBody(root,dir')&&fx.includes('const root=vineRoot(cue.body)')],
+  ['Folha Navalha em bumerangue giratório',
+    fx.includes('this.boomerang(x,y,dx,dy,spin,1.0)')&&
+    fx.includes('boomerangWingOffset(')],
   ['Efeitos exclusivos de Bomba de Sementes',
     fx.includes('primeSeed(')&&fx.includes('drawSeedPrime(')&&
     fx.includes('drawSeedImpact(')&&fx.includes('seedBurst(')&&

@@ -472,9 +472,11 @@ export class OverworldActor {
 
     let next: Motion = moving ? 'Walk' : 'Idle';
     if (actionActive && this.action) next = this.action;
-    // Solar Beam absorbs hits without losing Venusaur's charging pose.
-    if (hurtActive && !(this.creature==='venusaur' && actionActive &&
-      this.action==='Charge')) next = 'Hurt';
+    // Solar Beam remains in its real PMD pose even when the user takes
+    // damage; neither its charge nor its sustained Shoot frame is cancelled.
+    const uninterruptibleSolar=this.creature==='venusaur'&&actionActive&&
+      (this.action==='Charge'||(this.action==='Shoot'&&this.actionDuration>=700));
+    if(hurtActive&&!uninterruptibleSolar)next='Hurt';
 
     // Graceful fallback if a particular remote sheet could not be loaded.
     if (!this.scene.textures.exists(key(this.creature, next))) {

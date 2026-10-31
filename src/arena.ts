@@ -16,6 +16,7 @@ import { PokemonSwitchFx } from './pokemonSwitchFx';
 import { StarterFx } from './starterFx';
 import { BlastoiseFx } from './blastoiseFx';
 import { VenusaurFx, type SolarVisual } from './venusaurFx';
+import { aimAtPoint, flowerCenter, flowerMuzzle, vineRoot } from './venusaurGeometry';
 import { JET_SPECS,type JetType } from './waterJet';
 import { combatHurtboxes,circleIntersectsBody,sweptProjectileHitsBody,rayHitsBody } from './combatHitboxes';
 import { getActivePokemon, loadCollection } from './playerCollection';
@@ -748,10 +749,22 @@ export class ArenaScene extends Phaser.Scene {
     this.playerAttackAt=time;
     if(action==='r'&&this.playerSpecies!=='venusaur')this.beginUltimate('player');
     const pointer=this.input.activePointer;
-    // All player attacks aim at the player's pointer, never at the enemy.
-    const dir=this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
-    this.faceDirection('player',dir);
     const isVenusaur=this.playerSpecies==='venusaur';
+    // Pixel effects and hitboxes share one origin. Aim Venusaur's spells
+    // from the real flower / vine root, not from the Pokémon's feet.
+    const stick=this.mobile.axis;
+    const mobileAim=this.mobile.active
+      ? (Math.hypot(stick.x,stick.y)>0.15
+        ? vector(stick.x,stick.y).normalize() : this.playerFacing.clone())
+      : null;
+    const venusaurOrigin=action==='w'?vineRoot(this.player):flowerCenter(this.player);
+    const plantAim=aimAtPoint(venusaurOrigin,
+      {x:pointer.worldX,y:pointer.worldY},this.playerFacing);
+    // No enemy auto-targeting: mouse direction is sampled from the cursor.
+    const dir=isVenusaur
+      ? mobileAim??vector(plantAim.x,plantAim.y)
+      : this.directionTo(this.player,pointer.worldX,pointer.worldY,this.playerFacing);
+    this.faceDirection('player',dir);
     if(isVenusaur&&action==='r'){
       this.startSolar('player',time,dir);
       return;
@@ -777,8 +790,7 @@ export class ArenaScene extends Phaser.Scene {
       : ({q:60,w:115,e:180,r:270} as Record<Skill,number>)[action];
     if(isVenusaur&&action==='e'){
       this.venusaurFx.primeSeed(
-        {x:this.player.x+dir.x*19,y:this.player.y-33+dir.y*10},
-        dir,time,windupMs);
+        flowerMuzzle(this.player,dir),dir,time,windupMs);
     }
     if(isBlastoise&&action==='r'){
       this.blastoiseFx.charge(this.player.x,this.player.y,dir,windupMs);
@@ -835,12 +847,16 @@ export class ArenaScene extends Phaser.Scene {
     return max;
   }
 
-  /** Fixed direction sampled on button press: never homes in on the target. */
+  /** Start from the flower, then allow only manual cursor steering. */
   private startSolar(side:Side,time:number,dir:Phaser.Math.Vector2):void{
     const caster=side==='player'?this.player:this.enemy;
-    const origin={x:caster.x+dir.x*15,y:caster.y-39+dir.y*8};
+    const origin=flowerMuzzle(caster,dir);
+    const pointer=this.input.activePointer;
     this.solarChannels[side]={
       side,origin,direction:{x:dir.x,y:dir.y},
+      aimPoint:side==='player'&&!this.mobile.active
+        &&Number.isFinite(pointer.worldX)&&Number.isFinite(pointer.worldY)
+        ?{x:pointer.worldX,y:pointer.worldY}:undefined,
       startAt:time,releaseAt:time+SOLAR_CHARGE_MS,
       endAt:time+SOLAR_CHARGE_MS+SOLAR_BEAM_MS,
       reach:this.venusaurRange(origin,dir,SOLAR_MAX_RANGE),
@@ -866,15 +882,37 @@ export class ArenaScene extends Phaser.Scene {
         this.solarChannels[side]=null;
         continue;
       }
-      // If damage knocks Venusaur backward, the charge and beam must stay
-      // attached to its flower while preserving the original aim direction.
+      // Update on every frame, including during release. The player is free
+      // to steer with the mouse; the enemy keeps its original telegraphed aim.
+      // Both the drawn beam and ray collision use the exact same geometry.
       const caster=side==='player'?this.player:this.enemy;
-      const origin={x:caster.x+state.direction.x*15,
-        y:caster.y-39+state.direction.y*8};
-      if(Math.hypot(origin.x-state.origin.x,origin.y-state.origin.y)>0.5){
-        state.origin=origin;
-        state.reach=this.venusaurRange(origin,state.direction,SOLAR_MAX_RANGE);
+      let nextDir=state.direction;
+      if(side==='player'){
+        if(this.mobile.active){
+          const stick=this.mobile.axis;
+          if(Math.hypot(stick.x,stick.y)>0.15)
+            nextDir=aimAtPoint({x:0,y:0},{x:stick.x,y:stick.y},nextDir,0);
+          state.aimPoint=undefined;
+        }else{
+          const pointer=this.input.activePointer;
+          if(Number.isFinite(pointer.worldX)&&Number.isFinite(pointer.worldY)){
+            nextDir=aimAtPoint(flowerCenter(caster),
+              {x:pointer.worldX,y:pointer.worldY},nextDir);
+            state.aimPoint={x:pointer.worldX,y:pointer.worldY};
+          }
+        }
       }
+      const origin=flowerMuzzle(caster,nextDir);
+      const turn=Math.hypot(nextDir.x-state.direction.x,nextDir.y-state.direction.y);
+      const displaced=Math.hypot(origin.x-state.origin.x,origin.y-state.origin.y);
+      if(turn>0.0001||displaced>0.5){
+        state.direction={x:nextDir.x,y:nextDir.y};
+        state.origin=origin;
+        state.reach=this.venusaurRange(origin,nextDir,SOLAR_MAX_RANGE);
+      }
+      if(side==='player')this.faceDirection(side,vector(nextDir.x,nextDir.y));
+      const actor=side==='player'?this.playerMotion:this.enemyMotion;
+      actor?.face(vector(nextDir.x,nextDir.y));
       if(!state.fired&&time>=state.releaseAt){
         state.fired=true;
         const actor=side==='player'?this.playerMotion:this.enemyMotion;
@@ -916,21 +954,24 @@ export class ArenaScene extends Phaser.Scene {
     const caster=side==='player'?this.player:this.enemy;
     const body=side==='player'?this.enemy:this.player;
     const target:Side=side==='player'?'enemy':'player';
-    const origin={x:caster.x+dir.x*19,y:caster.y-33+dir.y*10};
+    const origin=flowerMuzzle(caster,dir);
     const ability=skills.venusaur[skill];
     if(skill==='q'){
       // Three visible leaves share ONE physical hitbox and damage event.
-      this.projectile(origin.x,origin.y,dir,610,10,'leaf',side,
+      this.projectile(origin.x,origin.y,dir,610,19,'leaf',side,
         ability.damage,1050,time);
       return;
     }
     if(skill==='w'){
-      this.venusaurFx.whip(origin,dir,time);
+      // Pass the live body; vines remain physically connected during recoil.
+      this.venusaurFx.whip(caster,dir,time,
+        this.venusaurRange(vineRoot(caster),dir,178));
       this.time.delayedCall(130,()=>{
         if(!this.sys.isActive()||this.finished||this.switchingTeam||
           this.storySwitching||this.knockedOut[side]||
           (side==='player'?this.playerSpecies:this.enemySpecies)!=='venusaur')return;
-        if(rayHitsBody(origin,dir,this.venusaurRange(origin,dir,178),29,
+        const root=vineRoot(caster);
+        if(rayHitsBody(root,dir,this.venusaurRange(root,dir,178),29,
           this.combatBody(target))){
           this.venusaurFx.impact(body.x,body.y,this.time.now,'vine');
           this.damage(target,ability.damage,body.x,body.y,
@@ -960,7 +1001,9 @@ export class ArenaScene extends Phaser.Scene {
     if(!this.canCast('enemy',skill,time)||this.solarChannels.enemy)return;
     this.enemyCastAt[skill]=time;
     this.enemyAttackAt=time;
-    const dir=this.directionTo(this.enemy,this.player.x,this.player.y,this.enemyFacing);
+    const facing=aimAtPoint(flowerCenter(this.enemy),
+      {x:this.player.x,y:this.player.y-26},this.enemyFacing);
+    const dir=vector(facing.x,facing.y);
     this.faceDirection('enemy',dir);
     if(skill==='r'){
       this.startSolar('enemy',time,dir);
@@ -971,8 +1014,7 @@ export class ArenaScene extends Phaser.Scene {
     this.enemyMotion?.trigger(motion,time,dir);
     if(skill==='e'){
       this.venusaurFx.primeSeed(
-        {x:this.enemy.x+dir.x*19,y:this.enemy.y-33+dir.y*10},
-        dir,time,windup);
+        flowerMuzzle(this.enemy,dir),dir,time,windup);
     }
     this.enemyCastLockUntil=Math.max(this.enemyCastLockUntil,time+windup+160);
     this.time.delayedCall(windup,()=>{
@@ -2494,7 +2536,10 @@ export class ArenaScene extends Phaser.Scene {
       this.updateHud(time);
       return;
     }
-    if(time<this.hitStopUntil){this.updateHud(time);return;}
+    if(time<this.hitStopUntil){
+      // Keep solar aim, charge particles and beam timing responsive on hits.
+      this.updateSolar(time);this.updateHud(time);return;
+    }
     const dt=Math.min(delta/1000,0.05);
     const oldPlayer=vector(this.player.x,this.player.y);
     const oldEnemy=vector(this.enemy.x,this.enemy.y);

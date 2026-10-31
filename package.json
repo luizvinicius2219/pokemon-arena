@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run check:assets && npm run check:venusaur && npm run check:status && npm run check:movement && npm run check:water && npm run check:hitboxes && npm run check:ground && tsc --noEmit && vite build",
+    "build": "npm run check:assets && npm run check:venusaur && npm run check:venusaur-geometry && npm run check:status && npm run check:movement && npm run check:water && npm run check:hitboxes && npm run check:ground && tsc --noEmit && vite build",
     "check:movement": "node scripts/check-movement.mjs && node scripts/check-pewter.mjs",
     "check:hitboxes": "node --experimental-strip-types scripts/check-hitboxes.mjs",
     "check:ground": "node --experimental-strip-types scripts/check-ground-fractures.mjs",
@@ -13,7 +13,8 @@
     "check:status": "node scripts/check-status.mjs",
     "preview": "vite preview",
     "check:assets": "node scripts/verify-art.mjs",
-    "check:venusaur": "node scripts/check-venusaur.mjs"
+    "check:venusaur": "node scripts/check-venusaur.mjs",
+    "check:venusaur-geometry": "node --experimental-strip-types scripts/check-venusaur-geometry.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0",

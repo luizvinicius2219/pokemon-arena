@@ -131,10 +131,10 @@ export const skills: Record<Fighter, Record<Skill, Ability>> = {
     r: { name: 'Rajada de Fogo', description: 'Explosão poderosa com fragmentos flamejantes.', icon: '☄️', cooldown: 15500, damage: 29, element: 'fire' }
   },
   venusaur: {
-    q:{name:'Folha Navalha',description:'Razor Leaf: três lâminas de folhas em um disparo direcionado.',icon:'🍃',cooldown:880,damage:14,element:'grass'},
-    w:{name:'Chicote de Vinha',description:'Vine Whip: duas vinhas físicas estalam na direção apontada.',icon:'🌿',cooldown:1550,damage:19,element:'grass'},
+    q:{name:'Folha Navalha',description:'Razor Leaf: três folhas em formato de bumerangue giram até acertar o alvo sob a mira manual.',icon:'🍃',cooldown:880,damage:14,element:'grass'},
+    w:{name:'Chicote de Vinha',description:'Vine Whip: duas vinhas saem diretamente das costas e estalam para onde você apontar.',icon:'🌿',cooldown:1550,damage:19,element:'grass'},
     e:{name:'Bomba de Sementes',description:'Seed Bomb: sementes de casca dura explodem em fragmentos vegetais. Causa dano físico em área, sem drenar HP.',icon:'🌰',cooldown:3400,damage:26,element:'grass'},
-    r:{name:'Raio Solar',description:'Solar Beam: canalização solar de 1,85 segundo, seguida de um feixe devastador em linha reta. Pode ser interrompido.',icon:'☀️',cooldown:18500,damage:46,element:'grass'}
+    r:{name:'Raio Solar',description:'Solar Beam: canalize 1,85 s e ajuste a mira com o mouse durante carga e disparo. Dano não interrompe o ataque.',icon:'☀️',cooldown:18500,damage:46,element:'grass'}
   },
   blastoise: {
     q:{name:'Investida de Casco',description:'Investida pesada de contato, com impacto físico e recuo visual.',icon:'🐢',cooldown:1180,damage:15,element:'normal'},

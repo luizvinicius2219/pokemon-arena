@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { VfxShot } from './combatFx';
+import { boomerangWingOffset, vineRoot } from './venusaurGeometry';
 
 /**
  * Pixel-only, sprite-independent Venusaur moves. All marks are snapped to a
@@ -11,6 +12,8 @@ export interface SolarVisual {
   side: SolarSide;
   origin: Readonly<{x:number;y:number}>;
   direction: Readonly<{x:number;y:number}>;
+  /** Manual aim cursor, not the enemy's position. */
+  aimPoint?: Readonly<{x:number;y:number}>;
   startAt: number;
   releaseAt: number;
   endAt: number;
@@ -18,7 +21,8 @@ export interface SolarVisual {
   fired: boolean;
 }
 interface VineCue {
-  origin:{x:number;y:number};
+  /** Live actor body: the vine cannot detach when Venusaur recoils. */
+  body:{x:number;y:number};
   dir:{x:number;y:number};
   startAt:number;
   length:number;
@@ -64,8 +68,8 @@ export class VenusaurFx {
     this.ink.clear();this.screen.setAlpha(0);
   }
 
-  whip(origin:{x:number;y:number},dir:{x:number;y:number},time:number,length=174):void{
-    this.vines.push({origin:{...origin},dir:{...dir},startAt:time,length});
+  whip(body:{x:number;y:number},dir:{x:number;y:number},time:number,length=174):void{
+    this.vines.push({body,dir:{...dir},startAt:time,length});
     if(this.vines.length>6)this.vines.shift();
   }
 
@@ -111,6 +115,33 @@ export class VenusaurFx {
     this.tile(x-dx*17*scale,y-dy*17*scale,LEAF_DARK);
   }
 
+  /**
+   * A real V-shaped boomerang, not a diamond or flat oval.
+   * Each swept wing grows from the same beak and spins while flying.
+   */
+  private boomerang(x:number,y:number,dx:number,dy:number,
+    spin:number,scale=1):void{
+    const dir={x:dx,y:dy};
+    for(const wing of [-1,1] as const){
+      for(let i=0;i<=9;i++){
+        const t=i/9;
+        const offset=boomerangWingOffset(dir,spin,wing,t,scale);
+        const px=x+offset.x,py=y+offset.y;
+        const radius=t>0.81?5:t<0.23?8:7;
+        this.tile(px,py,LEAF_DARK,Math.max(4,Math.round(radius*scale+2)));
+        this.tile(px-2,py-2,i%4===0?LEAF_LIGHT:LEAF,
+          Math.max(4,Math.round((radius-2)*scale+2)));
+        if(i%3===1&&t>0.3&&t<0.86)
+          this.tile(px-dy*5*scale,py+dx*5*scale,
+            0xb2e66c,Math.max(4,Math.round(4*scale)));
+      }
+      const tip=boomerangWingOffset(dir,spin,wing,1,scale);
+      this.tile(x+tip.x,y+tip.y,0xe2f7ac,4);
+    }
+    const nose=boomerangWingOffset(dir,spin,1,0,scale);
+    this.tile(x+nose.x,y+nose.y,0xe4ffac,Math.max(4,Math.round(5*scale)));
+  }
+
   private ring(x:number,y:number,r:number,color:number,step=24):void{
     for(let i=0;i<step;i++){
       const a=i*Math.PI*2/step;
@@ -123,22 +154,31 @@ export class VenusaurFx {
     const growth=clamp(age/125,0,1)*clamp((400-age)/165,0,1);
     const length=cue.length*growth;
     if(length<1)return;
+    const root=vineRoot(cue.body);
     const {x:dx,y:dy}=cue.dir,nx=-dy,ny=dx;
-    for(const side of [-1,1]){
-      for(let i=0;i<=27;i++){
-        const t=i/27;
-        const sideways=side*(11+10*t)+Math.sin(t*10+age*0.019+side)*10*t;
-        const px=cue.origin.x+dx*length*t+nx*sideways;
-        const py=cue.origin.y+dy*length*t+ny*sideways;
-        this.tile(px,py,LEAF_DARK,8);
-        this.tile(px-2,py-2,i%4===0?LEAF_LIGHT:LEAF,4);
-        if(i>4&&i<26&&i%5===0){
-          this.tile(px+nx*(side*10),py+ny*(side*10),LEAF_LIGHT,6);
+    const sweep=(t:number,side:-1|1):number=>
+      side*(7*t+14*t*t)+Math.sin(t*10+age*0.019+side)*9*t;
+    // The joint begins inside the leaf canopy; both arms share this base.
+    this.tile(root.x-3,root.y-3,LEAF_DARK,12);
+    this.tile(root.x,root.y,LEAF_LIGHT,6);
+    for(const side of [-1,1] as const){
+      for(let i=0;i<=28;i++){
+        const t=i/28;
+        const sideways=sweep(t,side);
+        const px=root.x+dx*length*t+nx*sideways;
+        const py=root.y+dy*length*t+ny*sideways;
+        this.tile(px,py,LEAF_DARK,t<0.16?10:8);
+        this.tile(px-2,py-2,i%4===0?LEAF_LIGHT:LEAF,5);
+        if(i>4&&i<25&&i%5===0){
+          const leafX=px+nx*(side*10),leafY=py+ny*(side*10);
+          this.tile(leafX,leafY,LEAF,8);
+          this.tile(leafX+dx*4,leafY+dy*4,LEAF_LIGHT,5);
         }
       }
-      const tipX=cue.origin.x+dx*length+nx*side*21;
-      const tipY=cue.origin.y+dy*length+ny*side*21;
-      this.leaf(tipX,tipY,dx,dy,0.65);
+      const bend=sweep(1,side);
+      const tipX=root.x+dx*length+nx*bend;
+      const tipY=root.y+dy*length+ny*bend;
+      this.leaf(tipX,tipY,dx,dy,0.64);
     }
   }
 
@@ -207,13 +247,22 @@ export class VenusaurFx {
     const dx=shot.velocity.x/length,dy=shot.velocity.y/length;
     const nx=-dy,ny=dx;
     if(shot.kind==='leaf'){
-      const sway=Math.sin(time*0.018+x*0.017)*7;
-      this.leaf(x,y,dx,dy,0.9);
-      this.leaf(x-dx*14+nx*(8+sway),y-dy*14+ny*(8+sway),dx,dy,0.58);
-      this.leaf(x-dx*23-nx*(9-sway),y-dy*23-ny*(9-sway),dx,dy,0.54);
-      for(let i=0;i<3;i++)
-        this.tile(x-dx*(28+i*12)+nx*(i%2?6:-6),
-          y-dy*(28+i*12)+ny*(i%2?6:-6),i%2?LEAF_LIGHT:LEAF,4,0.8);
+      // Three rotating boomerang blades share one real hitbox.
+      const spin=time*0.022+x*0.006+y*0.003;
+      const sway=Math.sin(spin*1.4)*6;
+      this.boomerang(x,y,dx,dy,spin,1.0);
+      this.boomerang(x-dx*21+nx*(11+sway),
+        y-dy*21+ny*(11+sway),dx,dy,-spin*0.86+1.3,0.68);
+      this.boomerang(x-dx*25-nx*(11-sway),
+        y-dy*25-ny*(11-sway),dx,dy,spin*1.06+2.4,0.64);
+      for(let i=0;i<5;i++){
+        const d=30+i*12;
+        const offset=(i%2===0?1:-1)*(6+i*2);
+        this.tile(x-dx*d+nx*offset,
+          y-dy*d+ny*offset,
+          i%3===0?0xecf9c0:i%2===0?LEAF_LIGHT:LEAF,
+          i%2===0?5:4,Math.max(0.25,0.88-i*0.15));
+      }
       return;
     }
     // Three seeds whirl around a single legitimate projectile hitbox.
@@ -312,12 +361,45 @@ export class VenusaurFx {
     }
   }
 
+  /**
+   * Pixel dashed guide and reticle. It shows the exact hitbox ray and is only
+   * visible to the local player while charging; nothing auto-aims at enemies.
+   */
+  private drawSolarGuide(cue:SolarVisual,time:number,p:number):void{
+    if(!cue.aimPoint||cue.side!=='player')return;
+    const {x,y}=cue.origin;
+    const {x:dx,y:dy}=cue.direction;
+    const reach=cue.reach;
+    if(reach<=20)return; // blocked at muzzle; no false target marker
+    const intensity=0.42+p*0.47;
+    const shift=Math.floor(time/110);
+    for(let d=34;d<reach;d+=18){
+      if((Math.floor(d/18)+shift)%4===0)continue;
+      this.tile(x+dx*d,y+dy*d,
+        (Math.floor(d/18)%3===0)?SUN_YELLOW:LEAF_LIGHT,4,intensity);
+    }
+    // Cursor is projected to the actual finite ray: no misleading crosshair
+    // past a wall, or target marker disconnected from the hitbox.
+    const point=cue.aimPoint;
+    const projection=(point.x-x)*dx+(point.y-y)*dy;
+    const d=clamp(projection,16,reach);
+    const cx=x+dx*d,cy=y+dy*d;
+    const size=13+2*Math.sin(time*0.011);
+    for(const s of [-1,1]){
+      this.tile(cx+s*size,cy,SUN_GREEN,5,intensity);
+      this.tile(cx,cy+s*size,SUN_GREEN,5,intensity);
+      this.tile(cx+s*size*0.68,cy+s*size*0.68,LEAF_LIGHT,4,intensity);
+    }
+    this.tile(cx,cy,SUN_YELLOW,4,0.72);
+  }
+
   private drawSolarCharge(cue:SolarVisual,time:number):number{
     const elapsed=clamp(time-cue.startAt,0,cue.releaseAt-cue.startAt);
     const duration=Math.max(1,cue.releaseAt-cue.startAt);
     const p=elapsed/duration;
     const x=cue.origin.x,y=cue.origin.y;
     const core=SUN_GREEN;
+    this.drawSolarGuide(cue,time,p);
     this.ring(x,y,22+34*p,p<0.65?LEAF_LIGHT:SUN_YELLOW,28);
     if(p>0.35)this.ring(x,y,46+19*p,LEAF,32);
     if(p>0.72)this.ring(x,y,15+13*p,SUN,20);
