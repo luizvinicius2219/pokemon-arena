@@ -76,7 +76,10 @@ for(const [name,condition] of [
   ['Bomba de Sementes',abilities.includes("e:{name:'Bomba de Sementes'")],
   ['Raio Solar',abilities.includes("r:{name:'Raio Solar'")],
   ['Renderizador pixel art',fx.includes("const GRID=4")],
-  ['Sem mira automática do jogador',arena.includes('All player attacks aim at the player\'s pointer')]
+  ['Sem mira automática do jogador',
+    arena.includes('const plantAim=aimAtPoint(venusaurOrigin,')&&
+    arena.includes('{x:pointer.worldX,y:pointer.worldY},this.playerFacing')&&
+    arena.includes('nextDir=aimAtPoint(flowerCenter(caster)')]
 ]){
   if(!condition)failures.push(name+' não configurado');
 }
